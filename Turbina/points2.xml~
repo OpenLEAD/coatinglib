@@ -1,0 +1,72 @@
+<Environment>
+  <KinBody name= "pa1">
+    <Body>
+        <Geom type="trimesh">
+            <collision>pa1.wrl</collision>
+            <Translation>0 0 0</Translation>
+           <RotationAxis>1 0 0 225</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+ <KinBody name= "pa4">
+    <Body>
+        <Geom type="trimesh">
+            <collision>pa1.wrl</collision>
+            <Translation>0 0 0</Translation>
+	    <RotationAxis>1 0 0 135</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+
+
+ <KinBody name= "pa3">
+    <Body>
+        <Geom type="trimesh">
+            <collision>pa1.wrl</collision>
+            <Translation>0 0 0</Translation>
+		<RotationAxis>1 0 0 45</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+ <KinBody name= "pa2">
+    <Body>
+        <Geom type="trimesh">
+            <collision>pa1.wrl</collision>
+            <Translation>0 0 0</Translation>
+           <RotationAxis>1 0 0 315</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+
+ <KinBody name= "rotor">
+    <Body>
+        <Geom type="trimesh">
+            <collision>rotor.wrl</collision>
+            <Translation>0 0 0</Translation>
+		<RotationAxis>1 0 0 45</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+ <KinBody name= "arocamara">
+    <Body>
+        <Geom type="trimesh">
+            <collision>arocamara.wrl</collision>
+            <Translation>0 0 0</Translation>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+  <KinBody name= "iris">
+    <Body>
+        <Geom type="trimesh">
+            <collision>iris.wrl</collision>
+            <Translation>0 0 0</Translation>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+</Environment>

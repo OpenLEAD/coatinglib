@@ -1,0 +1,143 @@
+<Robot name="SIA20D"> 
+ <KinBody>
+   <Body name="Base" type="dynamic">
+     <Geom type="trimesh">
+        <collision>base.wrl</collision>
+     </Geom>
+   </Body> 
+
+   <Body name="Arm0" type="dynamic">
+     <offsetfrom>Base</offsetfrom>
+     <Geom type="trimesh">
+        <collision>1.wrl</collision>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J0" type="hinge">
+     <Body>Base</Body>
+     <Body>Arm0</Body>
+     <offsetfrom>Arm0</offsetfrom>
+     <weight>4</weight>
+     <limitsdeg>-180 180</limitsdeg>
+     <axis>0 1 0</axis>
+     <maxvel>3</maxvel>
+     <resolution>0.1</resolution>
+   </Joint>
+
+   <Body name="Arm1" type="dynamic">
+     <offsetfrom>Arm0</offsetfrom>
+     <Geom type="trimesh">
+        <collision>2.wrl</collision>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J1" type="hinge">
+     <Body>Arm0</Body>
+     <Body>Arm1</Body>
+     <offsetfrom>Arm1</offsetfrom>
+     <anchor>0 0.41 0</anchor>
+     <limitsdeg>-110 110</limitsdeg>
+     <axis>0 0 1</axis>
+     <maxvel>4</maxvel>
+     <resolution>0.5</resolution>
+   </Joint>
+ 
+   <Body name="Arm2" type="dynamic">
+     <offsetfrom>Arm1</offsetfrom>
+     <Geom type="trimesh">
+        <collision>3.wrl</collision>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J2" type="hinge">
+     <Body>Arm1</Body>
+     <Body>Arm2</Body>
+     <offsetfrom>Arm2</offsetfrom>
+     <anchor>0 0.655 0</anchor>
+     <weight>3</weight>
+     <limitsdeg>-170 170</limitsdeg>
+     <axis>0 1 0</axis>
+     <maxvel>2</maxvel>
+     <resolution>0.5</resolution>
+   </Joint>
+ 
+   <Body name="Arm3" type="dynamic">
+     <offsetfrom>Arm2</offsetfrom>
+     <Geom type="trimesh">
+        <collision>4.wrl</collision>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J3" type="hinge">
+     <Body>Arm2</Body>
+     <Body>Arm3</Body>
+     <offsetfrom>Arm3</offsetfrom>
+     <anchor>0 0.9 0</anchor>
+     <weight>3</weight>
+     <limitsdeg>-130 130</limitsdeg>
+     <axis>0 0 -1</axis>
+     <maxvel>2</maxvel>
+     <resolution>0.5</resolution>
+   </Joint>
+   
+   <Body name="Arm4" type="dynamic">
+     <offsetfrom>Arm3</offsetfrom>
+     <Geom type="trimesh">
+        <collision>5.wrl</collision>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J4" type="hinge">
+     <Body>Arm3</Body>
+     <Body>Arm4</Body>
+     <offsetfrom>Arm4</offsetfrom>
+     <anchor>0 1.11 0</anchor>
+     <weight>3</weight>
+     <limitsdeg>-180 180</limitsdeg>
+     <axis>0 1 0</axis>
+     <maxvel>2</maxvel>
+     <resolution>0.5</resolution>
+   </Joint>
+
+   <Body name="Arm5" type="dynamic">
+     <offsetfrom>Arm4</offsetfrom>
+     <Geom type="trimesh">
+        <collision>6.wrl</collision>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J5" type="hinge">
+     <Body>Arm4</Body>
+     <Body>Arm5</Body>
+     <offsetfrom>Arm5</offsetfrom>
+     <anchor>0 1.32 0</anchor>
+     <weight>3</weight>
+     <limitsdeg>-110 110</limitsdeg>
+     <axis>0 0 1</axis>
+     <maxvel>2</maxvel>
+     <resolution>0.5</resolution>
+   </Joint>
+
+   <Body name="Arm6" type="dynamic">
+     <offsetfrom>Arm5</offsetfrom>
+     <Translation>0 1.65 0</Translation>
+     <Geom type="cylinder">
+       <radius>0.05</radius>
+       <height>0.30</height>
+       <diffuseColor>0 0 0</diffuseColor>
+     </Geom>
+   </Body>
+   <Joint circular="false" name="J6" type="hinge">
+     <Body>Arm5</Body>
+     <Body>Arm6</Body>
+     <offsetfrom>Arm6</offsetfrom>
+     <weight>3</weight>
+     <limitsdeg>-180 180</limitsdeg>
+     <axis>0 1 0</axis>
+     <maxvel>2</maxvel>
+     <resolution>0.5</resolution>
+   </Joint>
+
+ </KinBody>
+
+ <Manipulator name="arm">
+   <effector>Arm6</effector>  
+   <Translation>0 0.15 0</Translation> 
+   <base>Base</base>           
+ </Manipulator>
+
+</Robot>

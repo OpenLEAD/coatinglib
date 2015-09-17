@@ -1,0 +1,16 @@
+<Environment>
+    <camtrans>-10 5 -0.5</camtrans>
+    <camrotationaxis>-0.367456 0.707646 -0.603502 140.703572</camrotationaxis>
+    <camfocal>10.009866</camfocal>
+
+  <KinBody name= "pa1">
+    <Body>
+        <Geom type="trimesh">
+            <collision>pa1.wrl</collision>
+            <Translation>0 0 0</Translation>
+           <RotationAxis>1 0 0 180</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+</Environment>
