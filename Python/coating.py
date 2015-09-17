@@ -216,28 +216,37 @@ def RxM(T,theta):  # Rotate robot in X axis (world frame), given matrix T of the
          [v1R[2],v2R[2],v3R[2],T[2][3]],[0,0,0,1]]
     return T
 
-def KinematicSolve(bladepoint,ikmodel,facevector): # Solve inverse kinematics for specific point, normal vector, robot, and vector to face normal vector of the blade
-     T = genTransform(bladepoint,facevector)
-     iksol = ikmodel.manip.FindIKSolutions(T,IkFilterOptions.CheckEnvCollisions)
-     if len(iksol)>0:
-          iksolpositive = []
-          for sol in iksol:
-               #for i in range(0,len(sol)):
-                    #if sol[i]<0:sol[i]+=2*math.pi
-               iksolpositive.append(sol)     
-          reachableRays = bladepoint
-          iksolList = iksol
-          return iksol, True
-     else:
-          return iksol, False    
 
-def AllKinematicSolve(bladepoints,ikmodel,facevector): # Solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade
+def defaultSolve(ikmodel, T):
+    iksol = ikmodel.manip.FindIKSolutions(T,IkFilterOptions.CheckEnvCollisions)
+    if len(iksol)>0:
+        #iksolpositive = []
+        #for sol in iksol:
+           #for i in range(0,len(sol)):
+                #if sol[i]<0:sol[i]+=2*math.pi
+           #iksolpositive.append(sol)     
+        return iksol, True
+    else:
+        return iksol, False
+    
+def KinematicSolve(bladepoint,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for specific point, normal vector, robot, and vector to face normal vector of the blade
+     T = genTransform(bladepoint,facevector)
+     iksol, answer = defaultSolve(ikmodel, T)
+     if answer: return iksol, answer
+     else: 
+         if coatingdistancetolerance!=0:
+             bladepoint[0:3] = bladepoint[0:3]+coatingdistancetolerance*bladepoint[3:6]
+             T = genTransform(bladepoint,facevector)
+             iksol, answer = defaultSolve(ikmodel, T)
+     return iksol, answer        
+
+def AllKinematicSolve(bladepoints,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade
      reachableRays=zeros((0,6))
      iksolList = []
      indexlist = zeros((len(bladepoints),1),dtype=bool)
      i=0
      for ray in bladepoints:
-        iksol, index = KinematicSolve(ray,ikmodel,facevector)
+        iksol, index = KinematicSolve(ray,ikmodel,facevector,coatingdistancetolerance)
         if len(iksol)>0:
             reachableRays = vstack((reachableRays,ray))
             for ik in iksol:
@@ -246,7 +255,7 @@ def AllKinematicSolve(bladepoints,ikmodel,facevector): # Solve inverse kinematic
         i+=1    
      return reachableRays, iksolList, indexlist
 
-def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta): # Pose the robot and solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade.
+def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0): # Pose the robot and solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade.
     thetaX = theta[0]
     thetaY = theta[1]
     thetaZ = theta[2]
@@ -257,22 +266,24 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
     robot.SetTransform(Tn)
     reachableRays=zeros((0,6))
     iksolList = []
-    indexlist = []
+    indexlist = zeros((len(bladepoints),1),dtype=bool)
+    i=0
     for bladepoint in bladepoints:
-          ik, index = KinematicSolve(bladepoint,ikmodel,facevector)
+          ik, index = KinematicSolve(bladepoint,ikmodel,facevector,coatingdistancetolerance)
           if index:
                iksolList.append(ik)
                reachableRays = vstack((reachableRays,bladepoint))
-          indexlist.append(index)
+          indexlist[i]=index
+          i+=1
     return reachableRays, iksolList, indexlist
 
-def BestBaseDistance(robotpose,initialdistance,bladepoints,robot,ikmodel,facevector,theta): # Computes best robot position to coat blade points
+def BestBaseDistance(robotpose,initialdistance,bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0): # Computes best robot position to coat blade points
     distance = initialdistance
     reachableRays=zeros((0,6))
     bestDistance = 0
     for i in range(0,181):
         distance = initialdistance + 1.0*i/100
-        tempReachableRays, iksolList = WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta)
+        tempReachableRays, iksolList = WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance)
         if len(tempReachableRays) > len(reachableRays):
             reachableRays = tempReachableRays
             bestDistance = distance
@@ -309,7 +320,7 @@ def genRays(numberofangles,normal,p,newpoint,distance): # Generate points that a
           newbladepoints = vstack((newbladepoints,ray))
      return newbladepoints
 
-def TryCoatnonNormalCoatPoint(pointnormal, distance, numberofangles, tolerance, ikmodel, facevector): # try to coat point that were not coated with tolerance
+def TryCoatnonNormalCoatPoint(pointnormal, distance, numberofangles, tolerance, ikmodel, facevector,coatingdistancetolerance=0.01): # try to coat point that were not coated with tolerance
      normal = pointnormal[3:6]
      point = pointnormal[0:3]
      newpoint = point-distance*normal
@@ -323,21 +334,21 @@ def TryCoatnonNormalCoatPoint(pointnormal, distance, numberofangles, tolerance, 
 
      newbladepoints=genRays(numberofangles,v1,p,newpoint,distance)
      
-     reachableRays, iksolList, _ = AllKinematicSolve(newbladepoints,ikmodel,facevector)
+     reachableRays, iksolList, _ = AllKinematicSolve(newbladepoints,ikmodel,facevector,coatingdistancetolerance)
 
      if len(reachableRays)>0:
           return True, iksolList
      else:
           return False, iksolList
 
-def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, tolerance, ikmodel, facevector): # try to coat all points with tolerance
+def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, tolerance, ikmodel, facevector,coatingdistancetolerance=0.01): # try to coat all points with tolerance
      AllreachableRays=zeros((0,6))
      AlliksolList = []
      indexlist = zeros((len(approachrays),1),dtype=bool)
      i=0
      for index in indexreachableRays:
           if not index:
-               answer, iksol = TryCoatnonNormalCoatPoint(approachrays[i], distance, numberofangles, tolerance, ikmodel, facevector)
+               answer, iksol = TryCoatnonNormalCoatPoint(approachrays[i], distance, numberofangles, tolerance, ikmodel, facevector,coatingdistancetolerance)
                if answer:
                     AllreachableRays = vstack((AllreachableRays,approachrays[i]))
                     AlliksolList.append(iksol)
@@ -398,12 +409,12 @@ def nearPointsByNumberOfPoints(arraylist): # find the 8 nearest points
      nearlist = []
      n=len(arraylist)
      k=0
-     for array in arraylist:
+     for arrays in arraylist:
           nearpoints = []
-          nearpoints.append(array)
+          nearpoints.append(arrays)
           dist = []
           for i in range(0,len(arraylist)):
-               arrayp = array([array[0],array[1],array[2]])
+               arrayp = array([arrays[0],arrays[1],arrays[2]])
                arraylistp = array([arraylist[i][0],arraylist[i][1],arraylist[i][2]])
                dist.append(linalg.norm(arrayp-arraylistp))
           thelist = [x for (y,x) in sorted(zip(dist,arraylist), key=lambda pair: pair[0])]     
@@ -411,7 +422,7 @@ def nearPointsByNumberOfPoints(arraylist): # find the 8 nearest points
                nearpoints.append(thelist[j])
           nearlist.append(nearpoints)
           k+=1
-          #print str(k)+'/'+str(n)
+          print str(k)+'/'+str(n)
      return nearlist
      
 def projectPointInPlane(pointtoproject,pointinplane,normalofplane): # projects points in given plane

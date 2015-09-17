@@ -1,6 +1,6 @@
 import coating
 import numpy
-coatedarray = numpy.load('coatedpoints.npz')
+coatedarray = numpy.load('coatedpoints0.npz')
 coatedarray  = coatedarray['array']
-nearlist = coating.nearPointsByNumberOfPoints(coatedarray[1])
-numpy.savez_compressed('nearPointsByNumberOfPoints1_8.npz', array=nearlist)
+nearlist = coating.nearPointsByNumberOfPoints(coatedarray)
+numpy.savez_compressed('nearPointsByNumberOfPoints0_HD.npz', array=nearlist)
