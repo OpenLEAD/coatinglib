@@ -222,8 +222,8 @@ def KinematicSolve(bladepoint,ikmodel,facevector): # Solve inverse kinematics fo
      if len(iksol)>0:
           iksolpositive = []
           for sol in iksol:
-               for i in range(0,len(sol)):
-                    if sol[i]<0:sol[i]+=2*math.pi
+               #for i in range(0,len(sol)):
+                    #if sol[i]<0:sol[i]+=2*math.pi
                iksolpositive.append(sol)     
           reachableRays = bladepoint
           iksolList = iksol
