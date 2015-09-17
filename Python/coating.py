@@ -230,15 +230,15 @@ def defaultSolve(ikmodel, T):
         return iksol, False
     
 def KinematicSolve(bladepoint,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for specific point, normal vector, robot, and vector to face normal vector of the blade
-     T = genTransform(bladepoint,facevector)
-     iksol, answer = defaultSolve(ikmodel, T)
-     if answer: return iksol, answer
-     else: 
-         if coatingdistancetolerance!=0:
-             bladepoint[0:3] = bladepoint[0:3]+coatingdistancetolerance*bladepoint[3:6]
-             T = genTransform(bladepoint,facevector)
-             iksol, answer = defaultSolve(ikmodel, T)
-     return iksol, answer        
+    T = genTransform(bladepoint,facevector)
+    iksol, answer = defaultSolve(ikmodel, T)
+    if coatingdistancetolerance!=0:
+        bladepoint[0:3] = bladepoint[0:3]+coatingdistancetolerance*bladepoint[3:6]
+        T = genTransform(bladepoint,facevector)
+        iksol2, answer2 = defaultSolve(ikmodel, T)
+    iksol = concatenate((iksol,iksol2))
+    answer = answer or answer2
+    return iksol, answer        
 
 def AllKinematicSolve(bladepoints,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade
      reachableRays=zeros((0,6))
