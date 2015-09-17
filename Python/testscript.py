@@ -55,12 +55,11 @@ for i in range(0,len(omegas)):
         nonFeasibleOmegas.append(omegas[i])
         nonFeasibleAlphas.append(alphas[i])
         nonFeasibleThetas.append(thetas[i])
+
 nonFeasibleReferences = []
 FeasibleReferences = []
-
 for nonFeasiblePoint in nonFeasiblePoints:
     nonFeasibleReferences.append(nonFeasiblePoint[0][0])
-
 for FeasiblePoint in FeasiblePoints:
     FeasibleReferences.append(FeasiblePoint[0][0])    
 
@@ -87,4 +86,4 @@ Axes3D.scatter(ax, nxarray, nyarray, nzarray,c='r')
 #Axes3D.scatter(ax, xarray, yarray, zarray)
 ax.axis("off")
 
-plt.show()
+#plt.show()
