@@ -17,20 +17,14 @@ manip = robot.GetActiveManipulator()
 facevector = [1,0,0]
 theta = [0,0,0]
 coatingdistance = 0.23 # coating distance
+coatingdistancetolerance = 0.01
 robottobladedistance = -0.3 # robot to blade distance
 numberofangles = 8 # degree step
 tolerance = 20 # degrees
 alpha = 1.0*pi/180; #degree blade step
 
 
-#pN = numpy.array([-1.412,-2.567,-0.617])# Extremo esquerdo superior
-
-#pN = numpy.array([-0.576,-2.984,0.106])# Extremo direito superior
-
-#pN = numpy.array([-0.4,-3.573,0.26])# Extremo direito inferior
-
 pN = numpy.array([ -1, -3.3, 0 ])
-
 normal = [-1,0,0]
 pN = numpy.concatenate((pN,normal))
 
@@ -52,7 +46,8 @@ ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=
 if not ikmodel.load():
     ikmodel.autogenerate()
 
-approachrays = load('bladepoints16Back.npz')
+#approachrays = load('bladepoints16Back.npz')
+approachrays = load('bladepointsTEST2.npz')
 approachrays = approachrays['array']
 N = approachrays.shape[0]
 
@@ -88,9 +83,9 @@ for pos in BladePositions:
     gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
 
     # Compute Solutions
-    reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta)
+    reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta,coatingdistancetolerance)
     #EXTRA COATING
-    AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays,indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector)
+    AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays,indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
 
     # Index List
     indexlistblack = indexlistblack|indexlist1

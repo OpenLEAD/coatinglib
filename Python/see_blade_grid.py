@@ -6,7 +6,8 @@ import time
 
 env=Environment()
 env.SetViewer('qtcoin')
-env.Load("/home/renan/Documents/EMMA/Turbina/env_motoman0.xml")
+env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
+#env.Load("/home/renan/Documents/EMMA/Turbina/env_motoman0.xml")
 target = env.GetBodies()[0]
 
 # PARAMETERS
@@ -24,7 +25,7 @@ with env:
    # Ttarget = target.GetTransform()
 
     #approachrays2 = load('bladepointsLeft2.npz')
-    approachrays2 = load('bladepointsMotoman0.npz')
+    approachrays2 = load('bladepointsTEST2.npz')
     approachrays2 = approachrays2['array']
     N2 = approachrays2.shape[0]
     Ttarget = target.GetTransform()
