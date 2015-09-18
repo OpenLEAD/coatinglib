@@ -608,11 +608,22 @@ def AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector
          i+=1
          print str(i)+'/'+str(n)
      return alphas, omegas,Thetas
+
+def alphaCalc2(omegas, deltasT):
+    alphas=[]
+    for i in range(0,len(omegas)):
+        alpha=[]
+        for j in range(0,len(omegas[i])):
+            alpha.append(2*(omegas[i][j][0]-omegas[i][j][1])/(deltasT[i][j][0]+deltasT[i][j][1]))
+        alphas.append(alpha)
+    return alphas
  
 def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,alltriopoints,deltasT):
      NewOmegas=[]
+     Jacobs = []
      for i in range(0,len(thetas)):
          NewOmega = []
+         Jacob = []
          for j in range(0,len(thetas[i])):
              Omega = []
              robot.SetDOFValues(thetas[i][j][1],ikmodel.manip.GetArmIndices())
@@ -629,6 +640,28 @@ def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,alltriopoints,deltasT):
              v2=concatenate((v2,array([0,0,0])))
              Omega.append(dot(invJ,v1))
              Omega.append(dot(invJ,v2))
+             Jacob.append(J)
              NewOmega.append(Omega)
+         Jacobs.append(Jacob)
          NewOmegas.append(NewOmega)     
-     return NewOmegas
+     return NewOmegas, Jacobs
+
+def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,alltriopoints,deltasT,Jacobs):
+     NewAlphas=[]
+     Jacobs = []
+     for i in range(0,len(thetas)):
+         NewOmega = []
+         Jacob = []
+         for j in range(0,len(thetas[i])):
+             Omega = []
+             robot.SetDOFValues(thetas[i][j][1],ikmodel.manip.GetArmIndices())
+             Tmanip = manip.GetEndEffectorTransform()
+             position = array([Tmanip[0][3],Tmanip[1][3],Tmanip[2][3]])
+             H = robot.ComputeHessianTranslation(6,position)
+             Jacob.append(J)
+             NewOmega.append(Omega)
+         Jacobs.append(Jacob)
+         NewOmegas.append(NewOmega)     
+     return NewOmegas, Jacobs
+
+ def     
