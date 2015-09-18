@@ -10,8 +10,8 @@ nearlist  = nearlist['array']
 allangles = load('allangles0_8.npz')
 allangles  = allangles['array']
 
-alltriopoints = load('alltriopoints0.npz')
-alltriopoints  = alltriopoints['array']
+nonFeasiblePoints = load('nonFeasiblePoints0.npz')
+nonFeasiblePoints  = nonFeasiblePoints['array']
 
 deltasT = load('deltasT0.npz')
 deltasT  = deltasT['array']

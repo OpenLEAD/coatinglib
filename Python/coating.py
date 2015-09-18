@@ -236,8 +236,9 @@ def KinematicSolve(bladepoint,ikmodel,facevector,coatingdistancetolerance=0): # 
         bladepoint[0:3] = bladepoint[0:3]+coatingdistancetolerance*bladepoint[3:6]
         T = genTransform(bladepoint,facevector)
         iksol2, answer2 = defaultSolve(ikmodel, T)
-    iksol = concatenate((iksol,iksol2))
-    answer = answer or answer2
+        if answer2:
+            iksol = concatenate((iksol,iksol2))
+            answer = answer or answer2
     return iksol, answer        
 
 def AllKinematicSolve(bladepoints,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade
@@ -464,7 +465,7 @@ def computeAllAngularDistances(allpoints):
      for points in allpoints:
           allangles.append(computeAngularDistances(points))
           i+=1
-          #print str(i)+'/'+str(n)
+          print str(i)+'/'+str(n)
      return allangles     
 
 def clusteringNearestAngles(angles,nearlist):
@@ -570,9 +571,9 @@ def minimize1AngularVelocity(iksol1,iksols2):
                minis = [iksol1,iksol2]
      return minis
 
-def alphaCalc(triopoint,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltaT):
-     _, thetas1, indexlist = WorkspaceOnPose(pN, robottobladedistance, triopoint,robot,ikmodel,facevector,theta)
-     _, thetas2, indexlist2  = AllExtraCoating2(triopoint,indexlist,coatingdistance,numberofangles,tolerance,ikmodel,facevector)
+def alphaCalc(triopoint,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltaT,coatingdistancetolerance=0):
+     _, thetas1, indexlist = WorkspaceOnPose(pN, robottobladedistance, triopoint,robot,ikmodel,facevector,theta,coatingdistancetolerance)
+     _, thetas2, indexlist2  = AllExtraCoating2(triopoint,indexlist,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
      thetas=iksolsSort(indexlist,indexlist2,thetas1,thetas2,ikmodel)
      minis=minimize2AngularVelocity(thetas[0],thetas[1])
      minis2=minimize1AngularVelocity(minis[0],thetas[2])
@@ -584,7 +585,7 @@ def alphaCalc(triopoint,pN, robottobladedistance,robot,ikmodel,facevector,theta,
      alpha = (omega1-omega2)/((deltaT[0]+deltaT[1])/2)
      return alpha,omega1,omega2,Thetas
 
-def AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT):               
+def AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT,coatingdistancetolerance=0):               
      alphas = []
      omegas = []
      Thetas = []
@@ -596,7 +597,7 @@ def AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector
          omega = []
          Theta = []
          for triopoint in triopoints:
-             alpha0,omega1,omega2,thetas = alphaCalc(triopoint,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT[i][j])
+             alpha0,omega1,omega2,thetas = alphaCalc(triopoint,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT[i][j],coatingdistancetolerance)
              alpha.append(alpha0)
              omega.append(array([omega1,omega2]))
              Theta.append(thetas)

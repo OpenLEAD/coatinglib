@@ -6,26 +6,26 @@ from mpl_toolkits.mplot3d import Axes3D
 from math import *
 
 # Get poinst for coating
-nearlist = load('nearPointsByNumberOfPoints0_8.npz')
+nearlist = load('nearPointsByNumberOfPoints0_HD.npz')
 nearlist = nearlist['array']
 
-allangles = load('allangles0_8.npz')
+allangles = load('allangles0_HD.npz')
 allangles = allangles['array']
 
-omegas = load('omegas0.npz')
+omegas = load('NewOmegas0_HD.npz')
 omegas = omegas['array']
 
-NewOmegas = load('NewOmegas0.npz')
-NewOmegas = NewOmegas['array']
+#NewOmegas = load('NewOmegas0_HD.npz')
+#NewOmegas = NewOmegas['array']
 
 
-alphas = load('alphas0.npz')
+alphas = load('alphas0_HD.npz')
 alphas = alphas['array']
 
-alltriopoints = load('alltriopoints0.npz')
+alltriopoints = load('alltriopoints0_HD.npz')
 alltriopoints = alltriopoints['array']
 
-thetas = load('thetas0.npz')
+thetas = load('thetas0_HD.npz')
 thetas = thetas['array']
 
 maxOmega = 1.0*pi/180*array([220,200,220,410,410,610])
@@ -83,7 +83,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 Axes3D.scatter(ax, nxarray, nyarray, nzarray,c='r')
-#Axes3D.scatter(ax, xarray, yarray, zarray)
+Axes3D.scatter(ax, xarray, yarray, zarray)
 ax.axis("off")
 
-#plt.show()
+plt.show()
