@@ -2,8 +2,8 @@ import coating
 import numpy
 
 # Get poinst for coating
-nearlist = numpy.load('nearPointsByNumberOfPoints1_8.npz')
+nearlist = numpy.load('nearPointsByNumberOfPoints0_HD.npz')
 nearlist  = nearlist['array']
 
 allangles = coating.computeAllAngularDistances(nearlist)
-numpy.savez_compressed('allangles1_8.npz', array=allangles)
+numpy.savez_compressed('allangles0_HD.npz', array=allangles)

@@ -4,16 +4,16 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-nearlist = load('nearPointsByNumberOfPoints0_8.npz')
+nearlist = load('nearPointsByNumberOfPoints0_HD.npz')
 nearlist  = nearlist['array']
 
-allangles = load('allangles0_8.npz')
+allangles = load('allangles0_HD.npz')
 allangles  = allangles['array']
 
-alltriopoints = load('alltriopoints0.npz')
+alltriopoints = load('alltriopoints0_HD.npz')
 alltriopoints  = alltriopoints['array']
 
-deltasT = load('deltasT0.npz')
+deltasT = load('deltasT0_HD.npz')
 deltasT  = deltasT['array']
 
 
@@ -29,6 +29,7 @@ manip = robot.GetActiveManipulator()
 facevector = [1,0,0]
 theta = [0,0,0]
 coatingdistance = 0.23 # coating distance
+coatingdistancetolerance = 0.01
 numberofangles = 8 # degree step
 tolerance = 20 # degrees
 alpha = 1.0*pi/180; #degree blade step
@@ -70,8 +71,8 @@ for body in env.GetBodies():
     body.SetTransform(dot(T,Ti[i]))
     i+=1
 
-alphas, omegas, thetas = coating.AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT)
+alphas, omegas, thetas = coating.AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT,coatingdistancetolerance)
 
-savez_compressed('omegas0.npz', array=omegas)
-savez_compressed('alphas0.npz', array=alphas)
-savez_compressed('thetas0.npz', array=thetas)
+savez_compressed('omegas0_HD.npz', array=omegas)
+savez_compressed('alphas0_HD.npz', array=alphas)
+savez_compressed('thetas0_HD.npz', array=thetas)

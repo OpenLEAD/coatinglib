@@ -4,25 +4,25 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-nearlist = load('nearPointsByNumberOfPoints0_8.npz')
+nearlist = load('nearPointsByNumberOfPoints0_HD.npz')
 nearlist  = nearlist['array']
 
-allangles = load('allangles0_8.npz')
+allangles = load('allangles0_HD.npz')
 allangles  = allangles['array']
 
-omegas = load('omegas0.npz')
+omegas = load('omegas0_HD.npz')
 omegas = omegas['array']
 
-alphas = load('alphas0.npz')
+alphas = load('alphas0_HD.npz')
 alphas = alphas['array']
 
-alltriopoints = load('alltriopoints0.npz')
+alltriopoints = load('alltriopoints0_HD.npz')
 alltriopoints = alltriopoints['array']
 
-thetas = load('thetas0.npz')
+thetas = load('thetas0_HD.npz')
 thetas = thetas['array']
 
-deltasT = load('deltasT0.npz')
+deltasT = load('deltasT0_HD.npz')
 deltasT  = deltasT['array']
 
 
@@ -82,4 +82,4 @@ for body in env.GetBodies():
 
 NewOmegas = coating.calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,alltriopoints,deltasT)
 
-savez_compressed('NewOmegas0.npz', array=NewOmegas)
+savez_compressed('NewOmegas0_HD.npz', array=NewOmegas)
