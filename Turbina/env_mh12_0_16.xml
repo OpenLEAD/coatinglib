@@ -72,7 +72,7 @@
     </Body> 
   </KinBody>
 
-  <Robot file="/home/renan/Documents/EMMA/motoman/motoman_mh122.xml" name="mh12">
+  <Robot file="/home/renan/workspace/coatinglib/motoman/motoman_mh122p.xml" name="mh12">
     	<Translation>0 0 10</Translation>
 	
   </Robot>

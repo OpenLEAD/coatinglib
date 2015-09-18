@@ -6,78 +6,71 @@ from mpl_toolkits.mplot3d import Axes3D
 from math import *
 
 # Get poinst for coating
-nearlist = load('nearPointsByNumberOfPoints0_HD.npz')
-nearlist = nearlist['array']
+Torques = load('Torques0_HD.npz')
+Torques = Torques['array']
 
-allangles = load('allangles0_HD.npz')
-allangles = allangles['array']
+FeasiblePoints = load('FeasiblePoints0_HD.npz')
+FeasiblePoints  = FeasiblePoints['array']
 
-omegas = load('NewOmegas0_HD.npz')
-omegas = omegas['array']
+FeasibleOmegas = load('FeasibleOmegas0_HD.npz')
+FeasibleOmegas  = FeasibleOmegas['array']
 
-#NewOmegas = load('NewOmegas0_HD.npz')
-#NewOmegas = NewOmegas['array']
+FeasibleAlphas = load('FeasibleAlphas0_HD.npz')
+FeasibleAlphas  = FeasibleAlphas['array']
 
+FeasibleThetas = load('FeasibleThetas0_HD.npz')
+FeasibleThetas = FeasibleThetas['array']
 
-alphas = load('alphas0_HD.npz')
-alphas = alphas['array']
+maxTorques = array([9999,9999,9999,22,22,9.8])
 
-alltriopoints = load('alltriopoints0_HD.npz')
-alltriopoints = alltriopoints['array']
-
-thetas = load('thetas0_HD.npz')
-thetas = thetas['array']
-
-maxOmega = 1.0*pi/180*array([220,200,220,410,410,610])
-
-nonFeasiblePoints = []
-nonFeasibleOmegas = []
-nonFeasibleAlphas = []
-nonFeasibleThetas = []
-FeasiblePoints = []
-FeasibleOmegas = []
-FeasibleAlphas = []
-FeasibleThetas = []
+nonFeasibleTPoints = []
+nonFeasibleTOmegas = []
+nonFeasibleTAlphas = []
+nonFeasibleTThetas = []
+FeasibleTPoints = []
+FeasibleTOmegas = []
+FeasibleTAlphas = []
+FeasibleTThetas = []
 
 
-for i in range(0,len(omegas)):
+for i in range(0,len(Torques)):
     io = 1
-    for j in range(0,len(omegas[i])):
-        if (omegas[i][j][0]<maxOmega).all()==True and (omegas[i][j][1]<maxOmega).all()==True:
-            FeasiblePoints.append(alltriopoints[i])
-            FeasibleOmegas.append(omegas[i][j])
-            FeasibleAlphas.append(alphas[i][j])
-            FeasibleThetas.append(thetas[i][j])
+    for j in range(0,len(Torques[i])):
+        if (Torques[i][j]<maxTorques).all()==True:
+            FeasibleTPoints.append(FeasiblePoints[i])
+            FeasibleTOmegas.append(FeasibleOmegas[i])
+            FeasibleTAlphas.append(FeasibleAlphas[i])
+            FeasibleTThetas.append(FeasibleThetas[i])
             io = 0
             break
     if io:
-        nonFeasiblePoints.append(alltriopoints[i])
-        nonFeasibleOmegas.append(omegas[i])
-        nonFeasibleAlphas.append(alphas[i])
-        nonFeasibleThetas.append(thetas[i])
+        nonFeasibleTPoints.append(FeasiblePoints[i])
+        nonFeasibleTOmegas.append(FeasibleOmegas[i])
+        nonFeasibleTAlphas.append(FeasibleAlphas[i])
+        nonFeasibleTThetas.append(FeasibleThetas[i])
 
-nonFeasibleReferences = []
-FeasibleReferences = []
-for nonFeasiblePoint in nonFeasiblePoints:
-    nonFeasibleReferences.append(nonFeasiblePoint[0][0])
-for FeasiblePoint in FeasiblePoints:
-    FeasibleReferences.append(FeasiblePoint[0][0])    
+nonFeasibleTReferences = []
+FeasibleTReferences = []
+for nonFeasibleTPoint in nonFeasibleTPoints:
+    nonFeasibleTReferences.append(nonFeasibleTPoint[0][0])
+for FeasibleTPoint in FeasibleTPoints:
+    FeasibleTReferences.append(FeasibleTPoint[0][0])    
 
 nxarray = []
 nyarray = []
 nzarray = []
-for nonFeasibleReference in nonFeasibleReferences:
-    nxarray.append(nonFeasibleReference[0])
-    nyarray.append(nonFeasibleReference[1])
-    nzarray.append(nonFeasibleReference[2])
+for nonFeasibleTReference in nonFeasibleTReferences:
+    nxarray.append(nonFeasibleTReference[0])
+    nyarray.append(nonFeasibleTReference[1])
+    nzarray.append(nonFeasibleTReference[2])
 
 xarray = []
 yarray = []
 zarray = []
-for FeasibleReference in FeasibleReferences:
-    xarray.append(FeasibleReference[0])
-    yarray.append(FeasibleReference[1])
-    zarray.append(FeasibleReference[2])    
+for FeasibleTReference in FeasibleTReferences:
+    xarray.append(FeasibleTReference[0])
+    yarray.append(FeasibleTReference[1])
+    zarray.append(FeasibleTReference[2])    
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -85,5 +78,10 @@ ax = fig.add_subplot(111, projection='3d')
 Axes3D.scatter(ax, nxarray, nyarray, nzarray,c='r')
 Axes3D.scatter(ax, xarray, yarray, zarray)
 ax.axis("off")
+
+savez_compressed('FeasibleTPoints0_HD.npz', array=FeasibleTPoints)
+savez_compressed('FeasibleTAlphas0_HD.npz', array=FeasibleTAlphas)
+savez_compressed('FeasibleTOmegas0_HD.npz', array=FeasibleTOmegas)
+savez_compressed('FeasibleTThetas0_HD.npz', array=FeasibleTThetas)
 
 plt.show()

@@ -4,33 +4,29 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-nearlist = load('nearPointsByNumberOfPoints0_8.npz')
-nearlist  = nearlist['array']
+FeasiblePoints = load('FeasiblePoints0_HD.npz')
+FeasiblePoints  = FeasiblePoints['array']
 
-allangles = load('allangles0_8.npz')
-allangles  = allangles['array']
+FeasibleOmegas = load('FeasibleOmegas0_HD.npz')
+FeasibleOmegas  = FeasibleOmegas['array']
 
-nonFeasiblePoints = load('nonFeasiblePoints0.npz')
-nonFeasiblePoints  = nonFeasiblePoints['array']
+FeasibleAlphas = load('FeasibleAlphas0_HD.npz')
+FeasibleAlphas  = FeasibleAlphas['array']
 
-deltasT = load('deltasT0.npz')
-deltasT  = deltasT['array']
-
+FeasibleThetas = load('FeasibleThetas0_HD.npz')
+FeasibleThetas = FeasibleThetas['array']
 
 env=Environment()
-env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
+env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
-
+env.GetPhysicsEngine().SetGravity([0,-9.8,0])
 
 
 # PARAMETERS
 facevector = [1,0,0]
 theta = [0,0,0]
-coatingdistance = 0.23 # coating distance
-numberofangles = 8 # degree step
-tolerance = 20 # degrees
 alpha = 1.0*pi/180; #degree blade step
 
 pN = array([ -1, -3.3, 0 ])
@@ -70,8 +66,17 @@ for body in env.GetBodies():
     body.SetTransform(dot(T,Ti[i]))
     i+=1
 
-alphas, omegas, thetas = coating.AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT)
-
-savez_compressed('omegas0.npz', array=omegas)
-savez_compressed('alphas0.npz', array=alphas)
-savez_compressed('thetas0.npz', array=thetas)
+n = len(FeasibleThetas)
+Torques = []
+for i in range(0,len(FeasibleThetas)):
+    Torque = []
+    for j in range(0,len(FeasibleThetas[i])):
+        robot.SetDOFValues(FeasibleThetas[i][j][1])
+        omega = (FeasibleOmegas[i][j][0]+FeasibleOmegas[i][j][1])/2
+        robot.SetDOFVelocities(omega)
+        torques = robot.ComputeInverseDynamics(FeasibleAlphas[i][j])
+        Torque.append(torques)
+    Torques.append(Torque)
+    print str(i)+'/'+str(n)
+    
+savez_compressed('Torques0_HD.npz', array=Torques)
