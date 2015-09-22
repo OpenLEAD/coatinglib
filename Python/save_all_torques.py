@@ -4,30 +4,29 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-velocities = load('linearVel0_HD.npz')
-velocities = velocities['array']
+FeasiblePoints = load('alltriopoints0_HD.npz')
+FeasiblePoints  = FeasiblePoints['array']
 
-thetas = load('thetas0_HD.npz')
-thetas = thetas['array']
+FeasibleOmegas = load('NewOmegas0_HD.npz')
+FeasibleOmegas  = FeasibleOmegas['array']
 
-deltasT = load('deltasT0_HD.npz')
-deltasT  = deltasT['array']
+FeasibleAlphas = load('NewAlphas0_HD.npz')
+FeasibleAlphas  = FeasibleAlphas['array']
 
+FeasibleThetas = load('thetas0_HD.npz')
+FeasibleThetas = FeasibleThetas['array']
 
 env=Environment()
-env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
+env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
-
+env.GetPhysicsEngine().SetGravity([0,-9.8,0])
 
 
 # PARAMETERS
 facevector = [1,0,0]
 theta = [0,0,0]
-coatingdistance = 0.23 # coating distance
-numberofangles = 8 # degree step
-tolerance = 20 # degrees
 alpha = 1.0*pi/180; #degree blade step
 
 pN = array([ -1, -3.3, 0 ])
@@ -67,8 +66,17 @@ for body in env.GetBodies():
     body.SetTransform(dot(T,Ti[i]))
     i+=1
 
-
-NewOmegas, Jacobs = coating.calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,velocities,deltasT)
-
-savez_compressed('NewOmegas0_HD.npz', array=NewOmegas)
-savez_compressed('Jacobs0_HD.npz', array=Jacobs)
+n = len(FeasibleThetas)
+Torques = []
+for i in range(0,len(FeasibleThetas)):
+    Torque = []
+    for j in range(0,len(FeasibleThetas[i])):
+        robot.SetDOFValues(FeasibleThetas[i][j][1])
+        omega = (FeasibleOmegas[i][j][0]+FeasibleOmegas[i][j][1])/2
+        robot.SetDOFVelocities(omega)
+        torques = robot.ComputeInverseDynamics(FeasibleAlphas[i][j])
+        Torque.append(torques)
+    Torques.append(Torque)
+    print str(i)+'/'+str(n)
+    
+savez_compressed('NewTorques0_HD.npz', array=Torques)

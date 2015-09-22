@@ -4,8 +4,17 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-velocities = load('linearVel0_HD.npz')
-velocities = velocities['array']
+omegas = load('omegas0_HD.npz')
+omegas = omegas['array']
+
+alphas = load('alphas0_HD.npz')
+alphas = alphas['array']
+
+omegas = load('NewOmegas0_HD.npz')
+omegas = omegas['array']
+
+Jacobs = load('Jacobs0_HD.npz')
+Jacobs = Jacobs['array']
 
 thetas = load('thetas0_HD.npz')
 thetas = thetas['array']
@@ -13,6 +22,8 @@ thetas = thetas['array']
 deltasT = load('deltasT0_HD.npz')
 deltasT  = deltasT['array']
 
+accelerations = load('linearAcc0_HD.npz')
+accelerations  = accelerations['array']
 
 env=Environment()
 env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
@@ -67,8 +78,7 @@ for body in env.GetBodies():
     body.SetTransform(dot(T,Ti[i]))
     i+=1
 
+Alphas,Hessians = coating.calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,deltasT,Jacobs)
 
-NewOmegas, Jacobs = coating.calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,velocities,deltasT)
-
-savez_compressed('NewOmegas0_HD.npz', array=NewOmegas)
-savez_compressed('Jacobs0_HD.npz', array=Jacobs)
+savez_compressed('NewAlphas0_HD.npz', array=Alphas)
+savez_compressed('Hessians0_HD.npz', array=Hessians)

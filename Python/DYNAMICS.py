@@ -1,0 +1,11 @@
+# Scripts to compute torques:
+# 1 - Generate and save the coatedpoints from "mh12_move_robot.py"
+# 2 - Save neighbors from "getnearpoints.py"
+# 3 - Save angles between neighbors from "getangles.py"
+# 4 - Save 'trios' (three adjacent points) and time to cross adjacent points with 40m/min velocity from "save_alltriopoint.py"
+# 5 - Save q, dq and d(dq) [numerical computation of joint angles, joint velocities and joint accelerations] from "save_omegas_and_alphas.py"
+# 6 - Save dx and d(dx) [numerical computation of end-effector velocities and accelerations] from "save_linear_velocities_and_accelerations.py"
+# 7 - Save Jacobians (J) and joint velocities [analytical computation of joint velocities] from "save_jacobians.py"
+# 8 - Save Hessian (H) and joint accelerations [analytical computation of joint accelerations] from "save_acc_by_hessian.py"
+# 9 - Save joint torques [compute joint torques] from "save_all_torques.py"
+# 10 - Print feasible torques [plot torques <= (22,22) N.m] from "print_Torques.py"
