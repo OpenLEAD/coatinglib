@@ -618,7 +618,7 @@ def alphaCalc2(omegas, deltasT):
         alphas.append(alpha)
     return alphas
  
-def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,alltriopoints,deltasT):
+def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,velocities,deltasT):
      NewOmegas=[]
      Jacobs = []
      for i in range(0,len(thetas)):
@@ -631,37 +631,66 @@ def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,alltriopoints,deltasT):
              Jori = manip.CalculateAngularVelocityJacobian()
              J = concatenate((Jpos,Jori))
              invJ = linalg.pinv(J)
-             r = array([alltriopoints[i][j][0][0],alltriopoints[i][j][0][1],alltriopoints[i][j][0][2]])
-             p1 = array([alltriopoints[i][j][1][0],alltriopoints[i][j][1][1],alltriopoints[i][j][1][2]])
-             p2 = array([alltriopoints[i][j][2][0],alltriopoints[i][j][2][1],alltriopoints[i][j][2][2]])
-             v1 = (p1-r)/deltasT[i][j][0]
-             v2 = (r-p2)/deltasT[i][j][1]
-             v1=concatenate((v1,array([0,0,0])))
-             v2=concatenate((v2,array([0,0,0])))
+             v1 = velocities[i][j][0]
+             v2 = velocities[i][j][1]
              Omega.append(dot(invJ,v1))
              Omega.append(dot(invJ,v2))
              Jacob.append(J)
              NewOmega.append(Omega)
          Jacobs.append(Jacob)
-         NewOmegas.append(NewOmega)     
+         NewOmegas.append(NewOmega)
+         print str(i)+'/'+str(len(thetas))
      return NewOmegas, Jacobs
 
-def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,alltriopoints,deltasT,Jacobs):
-     NewAlphas=[]
-     Jacobs = []
+def calculateLinearVelocitiesAndAccelerations(alltriopoints,deltasT):
+    velocities=[]
+    accelerations = []
+    for i in range(0,len(alltriopoints)):
+        velocity = []
+        acceleration = []
+        for j in range(0,len(alltriopoints[i])):
+            v = []
+            r = array([alltriopoints[i][j][0][0],alltriopoints[i][j][0][1],alltriopoints[i][j][0][2]])
+            p1 = array([alltriopoints[i][j][1][0],alltriopoints[i][j][1][1],alltriopoints[i][j][1][2]])
+            p2 = array([alltriopoints[i][j][2][0],alltriopoints[i][j][2][1],alltriopoints[i][j][2][2]])
+            v1 = (p1-r)/deltasT[i][j][0]
+            v2 = (r-p2)/deltasT[i][j][1]
+            v1=concatenate((v1,array([0,0,0])))
+            v2=concatenate((v2,array([0,0,0])))
+            acc = 2.0*(v1-v2)/(deltasT[i][j][0]+deltasT[i][j][1])
+            v.append(v1)
+            v.append(v2)
+            velocity.append(v)
+            acceleration.append(acc)
+        velocities.append(velocity)
+        accelerations.append(acceleration)
+    return velocities,accelerations
+
+def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,deltasT,Jacobs):
+     #dx = Jdq -> d(dx) = Jd(dq) + dJdq
+     Hessians = []
+     Alphas = []
+     DOF = manip.GetArmDOF()
      for i in range(0,len(thetas)):
-         NewOmega = []
-         Jacob = []
+         Hessian = []
+         Alpha = []
          for j in range(0,len(thetas[i])):
-             Omega = []
+             dq1 = omegas[i][j][0]
+             dq2 = omegas[i][j][1]
              robot.SetDOFValues(thetas[i][j][1],ikmodel.manip.GetArmIndices())
              Tmanip = manip.GetEndEffectorTransform()
              position = array([Tmanip[0][3],Tmanip[1][3],Tmanip[2][3]])
-             H = robot.ComputeHessianTranslation(6,position)
-             Jacob.append(J)
-             NewOmega.append(Omega)
-         Jacobs.append(Jacob)
-         NewOmegas.append(NewOmega)     
-     return NewOmegas, Jacobs
-
- def     
+             Hpos = robot.ComputeHessianTranslation(DOF,position)
+             Hori = robot.ComputeHessianAxisAngle(DOF)
+             H = []
+             for k in range(0,len(Hpos)):
+                 H.append(concatenate((Hpos[k],Hori[k])))
+             dqdjdq = dot(dq1,dot(H,dq2))
+             acc = accelerations[i][j]
+             J = Jacobs[i][j]
+             Alpha.append(dot(linalg.pinv(J),acc-dqdjdq)) 
+             Hessian.append(H)
+         Hessians.append(Hessian)
+         Alphas.append(Alpha)
+         print str(i)+'/'+str(len(thetas))
+     return Alphas,Hessians     
