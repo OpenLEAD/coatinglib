@@ -4,16 +4,16 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-nearlist = load('nearPointsByNumberOfPoints0_HD.npz')
+nearlist = load('nearPointsByNumberOfPoints0_fullHD.npz')
 nearlist  = nearlist['array']
 
-allangles = load('allangles0_HD.npz')
+allangles = load('allangles0_fullHD.npz')
 allangles  = allangles['array']
 
-alltriopoints = load('alltriopoints0_HD.npz')
+alltriopoints = load('alltriopoints0_fullHD.npz')
 alltriopoints  = alltriopoints['array']
 
-deltasT = load('deltasT0_HD.npz')
+deltasT = load('deltasT0_fullHD.npz')
 deltasT  = deltasT['array']
 
 
@@ -73,6 +73,6 @@ for body in env.GetBodies():
 
 alphas, omegas, thetas = coating.AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltasT,coatingdistancetolerance)
 
-savez_compressed('omegas0_HD.npz', array=omegas)
-savez_compressed('alphas0_HD.npz', array=alphas)
-savez_compressed('thetas0_HD.npz', array=thetas)
+savez_compressed('omegas0_fullHD.npz', array=omegas)
+savez_compressed('alphas0_fullHD.npz', array=alphas)
+savez_compressed('thetas0_fullHD.npz', array=thetas)
