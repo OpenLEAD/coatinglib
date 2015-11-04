@@ -4,26 +4,17 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-omegas = load('omegas0_HD.npz')
-omegas = omegas['array']
+velocities = load('VelList_fullHD1.npz')
+velocities = velocities['array']
 
-alphas = load('alphas0_HD.npz')
-alphas = alphas['array']
-
-omegas = load('NewOmegas0_HD.npz')
-omegas = omegas['array']
-
-Jacobs = load('Jacobs0_HD.npz')
-Jacobs = Jacobs['array']
-
-thetas = load('thetas0_HD.npz')
+thetas = load('ThetaList_fullHD1.npz')
 thetas = thetas['array']
 
-deltasT = load('deltasT0_HD.npz')
-deltasT  = deltasT['array']
+omegas = load('OmegaList_fullHD1.npz')
+omegas  = omegas['array']
 
-accelerations = load('linearAcc0_HD.npz')
-accelerations  = accelerations['array']
+nearlist = load('nearPointsByNumberOfPoints1_fullHD.npz')
+nearlist  = nearlist['array']
 
 env=Environment()
 env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
@@ -66,9 +57,10 @@ BladePositions = [-20,-10,10,30]
 #RobotPositions = [0,0.1]
 #RobotPositions = [0,0.1,-0.1]
 RobotPositions = [0,0.1,-0.1,-0.3]
+index = 1
 
-robottobladedistance = RobotPositions[0]
-alpha = 1.0*BladePositions[0]*pi/180;
+robottobladedistance = RobotPositions[index]
+alpha = 1.0*BladePositions[index]*pi/180;
 
 T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                  [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
@@ -78,7 +70,10 @@ for body in env.GetBodies():
     body.SetTransform(dot(T,Ti[i]))
     i+=1
 
-Alphas,Hessians = coating.calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,Jacobs)
 
-savez_compressed('NewAlphas0_HD.npz', array=Alphas)
-savez_compressed('Hessians0_HD.npz', array=Hessians)
+#NewOmegas, Jacobs = coating.calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,velocities,deltasT)
+NewOmegas, Jacobs, Manipulabilities = coating.calculateOmegasbyJacobian2(robot,ikmodel,manip,thetas,velocities)
+
+savez_compressed('NewOmegas1_fullHD.npz', array=NewOmegas)
+savez_compressed('Jacobs1_fullHD.npz', array=Jacobs)
+savez_compressed('Manipulabilities1_fullHD.npz', array=Manipulabilities)

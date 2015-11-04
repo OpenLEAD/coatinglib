@@ -4,6 +4,7 @@ from openravepy import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
+from scipy.spatial import KDTree
 
 def CoordString(x): # Chooses the plane of the blade to discretize
     return {
@@ -26,7 +27,7 @@ def PointsToReach(env, target, delta, normalanglerange,directiondelta,lrtb): # D
     target.SetTransform(eye(4))
     ab = target.ComputeAABB()
     p = ab.pos()
-    e = ab.extents()#+0.02 # increase since origin of ray should be outside of object
+    e = ab.extents()+0.02 # increase since origin of ray should be outside of object
     sides = array(((0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0),
                  (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0),
                  (0,e[1],0,0,-1,0,e[0],0,0,0,0,e[2]),
@@ -219,27 +220,31 @@ def RxM(T,theta):  # Rotate robot in X axis (world frame), given matrix T of the
 
 def defaultSolve(ikmodel, T):
     iksol = ikmodel.manip.FindIKSolutions(T,IkFilterOptions.CheckEnvCollisions)
-    if len(iksol)>0:
-        #iksolpositive = []
-        #for sol in iksol:
-           #for i in range(0,len(sol)):
-                #if sol[i]<0:sol[i]+=2*math.pi
-           #iksolpositive.append(sol)     
+    if len(iksol)>0:    
         return iksol, True
     else:
         return iksol, False
     
 def KinematicSolve(bladepoint,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for specific point, normal vector, robot, and vector to face normal vector of the blade
     T = genTransform(bladepoint,facevector)
-    iksol, answer = defaultSolve(ikmodel, T)
+    iksol1, answer = defaultSolve(ikmodel, T)
     if coatingdistancetolerance!=0:
-        bladepoint[0:3] = bladepoint[0:3]+coatingdistancetolerance*bladepoint[3:6]
-        T = genTransform(bladepoint,facevector)
+        T = genTransform(concatenate((bladepoint[0:3]+coatingdistancetolerance*bladepoint[3:6],bladepoint[3:6])),facevector)
         iksol2, answer2 = defaultSolve(ikmodel, T)
-        if answer2:
-            iksol = concatenate((iksol,iksol2))
-            answer = answer or answer2
-    return iksol, answer        
+        if answer2 and answer:
+            iksoltot = concatenate((iksol1,iksol2))
+            answer = True
+        elif answer2 and ~answer:
+            iksoltot = iksol2
+            answer = True
+        elif ~answer2 and answer:
+            iksoltot = iksol1
+            answer = True
+        else:
+            iksoltot = []
+            answer = False
+    else: iksoltot = iksol1    
+    return iksoltot, answer        
 
 def AllKinematicSolve(bladepoints,ikmodel,facevector,coatingdistancetolerance=0): # Solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade
      reachableRays=zeros((0,6))
@@ -268,6 +273,7 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
     reachableRays=zeros((0,6))
     iksolList = []
     indexlist = zeros((len(bladepoints),1),dtype=bool)
+    Ntot = len(bladepoints)
     i=0
     for bladepoint in bladepoints:
           ik, index = KinematicSolve(bladepoint,ikmodel,facevector,coatingdistancetolerance)
@@ -276,6 +282,7 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
                reachableRays = vstack((reachableRays,bladepoint))
           indexlist[i]=index
           i+=1
+          if i%1000==0:print str(i)+'/'+str(Ntot)
     return reachableRays, iksolList, indexlist
 
 def BestBaseDistance(robotpose,initialdistance,bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0): # Computes best robot position to coat blade points
@@ -297,7 +304,13 @@ def robotPath(iksolList, timesleep,robot,ikmodel): # Show robot motion
     for sol in iksolList:
         robot.SetDOFValues(sol,ikmodel.manip.GetArmIndices())
         time.sleep(timesleep)
-    return 
+    return
+
+def showRobotSolutions(iksol,timesleep,robot,ikmodel):
+    for sol in iksol:
+        robot.SetDOFValues(sol,ikmodel.manip.GetArmIndices())
+        time.sleep(timesleep)
+    return
 
 def NotCoatedRays(approachrays,reachableRays): # Computes points that were not coated
      s1 = set(map(tuple,approachrays))
@@ -347,6 +360,7 @@ def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, t
      AlliksolList = []
      indexlist = zeros((len(approachrays),1),dtype=bool)
      i=0
+     Ntot = len(indexreachableRays)
      for index in indexreachableRays:
           if not index:
                answer, iksol = TryCoatnonNormalCoatPoint(approachrays[i], distance, numberofangles, tolerance, ikmodel, facevector,coatingdistancetolerance)
@@ -358,7 +372,8 @@ def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, t
                     indexlist[i]=0
           else:
                indexlist[i]=0
-          i+=1     
+          i+=1
+          if i%1000==0:print str(i)+'/'+str(Ntot)
      return AllreachableRays, AlliksolList, indexlist      
 
 def IndexToPoints(bladepoints,indexlist): # converts boolean array of [coated,non coated] blade points to [x,y,z,normal]
@@ -376,7 +391,7 @@ def clearPathIntersection(fullindexlist): # clears intersections of coating proc
                fullindexlist[i]=fullindexlist[i]&~fullindexlist[j]
      return fullindexlist           
 
-def iksolsSort(indexlist1,indexlist2,iksollist1,iksollist2,ikmodel): # concatenates coating solutions without and with tolerance
+def iksolsSort(indexlist1,indexlist2,iksollist1,iksollist2): # concatenates coating solutions without and with tolerance
      iksollist = []
      index1=0
      index2=0
@@ -407,23 +422,29 @@ def nearPointsByDistance(arraylist): # calculates nearest points by distance
 
 def nearPointsByNumberOfPoints(arraylist): # find the 8 nearest points 
      NumberOfPoints = 8
+     T = KDTree(arraylist[:,0:3])
      nearlist = []
      n=len(arraylist)
      k=0
      for arrays in arraylist:
           nearpoints = []
-          nearpoints.append(arrays)
-          dist = []
-          for i in range(0,len(arraylist)):
-               arrayp = array([arrays[0],arrays[1],arrays[2]])
-               arraylistp = array([arraylist[i][0],arraylist[i][1],arraylist[i][2]])
-               dist.append(linalg.norm(arrayp-arraylistp))
-          thelist = [x for (y,x) in sorted(zip(dist,arraylist), key=lambda pair: pair[0])]     
-          for j in range(1,NumberOfPoints+1):
-               nearpoints.append(thelist[j])
+          d,idx = T.query(arrays[0:3],k=9)
+          for i in idx:nearpoints.append(arraylist[i])
+
+
+
+
+          #dist = []
+          #for i in range(0,len(arraylist)):
+          #     arrayp = array([arrays[0],arrays[1],arrays[2]])
+          #     arraylistp = array([arraylist[i][0],arraylist[i][1],arraylist[i][2]])
+          #     dist.append(linalg.norm(arrayp-arraylistp))
+          #thelist = [x for (y,x) in sorted(zip(dist,arraylist), key=lambda pair: pair[0])]     
+          #for j in range(1,NumberOfPoints+1):
+          #     nearpoints.append(thelist[j])
           nearlist.append(nearpoints)
           k+=1
-          print str(k)+'/'+str(n)
+          if k%1000==0:print str(k)+'/'+str(n)
      return nearlist
      
 def projectPointInPlane(pointtoproject,pointinplane,normalofplane): # projects points in given plane
@@ -465,7 +486,7 @@ def computeAllAngularDistances(allpoints):
      for points in allpoints:
           allangles.append(computeAngularDistances(points))
           i+=1
-          print str(i)+'/'+str(n)
+          if i%1000==0:print str(i)+'/'+str(n)
      return allangles     
 
 def clusteringNearestAngles(angles,nearlist):
@@ -516,7 +537,7 @@ def pairingAngles(angles,points):
           angles = delete(angles,0,0)
           points = delete(points,0,0)
           for j in range(0,len(angles)):
-               if abs(oneangle-angles[j])-math.pi<0.05:
+               if abs(abs(oneangle-angles[j])-math.pi)<0.05:
                     couplesangles.append(array([oneangle,angles[j]]))
                     triopoints.append(array([reference,onepoint,points[j]]))
                     angles = delete(angles,j,0)
@@ -574,7 +595,7 @@ def minimize1AngularVelocity(iksol1,iksols2):
 def alphaCalc(triopoint,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,deltaT,coatingdistancetolerance=0):
      _, thetas1, indexlist = WorkspaceOnPose(pN, robottobladedistance, triopoint,robot,ikmodel,facevector,theta,coatingdistancetolerance)
      _, thetas2, indexlist2  = AllExtraCoating2(triopoint,indexlist,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
-     thetas=iksolsSort(indexlist,indexlist2,thetas1,thetas2,ikmodel)
+     thetas=iksolsSort(indexlist,indexlist2,thetas1,thetas2)
      minis=minimize2AngularVelocity(thetas[0],thetas[1])
      minis2=minimize1AngularVelocity(minis[0],thetas[2])
      Thetas = array([minis[1],minis[0],minis2[1]])
@@ -606,7 +627,7 @@ def AllalphaCalc(alltriopoints,pN, robottobladedistance,robot,ikmodel,facevector
          alphas.append(alpha)
          omegas.append(omega)
          i+=1
-         print str(i)+'/'+str(n)
+         if i%1000==0:print str(i)+'/'+str(n)
      return alphas, omegas,Thetas
 
 def alphaCalc2(omegas, deltasT):
@@ -666,7 +687,7 @@ def calculateLinearVelocitiesAndAccelerations(alltriopoints,deltasT):
         accelerations.append(acceleration)
     return velocities,accelerations
 
-def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,deltasT,Jacobs):
+def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,Jacobs):
      #dx = Jdq -> d(dx) = Jd(dq) + dJdq
      Hessians = []
      Alphas = []
@@ -685,7 +706,7 @@ def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,del
              H = []
              for k in range(0,len(Hpos)):
                  H.append(concatenate((Hpos[k],Hori[k])))
-             dqdjdq = dot(dq1,dot(H,dq2))
+             dqdjdq = dot(dq1,dot(H,dq2))/2
              acc = accelerations[i][j]
              J = Jacobs[i][j]
              Alpha.append(dot(linalg.pinv(J),acc-dqdjdq)) 
@@ -694,3 +715,60 @@ def calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,del
          Alphas.append(Alpha)
          print str(i)+'/'+str(len(thetas))
      return Alphas,Hessians     
+
+def thetaAndVelCalc(near,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,coatingdistancetolerance=0):
+     v = 1.0*40/60
+     _, thetas1, indexlist = WorkspaceOnPose(pN, robottobladedistance, near,robot,ikmodel,facevector,theta,coatingdistancetolerance)
+     _, thetas2, indexlist2  = AllExtraCoating2(near,indexlist,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
+     thetas=iksolsSort(indexlist,indexlist2,thetas1,thetas2)
+     thetaPairs = []
+     omegas = []
+     velocities = []
+     for i in range(1,len(near)):
+         minis=minimize2AngularVelocity(thetas[0],thetas[i])
+         thetaPairs.append(minis)
+         dt = linalg.norm(near[i,0:3]-near[0,0:3])/v
+         omegas.append((minis[1]-minis[0])/dt)
+         velocities.append((near[i,0:3]-near[0,0:3])/dt)
+     return thetaPairs, omegas, velocities
+
+
+def AllThetasAndLinearVel(nearlist,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,coatingdistancetolerance=0):               
+     VelList = []
+     ThetaList = []
+     OmegaList = []
+     n = len(nearlist)
+     i=0
+     for near in nearlist:
+         thetaPairs, omegas, velocities = thetaAndVelCalc(near,pN,robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,coatingdistancetolerance)
+         VelList.append(velocities)
+         OmegaList.append(omegas)
+         ThetaList.append(thetaPairs)
+         i+=1
+         if i%1000==0:print str(i)+'/'+str(n)
+     return VelList, ThetaList, OmegaList
+
+def calculateOmegasbyJacobian2(robot,ikmodel,manip,thetas,velocities):
+     NewOmegas=[]
+     Jacobs = []
+     Manipulabilities = []
+     for i in range(0,len(thetas)):
+         Jacob = []
+         Manipulability = []
+         Omega = []
+         for j in range(0,len(thetas[i])):
+             robot.SetDOFValues(thetas[i][j][0],ikmodel.manip.GetArmIndices())
+             Jpos = manip.CalculateJacobian()
+             Jori = manip.CalculateAngularVelocityJacobian()
+             J = concatenate((Jpos,Jori))
+             invJ = linalg.pinv(J)
+             v = concatenate((velocities[i][j],array([0,0,0])))
+             Omega.append(dot(invJ,v))
+             Jacob.append(J)
+             Manipulability.append(sqrt(linalg.det(dot(J,J.transpose()))))
+         Manipulabilities.append(Manipulability)
+         NewOmegas.append(Omega)
+         Jacobs.append(Jacob)
+         if i%1000==0:print str(i)+'/'+str(len(thetas))
+     return NewOmegas, Jacobs, Manipulabilities
+    

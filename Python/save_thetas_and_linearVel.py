@@ -4,26 +4,8 @@ from numpy import *
 from math import *
 
 # Get poinst for coating
-omegas = load('omegas0_HD.npz')
-omegas = omegas['array']
-
-alphas = load('alphas0_HD.npz')
-alphas = alphas['array']
-
-omegas = load('NewOmegas0_HD.npz')
-omegas = omegas['array']
-
-Jacobs = load('Jacobs0_HD.npz')
-Jacobs = Jacobs['array']
-
-thetas = load('thetas0_HD.npz')
-thetas = thetas['array']
-
-deltasT = load('deltasT0_HD.npz')
-deltasT  = deltasT['array']
-
-accelerations = load('linearAcc0_HD.npz')
-accelerations  = accelerations['array']
+nearlist = load('nearPointsByNumberOfPoints1_fullHD.npz')
+nearlist  = nearlist['array']
 
 env=Environment()
 env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
@@ -37,6 +19,7 @@ manip = robot.GetActiveManipulator()
 facevector = [1,0,0]
 theta = [0,0,0]
 coatingdistance = 0.23 # coating distance
+coatingdistancetolerance = 0.01
 numberofangles = 8 # degree step
 tolerance = 20 # degrees
 alpha = 1.0*pi/180; #degree blade step
@@ -66,9 +49,10 @@ BladePositions = [-20,-10,10,30]
 #RobotPositions = [0,0.1]
 #RobotPositions = [0,0.1,-0.1]
 RobotPositions = [0,0.1,-0.1,-0.3]
+index = 1
 
-robottobladedistance = RobotPositions[0]
-alpha = 1.0*BladePositions[0]*pi/180;
+robottobladedistance = RobotPositions[index]
+alpha = 1.0*BladePositions[index]*pi/180;
 
 T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                  [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
@@ -78,7 +62,8 @@ for body in env.GetBodies():
     body.SetTransform(dot(T,Ti[i]))
     i+=1
 
-Alphas,Hessians = coating.calculateAlphasbyHessian(robot,ikmodel,manip,thetas,omegas,accelerations,Jacobs)
+VelList, ThetaList, OmegaList = coating.AllThetasAndLinearVel(nearlist,pN, robottobladedistance,robot,ikmodel,facevector,theta,numberofangles,tolerance,coatingdistance,coatingdistancetolerance)
 
-savez_compressed('NewAlphas0_HD.npz', array=Alphas)
-savez_compressed('Hessians0_HD.npz', array=Hessians)
+savez_compressed('VelList_fullHD1.npz', array=VelList)
+savez_compressed('ThetaList_fullHD1.npz', array=ThetaList)
+savez_compressed('OmegaList_fullHD1.npz', array=OmegaList)

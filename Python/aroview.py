@@ -7,7 +7,7 @@ import time
 
 env=Environment()
 env.SetViewer('qtcoin')
-env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
+env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
 
 # CAMERA SETTINGS
 Tcamera = numpy.array([[0.53056445,0.0478718,0.84629171,-3.62191391],

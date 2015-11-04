@@ -52,7 +52,7 @@ BladePositions = [-20,-10,10,30]
 
 #RobotPositions = [0]
 #RobotPositions = [0,0.1]
-#RobotPositions = [0,0.1,-0.1]
+#RobotPositions = [0,0.1,-0.1]4,13
 RobotPositions = [0,0.1,-0.1,-0.3]
 
 robottobladedistance = RobotPositions[0]
