@@ -46,9 +46,9 @@ ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=
 if not ikmodel.load():
     ikmodel.autogenerate()
 
-approachrays = load('blade_faro_fast.npz')
+approachrays = load('blade_shoulder.npz')
 approachrays = approachrays['array']
-coatedarray = numpy.load('coatedpoints0_faro.npz')
+coatedarray = numpy.load('coatedpoints_shoulder.npz')
 coatedarray  = coatedarray['array']
 
 N = approachrays.shape[0]
