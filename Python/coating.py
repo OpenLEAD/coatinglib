@@ -40,7 +40,7 @@ def PointsToReach(env, target, delta, normalanglerange,directiondelta,lrtb): # D
     side=sides[x];
     ex = sqrt(sum(side[6:9]**2))
     ey = sqrt(sum(side[9:12]**2))
-    if ex/delta > 1000:
+    if ex/delta > 10000:
         raise ValueError('object is way too big for its discretization! %f > 1000'%(ex/delta))
     XX,YY = meshgrid(r_[arange(-ex,-0.25*delta,delta),0,arange(delta,ex,delta)],
                           r_[arange(-ey,-0.25*delta,delta),0,arange(delta,ey,delta)])

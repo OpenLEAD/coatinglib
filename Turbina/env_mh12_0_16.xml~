@@ -3,9 +3,9 @@
 
   <KinBody name= "pa1">
     <Body>
-	<RotationAxis>0 1 0 -29</RotationAxis>
+	<RotationAxis>0 1 0 30</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa1.wrl</collision>
+            <collision>pa_faro.wrl</collision>
             <Translation>0 0 0</Translation>
            <RotationAxis>1 0 0 180</RotationAxis>
         </Geom>
@@ -23,9 +23,9 @@
 
  <KinBody name= "pa2">
     <Body>
-	<RotationAxis>0 0 1 -29</RotationAxis>
+	<RotationAxis>0 0 1 30</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa1.wrl</collision>
+            <collision>pa_faro.wrl</collision>
             <Translation>0 0 0</Translation>
            <RotationAxis>1 0 0 270</RotationAxis>
         </Geom>
@@ -34,9 +34,9 @@
 
  <KinBody name= "pa3">
     <Body>
-	<RotationAxis>0 -1 0 -29</RotationAxis>
+	<RotationAxis>0 -1 0 30</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa1.wrl</collision>
+            <collision>pa_faro.wrl</collision>
             <Translation>0 0 0</Translation>
 		<RotationAxis>1 0 0 0</RotationAxis>
         </Geom>
@@ -45,9 +45,9 @@
 
  <KinBody name= "pa4">
     <Body>
-	<RotationAxis>0 0 -1 -29</RotationAxis>
+	<RotationAxis>0 0 -1 30</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa1.wrl</collision>
+            <collision>pa_faro.wrl</collision>
             <Translation>0 0 0</Translation>
 	    <RotationAxis>1 0 0 90</RotationAxis>
         </Geom>
@@ -72,11 +72,11 @@
     </Body> 
   </KinBody>
 
-  <Robot file="/home/renan/Documents/EMMA/motoman/motoman_mh122.xml" name="mh12">
+  <Robot file="/home/renan/workspace/coatinglib/motoman/motoman_mh122p.xml" name="mh12">
     	<Translation>0 0 10</Translation>
 	
   </Robot>
-
+<!--
   <physicsengine type="ode">
     <odeproperties>
       <friction>0.5</friction>
@@ -84,5 +84,5 @@
       <selfcollision>1</selfcollision>
     </odeproperties>
   </physicsengine>
-
+-->
 </Environment>

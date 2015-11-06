@@ -19,7 +19,7 @@ anglerange = pi/6
 #MAIN
 with env:
 
-    approachrays2 = load('blade_faro_fast.npz')
+    approachrays2 = load('blade_faro_fast2.npz')
     approachrays2 = approachrays2['array']
     N2 = approachrays2.shape[0]
     Ttarget = target.GetTransform()

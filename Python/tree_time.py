@@ -3,7 +3,7 @@ from scipy.spatial import KDTree
 import time
 
 
-approachrays = load('blade_faro.npz')
+approachrays = load('blade_faro2.npz')
 approachrays = approachrays['array']
 
 T = KDTree(approachrays[:,0:3])
@@ -26,5 +26,5 @@ while True:
         t=time.time()
     i+=1
     if i==len(approachrays):break
-savez_compressed('blade_faro_fast.npz', array=rays)
+savez_compressed('blade_faro_fast2.npz', array=rays)
 print 'total Time = '+str(time.time()- initialTime)
