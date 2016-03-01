@@ -65,7 +65,7 @@
      <Body>Arm1</Body>
      <offsetfrom>Arm1</offsetfrom>
      <anchor>-0.155 0.45 0</anchor>
-     <limitsdeg>-90 155</limitsdeg>
+     <limitsdeg>-155 90</limitsdeg>
      <axis>0 0 -1</axis>
      <maxveldeg>200</maxveldeg>
      <resolution>0.08</resolution>
@@ -95,7 +95,7 @@
      <offsetfrom>Arm2</offsetfrom>
      <anchor>-0.155 1.064 0 </anchor>
      <weight>3</weight>
-     <limitsdeg>-175 240</limitsdeg>
+     <limitsdeg>-240 175</limitsdeg>
      <axis>0 0 -1</axis>
      <maxveldeg>220</maxveldeg>
      <resolution>0.08</resolution>

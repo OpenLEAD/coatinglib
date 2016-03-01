@@ -5,6 +5,7 @@ from openravepy.misc import SpaceSamplerExtra
 import time
 import math
 from scipy.spatial import KDTree
+from scipy.optimize import minimize
 
 def CoordString(x): # Chooses the plane of the blade to discretize
     return {
@@ -64,7 +65,7 @@ def PointsToReach(env, target, delta, normalanglerange,directiondelta,lrtb): # D
              R = rotationMatrixFromQuat(quatRotateDirection(array((0,0,1)),approachray[3:6]))
              newapproachrays = r_[newapproachrays,c_[tile(approachray[0:3],(len(dirs),1)),dot(dirs,transpose(R))]]
          approachrays = newapproachrays
-    return approachrays
+    return approachrays,localpos,rays,collision,newinfo
 
     
 def PointsForCoating(points, distance): # Points are shifted distance from the blade (to meet requirement of the coating distance)
@@ -261,7 +262,7 @@ def AllKinematicSolve(bladepoints,ikmodel,facevector,coatingdistancetolerance=0)
         i+=1    
      return reachableRays, iksolList, indexlist
 
-def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0): # Pose the robot and solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade.
+def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0,printa=False): # Pose the robot and solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade.
     thetaX = theta[0]
     thetaY = theta[1]
     thetaZ = theta[2]
@@ -272,7 +273,7 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
     robot.SetTransform(Tn)
     reachableRays=zeros((0,6))
     iksolList = []
-    indexlist = zeros((len(bladepoints),1),dtype=bool)
+    indexlist = zeros(len(bladepoints),dtype=bool)
     Ntot = len(bladepoints)
     i=0
     for bladepoint in bladepoints:
@@ -282,7 +283,8 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
                reachableRays = vstack((reachableRays,bladepoint))
           indexlist[i]=index
           i+=1
-          if i%1000==0:print str(i)+'/'+str(Ntot)
+          if printa:
+              if i%1000==0: print str(i)+'/'+str(Ntot)
     return reachableRays, iksolList, indexlist
 
 def BestBaseDistance(robotpose,initialdistance,bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0): # Computes best robot position to coat blade points
@@ -301,6 +303,12 @@ def BestBaseDistance(robotpose,initialdistance,bladepoints,robot,ikmodel,facevec
     return  reachableRays, bestDistance
 
 def robotPath(iksolList, timesleep,robot,ikmodel): # Show robot motion
+    for sol in iksolList:
+        robot.SetDOFValues(sol[0],ikmodel.manip.GetArmIndices())
+        time.sleep(timesleep)
+    return
+
+def robotPath2(iksolList, timesleep,robot,ikmodel): # Show robot motion
     for sol in iksolList:
         robot.SetDOFValues(sol,ikmodel.manip.GetArmIndices())
         time.sleep(timesleep)
@@ -355,10 +363,10 @@ def TryCoatnonNormalCoatPoint(pointnormal, distance, numberofangles, tolerance, 
      else:
           return False, iksolList
 
-def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, tolerance, ikmodel, facevector,coatingdistancetolerance=0.01): # try to coat all points with tolerance
+def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, tolerance, ikmodel, facevector,coatingdistancetolerance=0.01, printa=False): # try to coat all points with tolerance
      AllreachableRays=zeros((0,6))
      AlliksolList = []
-     indexlist = zeros((len(approachrays),1),dtype=bool)
+     indexlist = zeros(len(approachrays),dtype=bool)
      i=0
      Ntot = len(indexreachableRays)
      for index in indexreachableRays:
@@ -373,7 +381,8 @@ def AllExtraCoating2(approachrays,indexreachableRays,distance, numberofangles, t
           else:
                indexlist[i]=0
           i+=1
-          if i%1000==0:print str(i)+'/'+str(Ntot)
+          if printa:
+              if i%1000==0: print str(i)+'/'+str(Ntot)
      return AllreachableRays, AlliksolList, indexlist      
 
 def IndexToPoints(bladepoints,indexlist): # converts boolean array of [coated,non coated] blade points to [x,y,z,normal]
@@ -772,3 +781,60 @@ def calculateOmegasbyJacobian2(robot,ikmodel,manip,thetas,velocities):
          if i%1000==0:print str(i)+'/'+str(len(thetas))
      return NewOmegas, Jacobs, Manipulabilities
     
+def optmizeQ(robot,ikmodel,manip,P,q0):
+    n = [P[3],P[4],P[5]]; P=[P[0],P[1],P[2]]
+    def func(q):
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
+        return -dot(n,Rx)
+    def consfunc(q):
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        pos = T[0:3,3]
+        v = pos-P
+        return dot(v,v)
+    cons = ({'type':'eq',
+             'fun': consfunc})
+    res = minimize(func, q0, constraints=cons, method='SLSQP', options={'disp': False})
+    return res
+
+def optmizeP(p0, R, v):
+    def func(P):
+        x=P[0];y=P[1];z=P[2]
+        return (x**2+y**2+z**2-R**2)**2
+    def consfunc(x,y,z):
+        def vector4(x,y,z):
+            return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
+        return dot(vector4,transpose(v))
+    cons = ({'type':'eq',
+             'fun': consfunc})
+    res = minimize(func, p0, constraints=cons, method='SLSQP', options={'disp': False})
+    return res
+
+def optmizeTan(p0, pnew, v,tol):
+    def func(P):
+        a=P-pnew
+        return dot(a,a)
+    def func_deriv(P):
+        return 2*(P-pnew)
+    def consfunc(P):
+        x=P[0];y=P[1];z=P[2]
+        def vector4(x,y,z):
+            return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
+        return dot(vector4(x,y,z),transpose(v))
+    def consfunc_deriv(P):
+        x=P[0];y=P[1];z=P[2]
+        def dvector4(x,y,z):
+            dx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z**2, z**3, y, y*z, y*z**2, y**2, y**2*z, y**3, 2*x, 2*x*z, 2*x*z**2, 2*x*y, 2*x*y*z, 2*x*y**2, 3*x**2, 3*x**2*z, 3*x**2*y, 4*x**3]
+            dy = [0, 0, 0, 0, 0, 1, z, z**2, z**3, 2*y, 2*y*z, 2*y*z**2, 3*y**2, 3*y**2*z, 4*y**3, 0, 0, 0, 0, x, x*z, x*z**2, 2*x*y, 2*x*y*z, 3*x*y**2, 0, 0, 0, x**2, x**2*z, 2*x**2*y, 0, 0, x**3, 0]
+            dz = [0, 1, 2*z, 3*z**2, 4*z**3, 0, y, 2*y*z, 3*y*z**2, 0, y**2, 2*y**2*z, 0, y**3, 0, 0, x, 2*x*z, 3*x*z**2, 0, x*y, 2*x*y*z, 0, x*y**2, 0, 0, x**2, 2*x**2*z, 0, x**2*y, 0, 0, x**3, 0, 0]
+            a=[dx,dy,dz]
+            return a
+        a=dvector4(x,y,z)
+        return [dot(a[0],transpose(v)),dot(a[1],transpose(v)),dot(a[2],transpose(v))]
+    cons = ({'type':'eq',
+             'fun': consfunc,
+            'jac':consfunc_deriv})
+    res = minimize(func, p0,jac=func_deriv,constraints=cons, method='SLSQP',tol=tol, options={'disp': False})
+    return res

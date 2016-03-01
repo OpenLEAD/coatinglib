@@ -3,9 +3,9 @@
 
   <KinBody name= "pa1">
     <Body>
-	<RotationAxis>0 1 0 30</RotationAxis>
+	<RotationAxis>0 1 0 0</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa_faro.wrl</collision>
+            <collision>pa.wrl</collision>
             <Translation>0 0 0</Translation>
            <RotationAxis>1 0 0 180</RotationAxis>
         </Geom>
@@ -23,9 +23,9 @@
 
  <KinBody name= "pa2">
     <Body>
-	<RotationAxis>0 0 1 30</RotationAxis>
+	<RotationAxis>0 0 1 0</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa_faro.wrl</collision>
+            <collision>pa_crop.wrl</collision>
             <Translation>0 0 0</Translation>
            <RotationAxis>1 0 0 270</RotationAxis>
         </Geom>
@@ -34,9 +34,9 @@
 
  <KinBody name= "pa3">
     <Body>
-	<RotationAxis>0 -1 0 30</RotationAxis>
+	<RotationAxis>0 -1 0 0</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa_faro.wrl</collision>
+            <collision>pa_crop.wrl</collision>
             <Translation>0 0 0</Translation>
 		<RotationAxis>1 0 0 0</RotationAxis>
         </Geom>
@@ -45,15 +45,15 @@
 
  <KinBody name= "pa4">
     <Body>
-	<RotationAxis>0 0 -1 30</RotationAxis>
+	<RotationAxis>0 0 -1 0</RotationAxis>
         <Geom type="trimesh">
-            <collision>pa_faro.wrl</collision>
+            <collision>pa_crop.wrl</collision>
             <Translation>0 0 0</Translation>
 	    <RotationAxis>1 0 0 90</RotationAxis>
         </Geom>
     </Body> 
   </KinBody>
-
+-->
  <KinBody name= "arocamara">
     <Body>
         <Geom type="trimesh">

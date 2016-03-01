@@ -1,75 +1,107 @@
+# -*- coding: utf-8 -*-
 import coating
 from numpy import *
 from openravepy import *
 from openravepy.misc import SpaceSamplerExtra
 import scipy
-from random import *
+import copy
+
 env=Environment()
 env.SetViewer('qtcoin')
-env.Load("/home/renan/Documents/EMMA/Turbina/env_mh12_0_16.xml")
+env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
-
+Ttarget = target.GetTransform()
 
 
 # PARAMETERS
 facevector = [1,0,0]
 theta = [0,0,0]
 coatingdistance = 0.23 # coating distance
-robottobladedistance = -0.3 # robot to blade distance
+coatingdistancetolerance = 0.01
 numberofangles = 8 # degree step
-tolerance = 20 # degrees
+tolerance = 30 # degrees
 alpha = 1.0*pi/180; #degree blade step
+BladePosition = 0
+y = 0
 
-pN = numpy.array([ -1, -3.3, 0 ])
-normal = [-1,0,0]
-pN = numpy.concatenate((pN,normal))
-
-# CAMERA SETTINGS
-Tcamera = numpy.array([[ 0.05777387, -0.06852652,  0.99597505, -4.08520365],
-       [-0.32092178, -0.94596499, -0.04646983, -1.95519543],
-       [ 0.94534194, -0.31694535, -0.07664371, -0.661735  ],
-       [ 0        ,  0        ,  0        ,  1        ]])
-
-env.GetViewer().SetCamera(Tcamera)
+approachrays = load('blade_sampling/blade_crop_fast.npz')
+approachrays = approachrays['array']
+N = approachrays.shape[0]
 
 #MAIN
 ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=IkParameterization.Type.Transform6D)
 if not ikmodel.load():
     ikmodel.autogenerate()
 
-approachrays = load('bladepoints16Back.npz')
-approachrays = approachrays['array']
-N = approachrays.shape[0]
+# Initial T
+Ti = []
+for body in env.GetBodies():
+    Ti.append(body.GetTransform())
 
-indexlist = zeros((len(approachrays),1),dtype=bool)
-
-# Initial position
-handles=[]
-a=25
-
-alpha = 1.0*a*pi/180;
+alpha = 1.0*BladePosition*pi/180;
 T = numpy.array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                  [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
 
-for i in range(0,5):
-    env.GetBodies()[i].SetTransform(dot(T,env.GetBodies()[i].GetTransform()))
+for ibody in range(0,len(env.GetBodies())):
+    if ibody!=5:
+        env.GetBodies()[ibody].SetTransform(dot(T,Ti[ibody]))
 
-#PLOT BLADE POINTS FOR COATING
+# Change orientation of samples
 Ttarget = target.GetTransform()
 gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
+
+# posiçao da base para a pa 24 graus
+gbase_position=array([[ -2.14387087e+00,  -3.22000000e+00,  -9.97857391e-01],
+       [ -1.98593217e+00,  -3.22000000e+00,  -6.64834872e-01],
+       [ -1.82799346e+00,  -3.22000000e+00,  -3.31812352e-01],
+       [ -1.67005475e+00,  -3.22000000e+00,   1.21016736e-03],
+       [ -1.51211605e+00,  -3.22000000e+00,   3.34232687e-01],
+       [ -1.35417734e+00,  -3.22000000e+00,   6.67255206e-01],
+       [ -1.19623863e+00,  -3.22000000e+00,   1.00027773e+00]])
+
+# Saved Variables
+indexBlack = zeros(len(gapproachrays),dtype=bool)
+indexBlue = zeros(len(gapproachrays),dtype=bool)
+indexAll = indexBlack|indexBlue
+indexList = array([i for i in range(0,len(gapproachrays))])
+
+indexBlackList = []
+indexBlueList = []
+
+def completeIndex(indexAll,real_index,indexlist):
+    index = real_index[indexlist]
+    for i in range(0,len(index)): indexAll[index[i]]=True
+    return indexAll
+
+#PLOT BLADE POINTS FOR COATING
+handles=[]
 handles.append(env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0))))
 
 # Compute Solutions
-reachableRays, iksolList = coating.WorkspaceOnPose(pN, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta)
+base = gbase_position[4]
+
+real_index = indexList[~indexAll]
+pN = copy.copy(base)
+pN[1]+=y
+normal = [-1,0,0]
+pN = numpy.concatenate((pN,normal))
+reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, gapproachrays[~indexAll],robot,ikmodel,facevector,theta,coatingdistancetolerance)
+indexBlackList.append(real_index[indexlist1])
+AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays[~indexAll],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
+indexBlueList.append(real_index[indexlist2])
+try:
+    coatedrays = coating.IndexToPoints(gapproachrays[~indexAll],indexlist1|indexlist2)
+except: None    
+indexAll = completeIndex(indexAll,real_index,indexlist1|indexlist2)
+indexBlack = completeIndex(indexBlack,real_index,indexlist1)
+indexBlue = completeIndex(indexBlue,real_index,indexlist2)          
+
+savez_compressed('coated_points/pos4_black.npz', array=reachableRays)
+savez_compressed('coated_points/pos4_blue.npz', array=AllreachableRays)
+
+#PLOT
+
 handles.append(env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((0,0,0))))
-
-#EXTRA COATING
-AllreachableRays, AlliksolList = coating.AllExtraCoating(gapproachrays,reachableRays,coatingdistance,numberofangles,tolerance,ikmodel,facevector)
-handles.append(env.plot3(points=AllreachableRays[:,0:3],pointsize=5,colors=array((0,0,1))))
-
-env.GetViewer().SendCommand('SetFiguresInCamera 1')
-I = env.GetViewer().GetCameraImage(640,480, Tcamera,[640,640,320,240])
-scipy.misc.imsave('/home/renan/Documents/EMMA/Python/coating/'+'a25_d03'+'.jpg',I)
-    
+handles.append(env.plot3(points=AllreachableRays[:,0:3],pointsize=5,colors=array((0,0,1))))   
