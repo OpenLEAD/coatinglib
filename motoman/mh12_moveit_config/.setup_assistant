@@ -1,0 +1,8 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: MH12
+    relative_path: robots/MH12.URDF
+  SRDF:
+    relative_path: config/MH12.srdf
+  CONFIG:
+    generated_timestamp: 1447171357

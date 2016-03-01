@@ -1,0 +1,75 @@
+import coating
+from numpy import *
+from openravepy import *
+from openravepy.misc import SpaceSamplerExtra
+env=Environment()
+env.SetViewer('qtcoin')
+env.Load("/home/renan/Documents/EMMA/Turbina/env_motoman.xml")
+robot = env.GetRobots()[0]
+target = env.GetBodies()[0]
+manip = robot.GetActiveManipulator()
+facevector = [0,0,-1]
+theta = [0,0,0]
+
+# PARAMETERS
+delta = 0.02
+normalanglerange = 0
+directiondelta = 0.4
+anglerange = pi/6
+coatingdistance = 0.23
+robottobladedistance = 0.2
+initialdistance = 0.23
+#pN = numpy.array([-0.87,-2.14,-2.17,1,0,0])
+#pN = numpy.array([-0.6,-2.28,-1.92,1,0,0])
+#pN = numpy.array([-0.84,-2.43,-2.33,1,0,0])
+#pN = numpy.array([ -1.523, -3.518, -1.385 ]) # Extremo esquerdo
+#pN = numpy.array([ -0.177, -3.518, 0 ]) # Extremo direito
+
+#pN = numpy.array([0.076, -3.435, 0.279 ]) # Extremo direito
+pN = numpy.array([-1.419, -2.787, -1.400 ]) # Extremo esquerdo
+
+pN = numpy.array([-1.623,-2.396,-1.127])# Extremo esquerdo superior
+
+pN = numpy.array([-1.574,-2.455,-0.88])# Extremo esquerdo superior
+
+pN = numpy.array([-1.451,-2.516,-0.77])# Extremo esquerdo superior
+
+pN = numpy.array([-1.349,-2.567,-0.68])# Extremo esquerdo superior
+
+normal = [-1,0,0]
+normal = [-0.63,-0.43,0.63]
+pN = numpy.concatenate((pN,normal))
+
+#MAIN
+with env:
+    ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=IkParameterization.Type.Transform6D)
+    if not ikmodel.load():
+        ikmodel.autogenerate()
+
+    approachrays = load('bladepointsl.npz')
+    approachrays = approachrays['array']
+    N = approachrays.shape[0]
+    Ttarget = target.GetTransform()
+
+    approachrays2 = load('bladepointsLeft2.npz')
+    approachrays2 = approachrays2['array']
+    N2 = approachrays2.shape[0]
+   
+    #PLOT BLADE POINTS FOR COATING
+    gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
+    approachgraphs = env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0)))
+
+    gapproachrays2 = c_[dot(approachrays2[0:N2,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N2,1)),dot(approachrays2[0:N2,3:6],transpose(Ttarget[0:3,0:3]))]
+    approachgraphs2 = env.plot3(points=gapproachrays2[:,0:3],pointsize=5,colors=array((1,0,0)))
+    
+    reachableRays, iksolList = coating.WorkspaceOnPose(pN, robottobladedistance, approachrays,robot,ikmodel,facevector,theta)
+    reachableRays2, iksolList2 = coating.WorkspaceOnPose(pN, robottobladedistance, approachrays2,robot,ikmodel,facevector,theta)
+    
+    #PLOT REACHABLE POINT
+    if len(reachableRays)>0:
+        grays = c_[dot(reachableRays[:,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(len(reachableRays),1)),dot(reachableRays[:,3:6],transpose(Ttarget[0:3,0:3]))]
+        raygraphs = env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((0,0,0)))
+    if len(reachableRays2)>0:
+        grays2 = c_[dot(reachableRays2[:,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(len(reachableRays2),1)),dot(reachableRays2[:,3:6],transpose(Ttarget[0:3,0:3]))]
+        raygraphs2 = env.plot3(points=reachableRays2[:,0:3],pointsize=5,colors=array((0,0,0)))
+

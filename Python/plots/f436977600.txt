@@ -1,0 +1,48 @@
+import coating
+from openravepy import *
+from numpy import *
+from math import *
+import time
+import matplotlib.pyplot as plt
+import matplotlib.colors as clr
+import matplotlib.cm as cmx
+from mpl_toolkits.mplot3d import Axes3D
+
+def scatter3d(x,y,z, cs, colorsMap='jet'):
+    cm = plt.get_cmap(colorsMap)
+    cNorm = clr.Normalize(vmin=min(cs), vmax=max(cs))
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=cm)
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.scatter(x, y, z, c=scalarMap.to_rgba(cs))
+    scalarMap.set_array(cs)
+    fig.colorbar(scalarMap)
+    plt.show()
+
+Ss = load('Ss.npz')
+Ss  = Ss['array']
+
+Ts = load('Ts.npz')
+Ts  = Ts['array']
+
+Js = load('Js.npz')
+Js  = Js['array']
+
+x = Ts[:,0][:,-1]
+y = Ts[:,1][:,-1]
+z = Ts[:,2][:,-1]
+cs = Ss[:,-1]
+ics=cs<0.05
+x=x[ics]
+y=y[ics]
+z=z[ics]
+cs=cs[ics]
+
+scatter3d(x,y,z, cs, colorsMap='jet')
+##
+##fig = plt.figure()
+##ax = fig.add_subplot(111, projection='3d')
+##
+##Axes3D.scatter(ax,x,y,z)
+##ax.axis("off")
+##plt.show()

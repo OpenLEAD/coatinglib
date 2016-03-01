@@ -1,0 +1,391 @@
+<robot
+  name="MH12">
+  <link
+    name="base">
+    <inertial>
+      <origin
+        xyz="0.06 0.056 0"
+        rpy="0 0 0" />
+      <mass
+        value="31.579" />
+      <inertia
+        ixx="0.31"
+        ixy="0.032"
+        ixz="0.001"
+        iyy="0.619"
+        iyz="0.001"
+        izz="0.441" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/base.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0 0.4 0.4 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/base.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="elo_S">
+    <inertial>
+      <origin
+        xyz="-0.053 0.296 0.016"
+        rpy="0 0 0" />
+      <mass
+        value="45.399" />
+      <inertia
+        ixx="0.854"
+        ixy="-0.338"
+        ixz="-0.063"
+        iyy="0.908"
+        iyz="0.105"
+        izz="0.11" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_S.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_S.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="junta_S"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="base" />
+    <child
+      link="elo_S" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-2.9671"
+      upper="2.9671"
+      effort="9999"
+      velocity="3.4907" />
+  </joint>
+  <link
+    name="elo_L">
+    <inertial>
+      <origin
+        xyz="-0.14 0.675 -0.104"
+        rpy="0 0 0" />
+      <mass
+        value="13.242" />
+      <inertia
+        ixx="0.915"
+        ixy="0.011"
+        ixz="-0.008"
+        iyy="0.618"
+        iyz="-0.072"
+        izz="0.009" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_L.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_L.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="junta_L"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="elo_S" />
+    <child
+      link="elo_L" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-1.5708"
+      upper="2.7053"
+      effort="9999"
+      velocity="3.4907" />
+  </joint>
+  <link
+    name="elo_U">
+    <inertial>
+      <origin
+        xyz="-0.274 1.149 0.048"
+        rpy="0 0 0" />
+      <mass
+        value="27.167" />
+      <inertia
+        ixx="0.349"
+        ixy="-0.183"
+        ixz="0.048"
+        iyy="0.314"
+        iyz="-0.05"
+        izz="0.505" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_U.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0 0.4 0.4 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_U.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="junta_U"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="elo_L" />
+    <child
+      link="elo_U" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-3.0543"
+      upper="4.1888"
+      effort="9999"
+      velocity="3.8397" />
+  </joint>
+  <link
+    name="elo_R">
+    <inertial>
+      <origin
+        xyz="-0.589 1.235 -0.029"
+        rpy="0 0 0" />
+      <mass
+        value="7.999" />
+      <inertia
+        ixx="0.042"
+        ixy="-0.004"
+        ixz="0.006"
+        iyy="0.166"
+        iyz="0"
+        izz="0.148" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_R.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0 0.4 0.4 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_R.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="junta_R"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="elo_U" />
+    <child
+      link="elo_R" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-3.1416"
+      upper="3.1416"
+      effort="22"
+      velocity="7.1559" />
+  </joint>
+  <link
+    name="elo_B">
+    <inertial>
+      <origin
+        xyz="-0.836 1.263 -0.012"
+        rpy="0 0 0" />
+      <mass
+        value="3.796" />
+      <inertia
+        ixx="0.011"
+        ixy="0"
+        ixz="0"
+        iyy="0.011"
+        iyz="0"
+        izz="0.01" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_B.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_B.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="junta_B"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="elo_R" />
+    <child
+      link="elo_B" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.3562"
+      upper="2.3562"
+      effort="22"
+      velocity="7.1559" />
+  </joint>
+  <link
+    name="elo_T">
+    <inertial>
+      <origin
+        xyz="-1.045 1.264 0.000"
+        rpy="0 0 0" />
+      <mass
+        value="8.500" />
+      <inertia
+        ixx="0.011"
+        ixy="0.000"
+        ixz="0.000"
+        iyy="0.069"
+        iyz="0.000"
+        izz="0.069" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_T.STL" />
+      </geometry>
+      <material
+        name="Aco">
+        <color
+          rgba="0.79216 0.81961 0.93333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="file:///home/renan/workspace/coatinglib/motoman/URDF/MH12/meshes/elo_T.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="junta_T"
+    type="revolute">
+    <origin
+      xyz="0 0 0"
+      rpy="0 0 0" />
+    <parent
+      link="elo_B" />
+    <child
+      link="elo_T" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      lower="-6.2832"
+      upper="6.2832"
+      effort="9.8"
+      velocity="10.647" />
+  </joint>
+</robot>
