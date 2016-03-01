@@ -19,11 +19,10 @@ anglerange = pi/6
 #MAIN
 with env:
 
-    approachrays2 = load('blade_faro_fast2.npz')
-    approachrays2 = approachrays2['array']
-    N2 = approachrays2.shape[0]
+    approachrays = load('blade_sampling/blade_crop_fast2.npz')
+    approachrays = approachrays['array']
+    N = approachrays.shape[0]
     Ttarget = target.GetTransform()
     
-    
-    gapproachrays2 = c_[dot(approachrays2[0:N2,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N2,1)),dot(approachrays2[0:N2,3:6],transpose(Ttarget[0:3,0:3]))]
-    approachgraphs2 = env.plot3(points=gapproachrays2[:,0:3],pointsize=5,colors=array((1,0,0)))
+    gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
+    approachgraphs = env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0)))
