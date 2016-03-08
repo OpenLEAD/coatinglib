@@ -840,8 +840,7 @@ def optmizeTan(p0, pnew, tol):
     def func_deriv(P):
         return 2*(P-pnew)
     def consfunc(P):
-        v, _, _, _, _ = polynomial_surface(P,rR)
-        return dot(v,vector4(P[0],P[1],P[2]))
+        return fn4(P[0],P[1],P[2])
     def consfunc_deriv(P):
         return dpolynomial(P,rR)
 

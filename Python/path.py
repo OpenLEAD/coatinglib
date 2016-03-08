@@ -8,6 +8,7 @@ from openravepy.misc import SpaceSamplerExtra
 import time
 import math
 import moving_LS
+from time import gmtime, strftime
 
 #====================================================================================================================
 env=Environment()
@@ -36,7 +37,7 @@ for body in env.GetBodies():
     Ti.append(body.GetTransform())
 
 alpha = 1.0*BladePosition*pi/180
-T = numpy.array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
+T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                  [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
 
 for ibody in range(0,len(env.GetBodies())):
@@ -53,7 +54,7 @@ gbase_position=array([[ -2.14387087e+00,  -3.22000000e+00,  -9.97857391e-01],
 
 pN=gbase_position[4]
 normal = [-1,0,0]
-pN = numpy.concatenate((pN,normal))
+pN = concatenate((pN,normal))
 QList = []
 #====================================================================================================================
 
@@ -89,9 +90,13 @@ def dvector4(x,y,z):
     return a
 
 def fn4(x,y,z):
-    v, _, _, _, _ = polynomial_surface(array([x,y,z]),rR)
+    point=array([x,y,z])
+    idx = Tree.query_ball_point(point,0.5)
+    if len(idx)<=1:
+        return -1
+##    print 'shape idx = ', shape(idx)
+    v, _, _, _, _ = polynomial_surface(point,rR,idx)
     return dot(v,vector4(x,y,z))
-#    return dot(vector4(x,y,z),transpose(v))
 
 def dfn4(x,y,z):
     return dpolynomial(array([x,y,z]),rR)
@@ -141,7 +146,6 @@ def solution(ray):
     print 'solution: iksolList - ',array(iksolList).shape
     AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2([ray],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
     print 'solution: AlliksolList - ',array(AlliksolList).shape
-    print AlliksolList
     if iksolList: return iksolList
     elif AlliksolList: return AlliksolList
     else: return False
@@ -376,21 +380,19 @@ def meridian2(P0,Rn,sign,q0):
         
     return ray, Q
 
-def proximityInCloud(P,points):
-    dmin=1000
-    proximo=[0,0,0]
-    for point in points:
-        dP = P-point
-        d = dot(dP,dP)
-        if d<dmin:
-            dmin=d
-            proximo=point
-    return proximo        
-
 def nearInSurface(P,points):
-    proximo = proximityInCloud(P,points)
-    P = min_distance.minPoint(proximo)
-    return P
+    _,idx = Tree.query(P)
+    proximo=points[idx,0:3]
+    global s, delta, r, c1
+    stemp=s
+    while stemp>0:
+        s=stemp
+        c1 = sqrt(2*pi*s**2)
+        delta = 2*s**2
+        r=s*sqrt(10*math.log(10))
+        proximo = min_distance.minPoint(proximo)
+        stemp-=9.9
+    return proximo
    
 def plotPoints(points, handles,color):
     handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
@@ -404,10 +406,12 @@ def nextLine(P0):
     return Rn
 
 def main():
+    env.SetViewer('qtcoin')
     rRp = rR[:,0:3]
     soma=[0,0,0]
     for i in rRp:soma=soma+i
     P0 = soma/len(rRp)
+    
     P0 = nearInSurface(P0,rRp)
     d0 = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     R0=1.425
@@ -417,7 +421,10 @@ def main():
     Pd=meridian(P0,Rn,1)
 
     yR, yL, Q = drawParallel(Pd,1)
-
+    t=strftime("%d%b%Y_%H_%M_%S", gmtime())
+    savez_compressed('path/yR/'+'_'+t+'.npz', array=yR)
+    savez_compressed('path/yL/'+'_'+t+'.npz', array=yL)
+    savez_compressed('path/Q/'+'_'+t+'.npz', array=Q)
     
     return yR, yL, Q
 

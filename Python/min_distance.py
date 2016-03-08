@@ -1,7 +1,7 @@
 from sympy import *
 from numpy import *
 from moving_LS import *
-from scipy.optimize import anderson
+from scipy.optimize import newton_krylov
 
 def fn4OLD(x,y,z,v):
     a=vector4(x,y,z)
@@ -12,12 +12,10 @@ def fn4OLD(x,y,z,v):
 def fn4(P):
     x=P[0];y=P[1];z=P[2]
     point=array([x,y,z])
-    idx=range(0,len(rR))
-    #idx = T.query_ball_point(point,5)
-##    if len(idx)<=1:
-##        print("errou")
-##        return [-1,-1,-1]
-    #print 'shape(array([x,y,z])) - ', shape(array([x,y,z]))
+    idx = Tree.query_ball_point(point,r)
+    if len(idx)<=1:
+        print("errou")
+        return [-1,-1,-1]
     v, _, _, _, _ = polynomial_surface(point,rR,idx)
     return [dot(v,vector4(x,y,z)),0,0]
 
@@ -134,7 +132,7 @@ def minPoint(P):
 ##    f1 = (x-ax)*dy-(y-ay)*dx
 ##    f2 = (y-ay)*dz-(z-az)*dy
 
-    s = anderson(fn4,P)
+    s = newton_krylov(fn4,P)
     print s
     #s=nsolve((f,f1,f2),(x,y,z),(ax,ay,az),tol=1e-3)
     #J = sqrt((ax-s[0])**2+(ay-s[1])**2+(az-s[2])**2)
