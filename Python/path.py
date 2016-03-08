@@ -1,4 +1,5 @@
 from numpy import *
+from moving_LS import *
 import matplotlib.pyplot as plt
 import min_distance
 import coating
@@ -6,6 +7,7 @@ from openravepy import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
+import moving_LS
 
 #====================================================================================================================
 env=Environment()
@@ -63,21 +65,18 @@ AllreachableRays = load('coated_points/pos4_blue.npz')
 AllreachableRays  = AllreachableRays['array']
 rR = concatenate((reachableRays,AllreachableRays))
 
-v= array([ 0.48142865,  0.36919764,  1.50562549,  0.00882344,  0.01972781,
-        1.3841799 ,  0.28006017,  0.98778636, -0.02338231,  0.96834179,
-        0.24100917,  0.15813788,  0.29048836,  0.04838359,  0.03168633,
-       -0.39182614, -2.00343824, -0.99320701,  0.10410255, -0.59241825,
-       -1.58884299,  0.03434364, -0.51603795, -0.28188791, -0.09554816,
-        1.1591741 ,  1.08708153, -0.4800173 ,  1.32665283, -0.46163832,
-        0.27164667, -0.3625252 ,  0.80764589,  0.40643701, -0.3522112 ])
-
-v = array([ 0.76794299,  0.19621841,  1.50165747, -0.17804893,  0.01097711,
-        1.61784538,  0.08844792,  0.62776379, -0.02904158,  0.94277223,
-        0.02769439,  0.08114148,  0.21650186,  0.00338712,  0.01663963,
-       -0.18276378, -1.21492908, -0.11806749,  0.10576872, -0.03849708,
-        0.22568642, -0.05054497,  0.06968631,  0.04269304,  0.02020574,
-       -0.1314098 ,  0.03624055, -0.15558053, -0.57776808,  0.03705508,
-       -0.0404959 , -0.0123881 ,  0.22970826, -0.04551755,  0.01584097])
+v = array([  6.11242244e-02,   2.89653535e-01,   7.94314249e-01,
+        -3.20708568e-02,   5.11681485e-02,   5.32913320e-01,
+        -1.78331728e-01,   4.31527747e-01,  -1.08549881e-02,
+         3.21256789e-01,  -7.03089123e-02,   7.22629763e-02,
+         7.97448256e-02,  -8.52081772e-04,   7.66169966e-03,
+        -1.13579708e-01,  -6.03034682e-01,  -6.98038219e-01,
+        -1.89876807e-01,   1.56603098e-01,  -5.04314372e-01,
+        -3.11011260e-02,  -7.67252299e-02,  -1.48860963e-01,
+        -3.31170392e-02,   5.83401508e-01,   5.32945098e-01,
+         3.44663122e-01,   9.20029194e-01,  -3.58423952e-01,
+         2.63214686e-01,  -9.43235599e-02,  -9.33102549e-02,
+         3.41146158e-01,  -1.94242634e-02])
 
 def vector4(x,y,z):
     return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
@@ -90,11 +89,14 @@ def dvector4(x,y,z):
     return a
 
 def fn4(x,y,z):
-    return dot(vector4(x,y,z),transpose(v))
+    v, _, _, _, _ = polynomial_surface(array([x,y,z]),rR)
+    return dot(v,vector4(x,y,z))
+#    return dot(vector4(x,y,z),transpose(v))
 
 def dfn4(x,y,z):
-    dv = dvector4(x,y,z)
-    return [dot(dv[0],transpose(v)),dot(dv[1],transpose(v)),dot(dv[2],transpose(v))]
+    return dpolynomial(array([x,y,z]),rR)
+    #dv = dvector4(x,y,z)
+    #return [dot(dv[0],transpose(v)),dot(dv[1],transpose(v)),dot(dv[2],transpose(v))]
 
 def getmean(points):
     m=[0,0,0,0,0,0]
@@ -116,9 +118,14 @@ def tangentOptm(ray,q0):
  
     angle_suc = True
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
+
+##    robot.SetDOFValues(res.x,ikmodel.manip.GetArmIndices())
+##    T=manip.GetTransform()
+##    Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
+   # print 'tangentOptm: res.success -',res.success , ' angle -', 180*math.acos(dot(ray[3:6],Rx))/math.pi
     if res.success and not isViable(res.x,ray[3:6]):
         angle_suc=False
-        #print 'tangentOptm: angle_suc -',angle_suc, ' angle -', 180*math.acos(dot(ray[3:6],Rx))/math.pi
+       
 
     return tan, res.x, (res.success and angle_suc)
 
@@ -152,7 +159,7 @@ def Qvector(y,Q,dt,sign):
             tol=1e-5
             xnew = xold
             while dot(xnew-xold,xnew-xold)==0:
-                res = coating.optmizeTan(xold, pnew, v,tol)
+                res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
 
@@ -168,9 +175,10 @@ def isViable(q0,norm):
     robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
     T=manip.GetTransform()
     Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-    return dot(norm,Rx) >= math.cos(35*math.pi/180)
+    return dot(norm,Rx) >= math.cos(30*math.pi/180)
 
 def drawParallel2(ray,q0,sign):
+    print 'drawparallel2'
     viable=isViable(q0,ray[3:6])
     dt = 0.0015
     if viable:
@@ -251,8 +259,12 @@ def drawParallel(ray,sign):
             if dot(res.x-y,res.x-y)==0:tol*=0.1
             y=res.x
 
-            a=dvector4(y[0],y[1],y[2])
-            norm=[dot(a[0],transpose(v)),dot(a[1],transpose(v)),dot(a[2],transpose(v))]
+            
+            norm = dfn4(y[0],y[1],y[2])
+            norm /= sqrt(dot(norm,norm))       
+
+##            a=dvector4(y[0],y[1],y[2])
+##            norm=[dot(a[0],transpose(v)),dot(a[1],transpose(v)),dot(a[2],transpose(v))]
             ray = [y[0],y[1],y[2],norm[0],norm[1],norm[2]]
         return drawParallel(ray,sign)
     
@@ -299,7 +311,7 @@ def meridian(P0,Rn,sign):
     while abs(dif)>1e-4:
         tand = tangentd(y,sign)*dt
         pnew = y+tand
-        res = coating.optmizeTan(y, pnew, v,tol)
+        res = coating.optmizeTan(y, pnew, tol)
         if dot(res.x-y,res.x-y)==0:tol*=0.1
         y=res.x
         d = sqrt(res.x[0]**2+res.x[1]**2+res.x[2]**2)
@@ -315,6 +327,7 @@ def meridian(P0,Rn,sign):
     return y
 
 def meridian2(P0,Rn,sign,q0):
+    print 'meridian2'
     Q=[q0]
     dt = 0.001
     y=array([float(P0[0]),float(P0[1]),float(P0[2])])
@@ -408,6 +421,14 @@ def main():
     
     return yR, yL, Q
 
+def getPointsfromQ(Q):
+    points=[]
+    for q in Q:
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        points.append(T[0:3,3])
+    return array(points)    
+
 handles=[]
 def main2():
     global handles
@@ -419,9 +440,22 @@ def main2():
     Rn=nextLine(P0)
     Rn+=33*0.003
     Pd, Qd=meridian2(P0,Rn,1,Q[-1])
+    yM = getPointsfromQ(Qd)
     yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],1)
+    handles=plotPoints(yM, handles,array((0,1,0)))
     handles=plotPoints(yL2, handles,array((1,0,0)))
     handles=plotPoints(yR2, handles,array((1,0,0)))
+
+##    P0=yR2[-1]
+##    Rn=nextLine(P0)
+##    Rn+=33*0.003
+##    Pd, Qd=meridian2(P0,Rn,1,Q[0])
+##    yM = getPointsfromQ(Qd)
+##    yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],-1)
+##    handles=plotPoints(yM, handles,array((0,1,0)))
+##    handles=plotPoints(yL2, handles,array((0,0,1)))
+##    handles=plotPoints(yR2, handles,array((0,0,1)))
+    
     return yR2, yL2, Q2, yR, yL, Q
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')

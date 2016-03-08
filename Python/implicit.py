@@ -1,6 +1,7 @@
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 def plot_implicit(fn, bbox=(-2.5,2.5,-2.5,2.5,-2.5,2.5),rc=100,ns=15):
     ''' create a plot of an implicit function
@@ -13,21 +14,54 @@ def plot_implicit(fn, bbox=(-2.5,2.5,-2.5,2.5,-2.5,2.5),rc=100,ns=15):
     B = np.linspace(xmin, xmax, ns) # number of slices
     A1,A2 = np.meshgrid(A,A) # grid on which the contour is plotted
 
+    i=0
+    t=time.time()
+    initialTime = t
+    N=len(B)
     for z in B: # plot contours in the XY plane
         X,Y = A1,A2
         Z = fn(X,Y,z)
         cset = ax.contour(X, Y, Z+z, [z], zdir='z')
         # [z] defines the only level to plot for this contour for this value of z
+        i+=1
+        if i%1==0:
+            print str(i)+'/'+str(N)
+            print 'elapsed time= '+str(time.time()-t)
+            t=time.time()        
+            print 'total Time = '+str(time.time()- initialTime)
 
+
+
+
+    i=0
+    t=time.time()
+    initialTime = t
     for y in B: # plot contours in the XZ plane
         X,Z = A1,A2
         Y = fn(X,y,Z)
         cset = ax.contour(X, Y+y, Z, [y], zdir='y')
 
+        i+=1
+        if i%1==0:
+            print str(i)+'/'+str(N)
+            print 'elapsed time= '+str(time.time()-t)
+            t=time.time()        
+            print 'total Time = '+str(time.time()- initialTime)
+
+    i=0
+    t=time.time()
+    initialTime = t
     for x in B: # plot contours in the YZ plane
         Y,Z = A1,A2
         X = fn(x,Y,Z)
         cset = ax.contour(X+x, Y, Z, [x], zdir='x')
+
+        i+=1
+        if i%1==0:
+            print str(i)+'/'+str(N)
+            print 'elapsed time= '+str(time.time()-t)
+            t=time.time()        
+            print 'total Time = '+str(time.time()- initialTime)
 
     # must set plot limits because the contour will likely extend
     # way beyond the displayed level.  Otherwise matplotlib extends the plot limits

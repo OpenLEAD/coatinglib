@@ -1,6 +1,7 @@
 # Function definition
 from numpy import *
 from openravepy import *
+from moving_LS import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
@@ -173,6 +174,17 @@ def poseDummy(pointnormal, distance): # Computes robot position in respect of gi
          [v1[2],v2[2],v3[2],pM[2]],[0,0,0,1]]
     
     return T
+
+def RunitX(theta):
+    return [[1,0,0],[0,cos(theta),-sin(theta)],[0,sin(theta),cos(theta)]]
+
+
+def RunitY(theta):
+    return [[cos(theta),0,sin(theta)],[0,1,0],[-sin(theta),0,cos(theta)]]
+
+
+def RunitZ(theta):
+    return [[cos(theta),-sin(theta),0],[sin(theta),cos(theta),0],[0,0,1]]
 
 def Rz(T,theta): # Rotate robot in Z axis, given matrix T of the robot and angle theta to rotate
     R = [[T[0][0],T[0][1],T[0][2]],[T[1][0],T[1][1],T[1][2]],
@@ -799,20 +811,48 @@ def optmizeQ(robot,ikmodel,manip,P,q0):
     res = minimize(func, q0, constraints=cons, method='SLSQP', options={'disp': False})
     return res
 
-def optmizeP(p0, R, v):
+def optmizeSurface(p0): #TODO jogar para a superficie - nao precisa ser perto, optimizeTan jogar pra perto.
     def func(P):
         x=P[0];y=P[1];z=P[2]
         return (x**2+y**2+z**2-R**2)**2
     def consfunc(x,y,z):
-        def vector4(x,y,z):
-            return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
         return dot(vector4,transpose(v))
     cons = ({'type':'eq',
              'fun': consfunc})
     res = minimize(func, p0, constraints=cons, method='SLSQP', options={'disp': False})
     return res
 
-def optmizeTan(p0, pnew, v,tol):
+def optmizeP(p0, R, v):
+    def func(P):
+        x=P[0];y=P[1];z=P[2]
+        return (x**2+y**2+z**2-R**2)**2
+    def consfunc(x,y,z):
+        return dot(vector4,transpose(v))
+    cons = ({'type':'eq',
+             'fun': consfunc})
+    res = minimize(func, p0, constraints=cons, method='SLSQP', options={'disp': False})
+    return res
+
+def optmizeTan(p0, pnew, tol):
+    def func(P):
+        a=P-pnew
+        return dot(a,a)
+    def func_deriv(P):
+        return 2*(P-pnew)
+    def consfunc(P):
+        v, _, _, _, _ = polynomial_surface(P,rR)
+        return dot(v,vector4(P[0],P[1],P[2]))
+    def consfunc_deriv(P):
+        return dpolynomial(P,rR)
+
+    cons = ({'type':'eq',
+             'fun': consfunc,
+            'jac':consfunc_deriv})
+    res = minimize(func, p0,jac=func_deriv,constraints=cons, method='SLSQP',tol=tol, options={'disp': False})
+    return res
+
+
+def optmizeTanNotMLS(p0, pnew, v,tol):
     def func(P):
         a=P-pnew
         return dot(a,a)
