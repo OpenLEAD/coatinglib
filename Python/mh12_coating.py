@@ -98,8 +98,8 @@ indexAll = completeIndex(indexAll,real_index,indexlist1|indexlist2)
 indexBlack = completeIndex(indexBlack,real_index,indexlist1)
 indexBlue = completeIndex(indexBlue,real_index,indexlist2)          
 
-savez_compressed('coated_points/pos4_black.npz', array=reachableRays)
-savez_compressed('coated_points/pos4_blue.npz', array=AllreachableRays)
+#savez_compressed('coated_points/pos4_black.npz', array=reachableRays)
+#savez_compressed('coated_points/pos4_blue.npz', array=AllreachableRays)
 
 #PLOT
 
