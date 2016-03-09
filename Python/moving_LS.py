@@ -16,16 +16,25 @@ Rays2  = Rays2['array']
 rR = array(concatenate((Rays1,Rays2)))
 
 ## GAUSS PARAMETERS
-s = 10
+s = 5
 c1 = sqrt(2*pi*s**2)
 delta = 2*s**2
 r=s*sqrt(10*log(10))
 
-u2 = (rR[1000]+rR[1001])/2
-u2[3:6]/=sqrt(dot(u2[3:6],u2[3:6]))
+##u2 = (rR[1000]+rR[1001])/2
+##u2[3:6]/=sqrt(dot(u2[3:6],u2[3:6]))
 
 # TREE TIME
 Tree = KDTree(rR[:,0:3])
+
+def update_normal_const(sigma):
+    global s, c1, delta, r
+    s = sigma
+    c1 = sqrt(2*pi*s**2)
+    delta = 2*s**2
+    r=s*sqrt(1000*log(10))
+    return
+
 
 def vector4(x,y,z):
     return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
@@ -41,7 +50,6 @@ def evaluate_gauss(point,mean):
     dif = point-mean
     k = -dot(dif,dif)/delta
     return exp(k)/c1
-
 
 def compute_W(point,rays,idx):
     w = []
@@ -99,7 +107,7 @@ def matrix(rays,idx):
     return m, S
 
 def polynomial_surface(point,rays,idx):
-##    t = time.time()
+    t = time.time()
     A, S = matrix(rays,idx)
 ##    print 'shape A = ', shape(A)
 ##    print 'shape S = ', shape(S)
@@ -129,24 +137,29 @@ def polynomial_surface(point,rays,idx):
     
     v = solve(AtwA, b)
 ##    print 'solve_time = '+str(time.time()- t)
+    print 'polynomial_surface_time = '+str(time.time()- t)
 ##    t=time.time()
     
     return v, AtwA, A, m, S       
 
 def dpolynomial(point,rays):
+    t = time.time()
+    print s
     idx = Tree.query_ball_point(point,r)
     v, AtwA, A, m, S  = polynomial_surface(point,rays,idx)
     dv = compute_dv(point,rays,v,AtwA,A,m,S,idx)
     B = vector4(point[0],point[1],point[2])
     dB = dvector4(point[0],point[1],point[2])
     dP = dot(dv,B)+dot(dB,v)
+    print 'dpolynomial_time = '+str(time.time()- t)
     return dP
 
-@vectorize
+#@vectorize
 def fn4(x,y,z):
     point=array([x,y,z])
     idx = Tree.query_ball_point(point,r)
     if len(idx)<=1:
+        print "errou"
         return -1
 ##    print 'shape idx = ', shape(idx)
     v, _, _, _, _ = polynomial_surface(point,rR,idx)
