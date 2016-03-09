@@ -1,13 +1,11 @@
 from numpy import *
 from moving_LS import *
-import matplotlib.pyplot as plt
 import min_distance
 import coating
 from openravepy import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
-import moving_LS
 from time import gmtime, strftime
 
 #====================================================================================================================
@@ -66,18 +64,19 @@ AllreachableRays = load('coated_points/pos4_blue.npz')
 AllreachableRays  = AllreachableRays['array']
 rR = concatenate((reachableRays,AllreachableRays))
 
-v = array([  6.11242244e-02,   2.89653535e-01,   7.94314249e-01,
-        -3.20708568e-02,   5.11681485e-02,   5.32913320e-01,
-        -1.78331728e-01,   4.31527747e-01,  -1.08549881e-02,
-         3.21256789e-01,  -7.03089123e-02,   7.22629763e-02,
-         7.97448256e-02,  -8.52081772e-04,   7.66169966e-03,
-        -1.13579708e-01,  -6.03034682e-01,  -6.98038219e-01,
-        -1.89876807e-01,   1.56603098e-01,  -5.04314372e-01,
-        -3.11011260e-02,  -7.67252299e-02,  -1.48860963e-01,
-        -3.31170392e-02,   5.83401508e-01,   5.32945098e-01,
-         3.44663122e-01,   9.20029194e-01,  -3.58423952e-01,
-         2.63214686e-01,  -9.43235599e-02,  -9.33102549e-02,
-         3.41146158e-01,  -1.94242634e-02])
+##v = array([  6.11242244e-02,   2.89653535e-01,   7.94314249e-01,
+##        -3.20708568e-02,   5.11681485e-02,   5.32913320e-01,
+##        -1.78331728e-01,   4.31527747e-01,  -1.08549881e-02,
+##         3.21256789e-01,  -7.03089123e-02,   7.22629763e-02,
+##         7.97448256e-02,  -8.52081772e-04,   7.66169966e-03,
+##        -1.13579708e-01,  -6.03034682e-01,  -6.98038219e-01,
+##        -1.89876807e-01,   1.56603098e-01,  -5.04314372e-01,
+##        -3.11011260e-02,  -7.67252299e-02,  -1.48860963e-01,
+##        -3.31170392e-02,   5.83401508e-01,   5.32945098e-01,
+##         3.44663122e-01,   9.20029194e-01,  -3.58423952e-01,
+##         2.63214686e-01,  -9.43235599e-02,  -9.33102549e-02,
+##         3.41146158e-01,  -1.94242634e-02])
+v=[]
 
 def vector4(x,y,z):
     return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
@@ -90,6 +89,7 @@ def dvector4(x,y,z):
     return a
 
 def fn4(x,y,z):
+    global v
     point=array([x,y,z])
     idx = Tree.query_ball_point(point,0.5)
     if len(idx)<=1:
@@ -100,8 +100,6 @@ def fn4(x,y,z):
 
 def dfn4(x,y,z):
     return dpolynomial(array([x,y,z]),rR)
-    #dv = dvector4(x,y,z)
-    #return [dot(dv[0],transpose(v)),dot(dv[1],transpose(v)),dot(dv[2],transpose(v))]
 
 def getmean(points):
     m=[0,0,0,0,0,0]
@@ -130,8 +128,6 @@ def tangentOptm(ray,q0):
    # print 'tangentOptm: res.success -',res.success , ' angle -', 180*math.acos(dot(ray[3:6],Rx))/math.pi
     if res.success and not isViable(res.x,ray[3:6]):
         angle_suc=False
-       
-
     return tan, res.x, (res.success and angle_suc)
 
 def HasSol(ray):
@@ -166,12 +162,9 @@ def Qvector(y,Q,dt,sign):
                 res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
-
             dv = array(dfn4(xnew[0],xnew[1],xnew[2]))
             n = dv/sqrt(dot(dv,dv))
-            
-            P=concatenate((xnew,n))
-            
+            P=concatenate((xnew,n))   
             y.append(P)
     return Q,y
 
@@ -196,7 +189,6 @@ def drawParallel2(ray,q0,sign):
             sign*=-1
             Ql, yL = Qvector(y,QL,dt,sign)
             #print 'sign -1: Ql -',array(Ql).shape,', yL -',array(yL).shape
-
         else:
             Ql, yL = Qvector(y,QL,dt,sign)
             y=[ray]
@@ -266,9 +258,6 @@ def drawParallel(ray,sign):
             
             norm = dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))       
-
-##            a=dvector4(y[0],y[1],y[2])
-##            norm=[dot(a[0],transpose(v)),dot(a[1],transpose(v)),dot(a[2],transpose(v))]
             ray = [y[0],y[1],y[2],norm[0],norm[1],norm[2]]
         return drawParallel(ray,sign)
     
@@ -312,10 +301,17 @@ def meridian(P0,Rn,sign):
     dif = d-Rn
     S=(dif>0)
     tol=1e-6
+    t=time.time()
     while abs(dif)>1e-4:
+        t2=time.time()
         tand = tangentd(y,sign)*dt
+        print 'tangentd_time = '+str(time.time()- t2)
         pnew = y+tand
+
+        t2=time.time()
         res = coating.optmizeTan(y, pnew, tol)
+        print 'optimizeTan_time = '+str(time.time()- t2)
+        
         if dot(res.x-y,res.x-y)==0:tol*=0.1
         y=res.x
         d = sqrt(res.x[0]**2+res.x[1]**2+res.x[2]**2)
@@ -324,7 +320,8 @@ def meridian(P0,Rn,sign):
             sign*=-1
             dt*=0.5
             S=(dif>0)
-
+    print 'while_time = '+str(time.time()- t)
+    
     norm = dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     y = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])        
@@ -381,17 +378,16 @@ def meridian2(P0,Rn,sign,q0):
     return ray, Q
 
 def nearInSurface(P,points):
+    global s
     _,idx = Tree.query(P)
     proximo=points[idx,0:3]
-    global s, delta, r, c1
     stemp=s
-    while stemp>0:
+    while stemp>0.1:
+        update_normal_const(stemp)
         s=stemp
-        c1 = sqrt(2*pi*s**2)
-        delta = 2*s**2
-        r=s*sqrt(10*math.log(10))
         proximo = min_distance.minPoint(proximo)
-        stemp-=9.9
+        stemp*=0.9
+        print s
     return proximo
    
 def plotPoints(points, handles,color):
