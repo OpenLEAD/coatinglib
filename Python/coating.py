@@ -1,7 +1,8 @@
 # Function definition
 from numpy import *
 from openravepy import *
-from moving_LS import *
+import polynomial_spline
+#from moving_LS import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
@@ -840,10 +841,11 @@ def optmizeTan(p0, pnew, tol):
     def func_deriv(P):
         return 2*(P-pnew)
     def consfunc(P):
-        return fn4(P[0],P[1],P[2])
+        #return fn4(P[0],P[1],P[2])
+        return polynomial_spline.fn4(P[0],P[1],P[2])
     def consfunc_deriv(P):
-        return dpolynomial(P,rR)
-
+        #return dpolynomial(P,rR)
+        return polynomial_spline.dfn4(P[0],P[1],P[2])
     cons = ({'type':'eq',
              'fun': consfunc,
             'jac':consfunc_deriv})

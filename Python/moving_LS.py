@@ -32,7 +32,7 @@ def update_normal_const(sigma):
     s = sigma
     c1 = sqrt(2*pi*s**2)
     delta = 2*s**2
-    r=s*sqrt(1000*log(10))
+    r=s*sqrt(10*log(10))
     return
 
 
@@ -107,7 +107,7 @@ def matrix(rays,idx):
     return m, S
 
 def polynomial_surface(point,rays,idx):
-    t = time.time()
+##    t = time.time()
     A, S = matrix(rays,idx)
 ##    print 'shape A = ', shape(A)
 ##    print 'shape S = ', shape(S)
@@ -137,21 +137,20 @@ def polynomial_surface(point,rays,idx):
     
     v = solve(AtwA, b)
 ##    print 'solve_time = '+str(time.time()- t)
-    print 'polynomial_surface_time = '+str(time.time()- t)
+##    print 'polynomial_surface_time = '+str(time.time()- t)
 ##    t=time.time()
     
     return v, AtwA, A, m, S       
 
 def dpolynomial(point,rays):
-    t = time.time()
-    print s
+##    t = time.time()
     idx = Tree.query_ball_point(point,r)
     v, AtwA, A, m, S  = polynomial_surface(point,rays,idx)
     dv = compute_dv(point,rays,v,AtwA,A,m,S,idx)
     B = vector4(point[0],point[1],point[2])
     dB = dvector4(point[0],point[1],point[2])
     dP = dot(dv,B)+dot(dB,v)
-    print 'dpolynomial_time = '+str(time.time()- t)
+##    print 'dpolynomial_time = '+str(time.time()- t)
     return dP
 
 #@vectorize

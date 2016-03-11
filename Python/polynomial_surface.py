@@ -192,7 +192,7 @@ def main():
     global v
     v = polynomial_surface2(rR)
 
-    ax = implicit.plot_implicit(f4coated4_50mm,bbox=(-5,5,-5,5,-5,5))
+    ax = implicit.plot_implicit(f4behind_filtered,bbox=(-5,5,-5,5,-5,5))
 
     #rR = tree_time.tree_time(rR,0.05)
     rR=array(rR)
