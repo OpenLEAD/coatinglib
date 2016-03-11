@@ -1,5 +1,5 @@
 from numpy import *
-from moving_LS import *
+from polynomial_spline import *
 import min_distance
 import coating
 from openravepy import *
@@ -64,80 +64,24 @@ AllreachableRays = load('coated_points/pos4_blue.npz')
 AllreachableRays  = AllreachableRays['array']
 rR = concatenate((reachableRays,AllreachableRays))
 
-##v = array([  6.11242244e-02,   2.89653535e-01,   7.94314249e-01,
-##        -3.20708568e-02,   5.11681485e-02,   5.32913320e-01,
-##        -1.78331728e-01,   4.31527747e-01,  -1.08549881e-02,
-##         3.21256789e-01,  -7.03089123e-02,   7.22629763e-02,
-##         7.97448256e-02,  -8.52081772e-04,   7.66169966e-03,
-##        -1.13579708e-01,  -6.03034682e-01,  -6.98038219e-01,
-##        -1.89876807e-01,   1.56603098e-01,  -5.04314372e-01,
-##        -3.11011260e-02,  -7.67252299e-02,  -1.48860963e-01,
-##        -3.31170392e-02,   5.83401508e-01,   5.32945098e-01,
-##         3.44663122e-01,   9.20029194e-01,  -3.58423952e-01,
-##         2.63214686e-01,  -9.43235599e-02,  -9.33102549e-02,
-##         3.41146158e-01,  -1.94242634e-02])
-v=[]
+reachableRays = load('blade_sampling/blade_crop_fast.npz')
+reachableRays  = reachableRays['array']
+AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
+AllreachableRays  = AllreachableRays['array']
+rays = concatenate((reachableRays,AllreachableRays))
 
-def vector4(x,y,z):
-    return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
-
-def dvector4(x,y,z):
-    dx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z**2, z**3, y, y*z, y*z**2, y**2, y**2*z, y**3, 2*x, 2*x*z, 2*x*z**2, 2*x*y, 2*x*y*z, 2*x*y**2, 3*x**2, 3*x**2*z, 3*x**2*y, 4*x**3]
-    dy = [0, 0, 0, 0, 0, 1, z, z**2, z**3, 2*y, 2*y*z, 2*y*z**2, 3*y**2, 3*y**2*z, 4*y**3, 0, 0, 0, 0, x, x*z, x*z**2, 2*x*y, 2*x*y*z, 3*x*y**2, 0, 0, 0, x**2, x**2*z, 2*x**2*y, 0, 0, x**3, 0]
-    dz = [0, 1, 2*z, 3*z**2, 4*z**3, 0, y, 2*y*z, 3*y*z**2, 0, y**2, 2*y**2*z, 0, y**3, 0, 0, x, 2*x*z, 3*x*z**2, 0, x*y, 2*x*y*z, 0, x*y**2, 0, 0, x**2, 2*x**2*z, 0, x**2*y, 0, 0, x**3, 0, 0]
-    a=[dx,dy,dz]
-    return a
-
-def fn4(x,y,z):
-    global v
-    point=array([x,y,z])
-    idx = Tree.query_ball_point(point,0.5)
-    if len(idx)<=1:
-        return -1
-##    print 'shape idx = ', shape(idx)
-    v, _, _, _, _ = polynomial_surface(point,rR,idx)
-    return dot(v,vector4(x,y,z))
-
-def dfn4(x,y,z):
-    return dpolynomial(array([x,y,z]),rR)
-
-def getmean(points):
-    m=[0,0,0,0,0,0]
-    for p in points:m=m+p
-    m=m/len(points)
-
-    pmean=[0,0,0,0,0,0]
-    pmin=1000
-    for p in points:
-        d=dot(m[0:3]-p[0:3],m[0:3]-p[0:3])
-        if pmin>d:
-            pmin=d
-            pmean=p
-    return pmean
+Tree = makeTree(rays)
 
 def tangentOptm(ray,q0):
     tan = cross(ray[3:6],ray[0:3])
     tan *= (40.0/60)/sqrt(dot(tan,tan))
- 
     angle_suc = True
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
-
-##    robot.SetDOFValues(res.x,ikmodel.manip.GetArmIndices())
-##    T=manip.GetTransform()
-##    Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-   # print 'tangentOptm: res.success -',res.success , ' angle -', 180*math.acos(dot(ray[3:6],Rx))/math.pi
     if res.success and not isViable(res.x,ray[3:6]):
         angle_suc=False
     return tan, res.x, (res.success and angle_suc)
 
-def HasSol(ray):
-    reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
-    AllreachableRayschableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2([ray],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
-    if AlliksolList: return True
-    else: return False
-
 def solution(ray):
-    print 'solution: tolerance - ', tolerance
     reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
     print 'solution: iksolList - ',array(iksolList).shape
     AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2([ray],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
@@ -150,8 +94,6 @@ def Qvector(y,Q,dt,sign):
     suc=True
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
-        #print 'Qvec: tan -',array(tan).shape,', Q -',array(Q).shape,', suc -',suc
-
         if suc:
             Q.append(q)
             xold = y[-1][0:3]
@@ -175,7 +117,6 @@ def isViable(q0,norm):
     return dot(norm,Rx) >= math.cos(30*math.pi/180)
 
 def drawParallel2(ray,q0,sign):
-    print 'drawparallel2'
     viable=isViable(q0,ray[3:6])
     dt = 0.0015
     if viable:
@@ -203,7 +144,7 @@ def drawParallel2(ray,q0,sign):
             tan, q0, viable = tangentOptm(ray,q0)
             tan *= sign*dt
             pnew = y+tan
-            res = coating.optmizeTan(y, pnew, v,tol)
+            res = coating.optmizeTan(y, pnew, tol)
             if dot(res.x-y,res.x-y)==0:
                 tol*=0.1
             y=res.x
@@ -340,7 +281,7 @@ def meridian2(P0,Rn,sign,q0):
     while abs(dif)>1e-4:
         tand = tangentd(y,sign)*dt
         pnew = y+tand
-        res = coating.optmizeTan(y, pnew, v,tol)
+        res = coating.optmizeTan(y, pnew,tol)
         if dot(res.x-y,res.x-y)==0:
             tol*=0.1
         y=res.x
@@ -378,16 +319,8 @@ def meridian2(P0,Rn,sign,q0):
     return ray, Q
 
 def nearInSurface(P,points):
-    global s
     _,idx = Tree.query(P)
     proximo=points[idx,0:3]
-    stemp=s
-    while stemp>5:
-        update_normal_const(stemp)
-        s=stemp
-        proximo = min_distance.minPoint(proximo)
-        stemp*=0.9
-        print s
     return proximo
    
 def plotPoints(points, handles,color):
@@ -407,7 +340,7 @@ def main():
     soma=[0,0,0]
     for i in rRp:soma=soma+i
     P0 = soma/len(rRp)
-    P0 = array([-0.37241161, -2.8791986 , -0.07796414])
+    #P0 = array([-0.37241161, -2.8791986 , -0.07796414])
     P0 = nearInSurface(P0,rRp)
     d0 = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     R0=1.425
@@ -435,7 +368,7 @@ def getPointsfromQ(Q):
 handles=[]
 def main2():
     global handles
-    env.SetViewer('qtcoin')
+    #env.SetViewer('qtcoin')
     yR, yL, Q = main()
     handles=plotPoints(yL, handles,array((0,0,0)))
     handles=plotPoints(yR, handles,array((0,0,0)))
