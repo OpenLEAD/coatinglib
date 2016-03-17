@@ -76,6 +76,7 @@ def tangentOptm(ray,q0):
     tan = cross(ray[3:6],ray[0:3])
     tan *= (40.0/60)/sqrt(dot(tan,tan))
     angle_suc = True
+    limits = True
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
     if res.success and not isViable(res.x,ray[3:6]):
         angle_suc=False
@@ -89,7 +90,24 @@ def solution(ray):
     if iksolList: return iksolList
     elif AlliksolList: return AlliksolList
     else: return False
-    
+
+def fullSolution(ray):
+    angles = arange(0,tolerance,0.1)
+    numberofangles = 10
+    for angle in angles:
+        angle=1.0*pi*angle/180
+        Rv3tol = coating.RotationCalc2([0,0,1],angle)
+        p = dot(facevector,transpose(Rv3tol))
+        k = 1.0*2*pi/numberofangles
+        for i in range(0,numberofangles):
+            alfa = k*i
+            Rv1alfa = coating.RotationCalc2(facevector,alfa)
+            tempP = dot(p,transpose(Rv1alfa))
+            reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,tempP,theta,coatingdistancetolerance)    
+            if iksolList:
+                return iksolList
+    return []
+
 def Qvector(y,Q,dt,sign):
     suc=True
     while suc:
@@ -108,6 +126,8 @@ def Qvector(y,Q,dt,sign):
             n = dv/sqrt(dot(dv,dv))
             P=concatenate((xnew,n))   
             y.append(P)
+            if not coating.CheckDOFLimits(robot,q):
+                return [], P
     return Q,y
 
 def isViable(q0,norm):
@@ -135,6 +155,12 @@ def drawParallel2(ray,q0,sign):
             y=[ray]
             sign*=-1
             Qr, yR = Qvector(y,QR,dt,sign)
+        if not Qr:
+            iksolList = fullSolution(yR)
+            return drawParallel2(yR,iksolList[0][0],sign*-1)
+        if not Ql:
+            iksolList = fullSolution(yL)
+            return drawParallel2(yL,iksolList[0][0],sign*-1)
     else:
         sign*=-1
         print 'drawParallel2: solution not found'
@@ -378,21 +404,34 @@ def main2():
     Pd, Qd=meridian2(P0,Rn,1,Q[-1])
     yM = getPointsfromQ(Qd)
     yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],1)
-    handles=plotPoints(yM, handles,array((0,1,0)))
-    handles=plotPoints(yL2, handles,array((1,0,0)))
-    handles=plotPoints(yR2, handles,array((1,0,0)))
+    handles=plotPoints(yM, handles,array((0,0,0)))
+    handles=plotPoints(yL2, handles,array((0,0,0)))
+    handles=plotPoints(yR2, handles,array((0,0,0)))
 
     P0=yL2[-1]
     Rn=nextLine(P0)
     Rn+=33*0.003
     Pd, Qd=meridian2(P0,Rn,1,Q[-1])
     yM = getPointsfromQ(Qd)
-    yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],1)
-    handles=plotPoints(yM, handles,array((0,1,0)))
-    handles=plotPoints(yL2, handles,array((0,0,1)))
-    handles=plotPoints(yR2, handles,array((0,0,1)))
+    yR3, yL3, Q3 = drawParallel2(Pd,Qd[-1],-1)
+    handles=plotPoints(yM, handles,array((0,0,0)))
+    handles=plotPoints(yL3, handles,array((0,0,0)))
+    handles=plotPoints(yR3, handles,array((0,0,0)))
     
-    return yR2, yL2, Q2, yR, yL, Q
+    return yR3, yL3, Q3,yR2, yL2, Q2, yR, yL, Q
+
+def realCoatedPoints(Q):
+    global handles
+    newY=[]
+    for q in Q:
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        Rx = array(T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0])))
+        p = T[0:3,3]
+        newY.append(p-0.23*Rx)
+    handles=plotPoints(newY, handles,array((0,0,1)))
+    return handles
+
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')
 #handles=[]
