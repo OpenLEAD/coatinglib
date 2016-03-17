@@ -793,6 +793,17 @@ def calculateOmegasbyJacobian2(robot,ikmodel,manip,thetas,velocities):
          Jacobs.append(Jacob)
          if i%1000==0:print str(i)+'/'+str(len(thetas))
      return NewOmegas, Jacobs, Manipulabilities
+
+def CheckDOFLimits(robot,Q):
+    Joints = robot.GetJoints()
+    for i in range(0,len(Q)):
+        l,u = Joints[i].GetLimits()
+        l = l[0]
+        u = u[0]
+        if not Q[i]>=l or not Q[i]<=u:
+            print('deu bode')
+            return False
+    return True    
     
 def optmizeQ(robot,ikmodel,manip,P,q0):
     n = [P[3],P[4],P[5]]; P=[P[0],P[1],P[2]]
