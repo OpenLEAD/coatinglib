@@ -1,5 +1,5 @@
 from numpy import *
-from polynomial_spline import *
+#from polynomial_spline import *
 import min_distance
 import coating
 from openravepy import *
@@ -7,13 +7,14 @@ from openravepy.misc import SpaceSamplerExtra
 import time
 import math
 from time import gmtime, strftime
-
+from polynomial_spline import *
 #====================================================================================================================
 env=Environment()
 env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
+handles=[]
 
 ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=IkParameterization.Type.Transform6D)
 if not ikmodel.load():
@@ -77,6 +78,7 @@ def tangentOptm(ray,q0):
     tan *= (40.0/60)/sqrt(dot(tan,tan))
     angle_suc = True
     limits = True
+    #print 'ray - ', ray[0:3]
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
     if res.success and not isViable(res.x,ray[3:6]):
         angle_suc=False
@@ -112,13 +114,17 @@ def Qvector(y,Q,dt,sign):
     suc=True
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
+        if fn4(y[-1][0],y[-1][1],y[-1][2]) > 1e-6 :
+            print fn4(y[-1][0],y[-1][1],y[-1][2])
+        if not coating.CheckDOFLimits(robot,q):
+                return [], y[-1]
         if suc:
             Q.append(q)
             xold = y[-1][0:3]
             pnew = xold + sign*tan*dt
             tol=1e-5
             xnew = xold
-            while dot(xnew-xold,xnew-xold)==0:
+            while dot(xnew-xold,xnew-xold)<=tol: # ==0
                 res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
@@ -126,15 +132,14 @@ def Qvector(y,Q,dt,sign):
             n = dv/sqrt(dot(dv,dv))
             P=concatenate((xnew,n))   
             y.append(P)
-            if not coating.CheckDOFLimits(robot,q):
-                return [], P
+            
     return Q,y
 
 def isViable(q0,norm):
     robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
     T=manip.GetTransform()
     Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-    return dot(norm,Rx) >= math.cos(30*math.pi/180)
+    return dot(norm,Rx) >= math.cos(tolerance*math.pi/180)
 
 def drawParallel2(ray,q0,sign):
     viable=isViable(q0,ray[3:6])
@@ -192,7 +197,6 @@ def drawParallel(ray,sign):
     sol=solution(ray)
     dt = 0.0015
     if sol:
-        print len(sol[0])
         q0=sol[0][0]
         QL=[q0]
         QR=[q0]
@@ -391,29 +395,30 @@ def getPointsfromQ(Q):
         points.append(T[0:3,3])
     return array(points)    
 
-handles=[]
+
 def main2():
     global handles
+    set_handles(handles,env)
     #env.SetViewer('qtcoin')
     yR, yL, Q = main()
     handles=plotPoints(yL, handles,array((0,0,0)))
     handles=plotPoints(yR, handles,array((0,0,0)))
-    P0=yR[-1]
+    P0=yL[-1]
     Rn=nextLine(P0)
     Rn+=33*0.003
-    Pd, Qd=meridian2(P0,Rn,1,Q[-1])
+    Pd, Qd=meridian2(P0,Rn,1,Q[0])
     yM = getPointsfromQ(Qd)
-    yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],1)
+    yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],-1)
     handles=plotPoints(yM, handles,array((0,0,0)))
     handles=plotPoints(yL2, handles,array((0,0,0)))
     handles=plotPoints(yR2, handles,array((0,0,0)))
 
-    P0=yL2[-1]
+    P0=yR2[-1]
     Rn=nextLine(P0)
     Rn+=33*0.003
     Pd, Qd=meridian2(P0,Rn,1,Q[-1])
     yM = getPointsfromQ(Qd)
-    yR3, yL3, Q3 = drawParallel2(Pd,Qd[-1],-1)
+    yR3, yL3, Q3 = drawParallel2(Pd,Qd[-1],1)
     handles=plotPoints(yM, handles,array((0,0,0)))
     handles=plotPoints(yL3, handles,array((0,0,0)))
     handles=plotPoints(yR3, handles,array((0,0,0)))
