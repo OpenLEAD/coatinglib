@@ -8,6 +8,7 @@ from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+
 ##reachableRays = load('coated_points/pos4_black.npz')
 ##reachableRays  = reachableRays['array']
 ##AllreachableRays = load('coated_points/pos4_blue.npz')
@@ -25,7 +26,31 @@ v=[]
 r=0.4
 center=[500,0,0]
 idx=[]
+handles2=[]
+env2=None
 
+# ======= PESO
+## GAUSS PARAMETERS
+s = 0.11
+c1 = sqrt(2*pi*s**2)
+delta = 2*s**2
+def evaluate_gauss(point,mean):
+    dif = point-mean
+    k = -dot(dif,dif)/delta
+    return exp(k)/c1
+
+def compute_W(point,rays,idx):
+    w = []
+    for i in idx:
+        w.append(evaluate_gauss(rays[i][0:3],point))
+    return w
+# =======
+
+def set_handles(handles,env):
+    global handles2, env2
+    handles2 = handles
+    env2 = env
+    return
 
 def load_rays(lrays):
     global rays
@@ -97,7 +122,7 @@ def polynomial_surface(point):
     xyz = vector4(x,y,z)
     H = ddvector4(x,y,z)
     S = [vector4(x,y,z),dx,dy,dz]
-    c = [dot(v,vector4(x,y,z)),dot(v,dx),dot(v,dy),dot(v,dz)]
+    c = [dot(v,xyz),dot(v,dx),dot(v,dy),dot(v,dz)]
     for i in H:
         S.append(i)
         c.append(dot(v,i))
@@ -105,16 +130,26 @@ def polynomial_surface(point):
     b=[]
     for ind in idx:
         a=vector4(rays[ind][0],rays[ind][1],rays[ind][2])   
-        da=dvector4(rays[ind][0],rays[ind][1],rays[ind][2]) 
-        av = [a,da[0],da[1],da[2]]
+        dx,dy,dz=dvector4(rays[ind][0],rays[ind][1],rays[ind][2])
+        av = [a,dx,dy,dz]
         bv = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
         A.extend(av)
         b.extend(bv)
+    At = transpose(A)
+    
+    # ===============================
+    # Polynomial Spline with weights
+    w = compute_W(point,rays,idx)
+    A=array(A)
+    for i in range(0,len(A)):
+        A[i]*=w[i/4]
+    # ===============================
+    
     b = 2*dot(transpose(A),b)
-    AtA = 2*dot(transpose(A),A)
+    AtA = 2*dot(At,A)
     w = concatenate((b,c))
     m, _ = shape(AtA)
-    p, q = shape(S)
+    p, _ = shape(S)
     U = zeros((m+p,m+p))
     U[0:m,0:m]=AtA
     U[0:m,m:m+p]=transpose(S)
@@ -131,20 +166,41 @@ def standard_surface(point):
     update_v(v)
     return
 
+index = -1
+
 def update_surface(x,y,z):
+    global handles, index
     point = array([x,y,z])
     dif = point-center
     ratio = dot(dif,dif)/r**2
-    if ratio > 0.25:
+    if ratio > 0.25: #0.01
         idx = getSamples(point,r)
         #if len(idx)==0:
         #    return -1
         update_idx(idx)
         update_center(point)
-        if ratio > 0.8: #update v
+        if ratio > 0.85: #update v #0.25
+            print 'arroe! (x,y,z) - ', point
             standard_surface(point)
         else:
+            print 'recalculando...'
+            if index>-1: handles2.pop(index-1) 
+            handles2.append(env2.plot3(points=rays[idx,0:3],pointsize=5,colors=array((0,0,0))))
+            index=len(handles2)
             polynomial_surface(point)
+
+        maxi=0
+        ponto=[]
+        for ind in idx:
+            tempfn4 = abs(dot(v,vector4(rays[ind][0],rays[ind][1],rays[ind][2])))
+            if maxi<=tempfn4:
+                maxi=tempfn4
+                ponto = rays[ind]
+        print 'Pior ponto =', ponto[0:3], ' fn4(x,y,z) = ',maxi
+        handles2.append(env2.plot3(points=ponto[0:3],pointsize=5,colors=array((1,0,0))))
+        wait = input("PRESS ENTER TO CONTINUE.")    
+                
+        #print v    
     return  0
     
 
@@ -156,6 +212,8 @@ def dfn4(x,y,z):
 
 @vectorize
 def fn4(x,y,z):
+    ' to no fn4'
+    update_surface(x,y,z)
     #if update_surface(x,y,z) == -1:
     #    return -1
     return dot(v,vector4(x,y,z))
