@@ -80,7 +80,7 @@ handles=[]
 handles.append(env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0))))
 
 # Compute Solutions
-base = gbase_position[4]
+base = gbase_position[6]
 
 real_index = indexList[~indexAll]
 pN = copy.copy(base)

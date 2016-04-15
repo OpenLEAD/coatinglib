@@ -1,5 +1,5 @@
 from numpy import *
-from moving_LS import *
+import moving_LS
 import min_distance
 import coating
 from openravepy import *
@@ -78,29 +78,6 @@ rR = concatenate((reachableRays,AllreachableRays))
 ##         3.41146158e-01,  -1.94242634e-02])
 v=[]
 
-def vector4(x,y,z):
-    return [1, z, z**2, z**3, z**4, y, y*z, y*z**2, y*z**3, y**2, y**2*z, y**2*z**2, y**3, y**3*z, y**4, x, x*z, x*z**2, x*z**3, x*y, x*y*z, x*y*z**2, x*y**2, x*y**2*z, x*y**3, x**2, x**2*z, x**2*z**2, x**2*y, x**2*y*z, x**2*y**2, x**3, x**3*z, x**3*y, x**4]
-
-def dvector4(x,y,z):
-    dx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z**2, z**3, y, y*z, y*z**2, y**2, y**2*z, y**3, 2*x, 2*x*z, 2*x*z**2, 2*x*y, 2*x*y*z, 2*x*y**2, 3*x**2, 3*x**2*z, 3*x**2*y, 4*x**3]
-    dy = [0, 0, 0, 0, 0, 1, z, z**2, z**3, 2*y, 2*y*z, 2*y*z**2, 3*y**2, 3*y**2*z, 4*y**3, 0, 0, 0, 0, x, x*z, x*z**2, 2*x*y, 2*x*y*z, 3*x*y**2, 0, 0, 0, x**2, x**2*z, 2*x**2*y, 0, 0, x**3, 0]
-    dz = [0, 1, 2*z, 3*z**2, 4*z**3, 0, y, 2*y*z, 3*y*z**2, 0, y**2, 2*y**2*z, 0, y**3, 0, 0, x, 2*x*z, 3*x*z**2, 0, x*y, 2*x*y*z, 0, x*y**2, 0, 0, x**2, 2*x**2*z, 0, x**2*y, 0, 0, x**3, 0, 0]
-    a=[dx,dy,dz]
-    return a
-
-def fn4(x,y,z):
-    global v
-    point=array([x,y,z])
-    idx = Tree.query_ball_point(point,0.5)
-    if len(idx)<=1:
-        return -1
-##    print 'shape idx = ', shape(idx)
-    v, _, _, _, _ = polynomial_surface(point,rR,idx)
-    return dot(v,vector4(x,y,z))
-
-def dfn4(x,y,z):
-    return dpolynomial(array([x,y,z]),rR)
-
 def getmean(points):
     m=[0,0,0,0,0,0]
     for p in points:m=m+p
@@ -159,10 +136,10 @@ def Qvector(y,Q,dt,sign):
             tol=1e-5
             xnew = xold
             while dot(xnew-xold,xnew-xold)==0:
-                res = coating.optmizeTan(xold, pnew, tol)
+                res = moving_LS.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
-            dv = array(dfn4(xnew[0],xnew[1],xnew[2]))
+            dv = array(moving_LS.dfn4(xnew[0],xnew[1],xnew[2]))
             n = dv/sqrt(dot(dv,dv))
             P=concatenate((xnew,n))   
             y.append(P)
@@ -177,7 +154,7 @@ def isViable(q0,norm):
 def drawParallel2(ray,q0,sign):
     print 'drawparallel2'
     viable=isViable(q0,ray[3:6])
-    dt = 0.0015
+    dt = 1e-10
     if viable:
         QL=[q0]
         QR=[q0]
@@ -203,12 +180,12 @@ def drawParallel2(ray,q0,sign):
             tan, q0, viable = tangentOptm(ray,q0)
             tan *= sign*dt
             pnew = y+tan
-            res = coating.optmizeTan(y, pnew, v,tol)
+            res = moving_LS.optmizeTan(y, pnew, v,tol)
             if dot(res.x-y,res.x-y)==0:
                 tol*=0.1
             y=res.x
 
-            norm = dfn4(y[0],y[1],y[2])
+            norm = moving_LS.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
         return drawParallel2(ray,q0,sign)
@@ -223,7 +200,7 @@ def drawParallel2(ray,q0,sign):
 
 def drawParallel(ray,sign):
     sol=solution(ray)
-    dt = 0.0015
+    dt = 1e-10
     if sol:
         print len(sol[0])
         q0=sol[0][0]
@@ -251,12 +228,12 @@ def drawParallel(ray,sign):
             y=ray[0:3]
             tan = tangent(y,sign)*dt
             pnew = y+tan
-            res = coating.optmizeTan(y, pnew, v,tol)
+            res = moving_LS.optmizeTan(y, pnew, v,tol)
             if dot(res.x-y,res.x-y)==0:tol*=0.1
             y=res.x
 
             
-            norm = dfn4(y[0],y[1],y[2])
+            norm = moving_LS.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))       
             ray = [y[0],y[1],y[2],norm[0],norm[1],norm[2]]
         return drawParallel(ray,sign)
@@ -272,7 +249,7 @@ def drawParallel(ray,sign):
 def tangentd(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(dfn4(x,y,z))
+    dv = array(moving_LS.dfn4(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -285,7 +262,7 @@ def tangentd(ray,sign):
 def tangent(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(dfn4(x,y,z))
+    dv = array(moving_LS.dfn4(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -295,7 +272,7 @@ def tangent(ray,sign):
     return a
 
 def meridian(P0,Rn,sign):
-    dt = 0.001
+    dt = 1e-10
     y=array([float(P0[0]),float(P0[1]),float(P0[2])])
     d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     dif = d-Rn
@@ -309,7 +286,7 @@ def meridian(P0,Rn,sign):
         pnew = y+tand
 
         t2=time.time()
-        res = coating.optmizeTan(y, pnew, tol)
+        res = moving_LS.optmizeTan(y, pnew, tol)
         print 'optimizeTan_time = '+str(time.time()- t2)
         
         if dot(res.x-y,res.x-y)==0:tol*=0.1
@@ -322,7 +299,7 @@ def meridian(P0,Rn,sign):
             S=(dif>0)
     print 'while_time = '+str(time.time()- t)
     
-    norm = dfn4(y[0],y[1],y[2])
+    norm = moving_LS.dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     y = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])        
     return y
@@ -330,7 +307,7 @@ def meridian(P0,Rn,sign):
 def meridian2(P0,Rn,sign,q0):
     print 'meridian2'
     Q=[q0]
-    dt = 0.001
+    dt = 1e-10
     y=array([float(P0[0]),float(P0[1]),float(P0[2])])
     d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     dif = d-Rn
@@ -340,13 +317,13 @@ def meridian2(P0,Rn,sign,q0):
     while abs(dif)>1e-4:
         tand = tangentd(y,sign)*dt
         pnew = y+tand
-        res = coating.optmizeTan(y, pnew, v,tol)
+        res = moving_LS.optmizeTan(y, pnew, v,tol)
         if dot(res.x-y,res.x-y)==0:
             tol*=0.1
         y=res.x
 
         if notstop:
-            norm = dfn4(y[0],y[1],y[2])
+            norm = moving_LS.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
 
@@ -365,7 +342,7 @@ def meridian2(P0,Rn,sign,q0):
             S=(dif>0)
 
             
-    norm = dfn4(y[0],y[1],y[2])
+    norm = moving_LS.dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])  
 
@@ -378,16 +355,15 @@ def meridian2(P0,Rn,sign,q0):
     return ray, Q
 
 def nearInSurface(P,points):
-    global s
-    _,idx = Tree.query(P)
+    _,idx = moving_LS.Tree.query(P)
     proximo=points[idx,0:3]
-    stemp=s
-    while stemp>5:
-        update_normal_const(stemp)
-        s=stemp
+    stemp=moving_LS.s
+    while stemp>0.5:
+        moving_LS.update_normal_const(stemp)
+        moving_LS.s=stemp
         proximo = min_distance.minPoint(proximo)
         stemp*=0.9
-        print s
+        print moving_LS.s
     return proximo
    
 def plotPoints(points, handles,color):
@@ -407,7 +383,6 @@ def main():
     soma=[0,0,0]
     for i in rRp:soma=soma+i
     P0 = soma/len(rRp)
-    P0 = array([-0.37241161, -2.8791986 , -0.07796414])
     P0 = nearInSurface(P0,rRp)
     d0 = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     R0=1.425
@@ -418,9 +393,9 @@ def main():
 
     yR, yL, Q = drawParallel(Pd,1)
     t=strftime("%d%b%Y_%H_%M_%S", gmtime())
-    savez_compressed('path/yR/'+'_'+t+'.npz', array=yR)
-    savez_compressed('path/yL/'+'_'+t+'.npz', array=yL)
-    savez_compressed('path/Q/'+'_'+t+'.npz', array=Q)
+    savez_compressed('path/yR/'+'_MLS_s02_dt1e5_'+t+'.npz', array=yR)
+    savez_compressed('path/yL/'+'_MLS_s02_dt1e5_'+t+'.npz', array=yL)
+    savez_compressed('path/Q/'+'_MLS_s02_dt1e5_'+t+'.npz', array=Q)
     
     return yR, yL, Q
 

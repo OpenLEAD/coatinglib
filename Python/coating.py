@@ -2,7 +2,6 @@
 from numpy import *
 from openravepy import *
 import polynomial_spline
-#from moving_LS import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
