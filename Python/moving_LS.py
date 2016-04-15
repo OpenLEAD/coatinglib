@@ -7,6 +7,7 @@ import time
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.optimize import minimize
 
 
 Rays1 = load('coated_points/pos4_black.npz')
@@ -63,6 +64,8 @@ def multiply_by_w(w,m):
     return wm    
 
 def compute_dv(point,rays,v,AtwA,A,m,S,idx):
+ #   print 'len(m)=',len(m)
+  #  t = time.time()
     #W = rays
     Wxh = []
     Wyh = []
@@ -73,15 +76,15 @@ def compute_dv(point,rays,v,AtwA,A,m,S,idx):
         Wxh.append(rays[idx[i/4]][0]*h)
         Wyh.append(rays[idx[i/4]][1]*h)
         Wzh.append(rays[idx[i/4]][2]*h)
-        
+  #  print 'for_computedv_time = '+str(time.time()- t)    
+  #  t = time.time()    
     dif = S-dot(A,v)
-    #print 'shape Wxh = ', shape(Wxh)
-    #print 'shape dif = ', shape(dif)
     
     dvx = solve(AtwA,dot(transpose(Wxh),dif))
     dvy = solve(AtwA,dot(transpose(Wyh),dif))
     dvz = solve(AtwA,dot(transpose(Wzh),dif))
     a=[dvx,dvy,dvz]
+  #  print 'solve_computedv_time = '+str(time.time()- t)
     return a
         
 def matrix(rays,idx):
@@ -153,7 +156,7 @@ def dpolynomial(point,rays):
 ##    print 'dpolynomial_time = '+str(time.time()- t)
     return dP
 
-#@vectorize
+@vectorize
 def fn4(x,y,z):
     point=array([x,y,z])
     idx = Tree.query_ball_point(point,r)
@@ -164,7 +167,31 @@ def fn4(x,y,z):
     v, _, _, _, _ = polynomial_surface(point,rR,idx)
     return dot(v,vector4(x,y,z))
 
+def fn4_1(P):
+    x,y,z=P
+    return [fn4(x,y,z),0,0]
+
+def dfn4(x,y,z):
+    point = [x,y,z]
+    return dpolynomial(point,rR)
+
 def plot():
     ax = implicit.plot_implicit(fn4,bbox=(-5,5,-5,5,-5,5))
     Axes3D.scatter(ax,rR[:,0],rR[:,1],rR[:,2])
     plt.show()
+
+def optmizeTan(p0, pnew, tol):
+    def func(P):
+        a=P-pnew
+        return dot(a,a)
+    def func_deriv(P):
+        return 2*(P-pnew)
+    def consfunc(P):
+        return fn4(P[0],P[1],P[2])
+    def consfunc_deriv(P):
+        return dpolynomial(P,rR)
+    cons = ({'type':'eq',
+             'fun': consfunc,
+            'jac':consfunc_deriv})
+    res = minimize(func, p0,jac=func_deriv,constraints=cons, method='SLSQP',tol=tol, options={'disp': False})
+    return res

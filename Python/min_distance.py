@@ -1,7 +1,7 @@
 from sympy import *
 from numpy import *
-from moving_LS import *
-from scipy.optimize import newton_krylov
+import moving_LS
+from scipy.optimize import fsolve, root
 
 def fn4OLD(x,y,z,v):
     a=vector4(x,y,z)
@@ -135,8 +135,8 @@ def minPoint(P):
     #TODO nao serve nsolve pq a funcao nao e globalmente polinomial    
 ##    f1 = (x-ax)*dy-(y-ay)*dx
 ##    f2 = (y-ay)*dz-(z-az)*dy
-
-    s = newton_krylov(fn4,P)
+    #s = root(moving_LS.fn4_1, P, method='lm')
+    s = fsolve(moving_LS.fn4_1,P)
     print s
     #s=nsolve((f,f1,f2),(x,y,z),(ax,ay,az),tol=1e-3)
     #J = sqrt((ax-s[0])**2+(ay-s[1])**2+(az-s[2])**2)
