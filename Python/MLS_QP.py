@@ -8,8 +8,9 @@ from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import minimize
+from cvxopt import matrix,solvers
 
-
+solvers.options['show_progress'] = False
 Rays1 = load('coated_points/pos4_black.npz')
 Rays1  = Rays1['array']
 Rays2 = load('coated_points/pos4_blue.npz')
@@ -86,79 +87,65 @@ def multiply_by_w(w,m):
     return wm    
 
 def compute_dv(point,rays,v,AtwA,A,m,S):
- #   print 'len(m)=',len(m)
-  #  t = time.time()
-    #W = rays
     Wxh = []
     Wyh = []
     Wzh = []
     for i in range(0,len(m)):
         h = m[i]*2.0/delta
-        #W = rays[i,:]*h
-        Wxh.append(rays[i/4][0]*h)
-        Wyh.append(rays[i/4][1]*h)
-        Wzh.append(rays[i/4][2]*h)
-  #  print 'for_computedv_time = '+str(time.time()- t)    
-  #  t = time.time()    
+        Wxh.append(rays[i][0]*h)
+        Wyh.append(rays[i][1]*h)
+        Wzh.append(rays[i][2]*h)
+
+    #S=S.reshape((len(S),1))
     dif = S-dot(A,v)
 
     dvx = solve(AtwA,dot(transpose(Wxh),dif))
     dvy = solve(AtwA,dot(transpose(Wyh),dif))
     dvz = solve(AtwA,dot(transpose(Wzh),dif))
     a=[dvx,dvy,dvz]
-  #  print 'solve_computedv_time = '+str(time.time()- t)
     return a
         
-def matrix(rays):
+def make_matrix(rays):
     m = []
     S = []
+    G = []
     for ind in range(0,len(rays)):
-##        t = time.time()
- #       a=vector4(rays[ind][0],rays[ind][1],rays[ind][2])
-##        print 'vector4_time = '+str(time.time()- t)
-##        t=time.time()
-        
- #       da=dvector4(rays[ind][0],rays[ind][1],rays[ind][2])
-##        print 'dvector4_time = '+str(time.time()- t)
-##        t=time.time()
         [a,da] = dv_vector4(rays[ind][0],rays[ind][1],rays[ind][2])
-        b = [a,da[0],da[1],da[2]]
-        s = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
+        g = [da[0],da[1],da[2]]
+        b = [a]
+        s = [0]
+        G.extend(g)
         S.extend(s)
-        m.extend(b)
-##        print 'extend_time = '+str(time.time()- t)
-##        t=time.time()
-        
-    return m, S
+        m.extend(b)       
+    return m, array(S), G
 
 def polynomial_surface(point,rays):
-    A, S = matrix(rays)
+    A, S, G = make_matrix(rays)
     w = compute_W(point,rays)
      
-
-    S = array(S)
     A = array(A)
     m = copy.copy(A)
 
     At=transpose(m)
     for i in range(0,len(m)):
-        m[i]*=w[i/4] # m = W*A   
+        m[i]*=w[i] # m = wA   
     
     AtwA = dot(At,m)
-    b = dot(transpose(m),S)
-  
-    v = solve(AtwA, b)
+    P = matrix(AtwA)
+    q = matrix(-dot(transpose(S),m))
+    G = matrix(-array(G))
+    h = -matrix(ones((3*len(m),1)))
+    v = array(solvers.qp(P,q,G,h)['x'])
+    v=v.reshape((len(v),))
     return v, AtwA, A, m, S       
 
 def dpolynomial(point,rays):
-##    t = time.time()
     idx = Tree.query_ball_point(point,r)
     v, AtwA, A, m, S  = polynomial_surface(point,rays)
     dv = compute_dv(point,rays,v,AtwA,A,m,S)
-    B = vector4(point[0],point[1],point[2])
-    dB = dvector4(point[0],point[1],point[2])
+    [B,dB] = dv_vector4(point[0],point[1],point[2])
+    B=array(B);dB=array(dB);dv=array(dv)
     dP = dot(dv,B)+dot(dB,v)
-##    print 'dpolynomial_time = '+str(time.time()- t)
     return dP
 
 @vectorize
