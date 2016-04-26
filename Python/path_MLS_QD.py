@@ -1,5 +1,5 @@
 from numpy import *
-import moving_LS
+import MLS_QP
 import min_distance
 import coating
 from openravepy import *
@@ -136,10 +136,10 @@ def Qvector(y,Q,dt,sign):
             tol=1e-5
             xnew = xold
             while dot(xnew-xold,xnew-xold)==0:
-                res = moving_LS.optmizeTan(xold, pnew, tol)
+                res = MLS_QP.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
-            dv = array(moving_LS.dfn4(xnew[0],xnew[1],xnew[2]))
+            dv = array(MLS_QP.dfn4(xnew[0],xnew[1],xnew[2]))
             n = dv/sqrt(dot(dv,dv))
             P=concatenate((xnew,n))   
             y.append(P)
@@ -180,12 +180,12 @@ def drawParallel2(ray,q0,sign):
             tan, q0, viable = tangentOptm(ray,q0)
             tan *= sign*dt
             pnew = y+tan
-            res = moving_LS.optmizeTan(y, pnew, v,tol)
+            res = MLS_QP.optmizeTan(y, pnew, v,tol)
             if dot(res.x-y,res.x-y)==0:
                 tol*=0.1
             y=res.x
 
-            norm = moving_LS.dfn4(y[0],y[1],y[2])
+            norm = MLS_QP.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
         return drawParallel2(ray,q0,sign)
@@ -228,12 +228,12 @@ def drawParallel(ray,sign):
             y=ray[0:3]
             tan = tangent(y,sign)*dt
             pnew = y+tan
-            res = moving_LS.optmizeTan(y, pnew, v,tol)
+            res = MLS_QP.optmizeTan(y, pnew, v,tol)
             if dot(res.x-y,res.x-y)==0:tol*=0.1
             y=res.x
 
             
-            norm = moving_LS.dfn4(y[0],y[1],y[2])
+            norm = MLS_QP.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))       
             ray = [y[0],y[1],y[2],norm[0],norm[1],norm[2]]
         return drawParallel(ray,sign)
@@ -249,7 +249,7 @@ def drawParallel(ray,sign):
 def tangentd(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(moving_LS.dfn4(x,y,z))
+    dv = array(MLS_QP.dfn4(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -262,7 +262,7 @@ def tangentd(ray,sign):
 def tangent(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(moving_LS.dfn4(x,y,z))
+    dv = array(MLS_QP.dfn4(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -286,7 +286,7 @@ def meridian(P0,Rn,sign):
         pnew = y+tand
 
         t2=time.time()
-        res = moving_LS.optmizeTan(y, pnew, tol)
+        res = MLS_QP.optmizeTan(y, pnew, tol)
         print 'optimizeTan_time = '+str(time.time()- t2)
         
         if dot(res.x-y,res.x-y)==0:tol*=0.1
@@ -299,7 +299,7 @@ def meridian(P0,Rn,sign):
             S=(dif>0)
     print 'while_time = '+str(time.time()- t)
     
-    norm = moving_LS.dfn4(y[0],y[1],y[2])
+    norm = MLS_QP.dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     y = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])        
     return y
@@ -317,13 +317,13 @@ def meridian2(P0,Rn,sign,q0):
     while abs(dif)>1e-4:
         tand = tangentd(y,sign)*dt
         pnew = y+tand
-        res = moving_LS.optmizeTan(y, pnew, v,tol)
+        res = MLS_QP.optmizeTan(y, pnew, v,tol)
         if dot(res.x-y,res.x-y)==0:
             tol*=0.1
         y=res.x
 
         if notstop:
-            norm = moving_LS.dfn4(y[0],y[1],y[2])
+            norm = MLS_QP.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
 
@@ -342,7 +342,7 @@ def meridian2(P0,Rn,sign,q0):
             S=(dif>0)
 
             
-    norm = moving_LS.dfn4(y[0],y[1],y[2])
+    norm = MLS_QP.dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])  
 
@@ -355,15 +355,15 @@ def meridian2(P0,Rn,sign,q0):
     return ray, Q
 
 def nearInSurface(P,points):
-    _,idx = moving_LS.Tree.query(P)
+    _,idx = MLS_QP.Tree.query(P)
     proximo=points[idx,0:3]
-    stemp=moving_LS.s
+    stemp=MLS_QP.s
     while stemp>5:
-        moving_LS.update_normal_const(stemp)
-        moving_LS.s=stemp
+        MLS_QP.update_normal_const(stemp)
+        MLS_QP.s=stemp
         proximo = min_distance.minPoint(proximo)
         stemp*=0.9
-        print moving_LS.s
+        print MLS_QP.s
     return proximo
    
 def plotPoints(points, handles,color):
