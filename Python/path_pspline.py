@@ -1,5 +1,4 @@
 from numpy import *
-#from polynomial_spline import *
 import min_distance
 import coating
 from openravepy import *
@@ -7,7 +6,7 @@ from openravepy.misc import SpaceSamplerExtra
 import time
 import math
 from time import gmtime, strftime
-from polynomial_spline import *
+import polynomial_spline
 #====================================================================================================================
 env=Environment()
 env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
@@ -58,20 +57,8 @@ QList = []
 #====================================================================================================================
 
 # DIREITA E PARA BAIXO = 1
-        
-reachableRays = load('coated_points/pos4_black.npz')
-reachableRays  = reachableRays['array']
-AllreachableRays = load('coated_points/pos4_blue.npz')
-AllreachableRays  = AllreachableRays['array']
-rR = concatenate((reachableRays,AllreachableRays))
-
-reachableRays = load('blade_sampling/blade_crop_fast.npz')
-reachableRays  = reachableRays['array']
-AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
-AllreachableRays  = AllreachableRays['array']
-rays = concatenate((reachableRays,AllreachableRays))
-
-Tree = makeTree(rays)
+rR = polynomial_spline.rays
+Tree = polynomial_spline.makeTree(rR)
 
 def tangentOptm(ray,q0):
     tan = cross(ray[3:6],ray[0:3])
@@ -80,9 +67,10 @@ def tangentOptm(ray,q0):
     limits = True
     #print 'ray - ', ray[0:3]
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
+    manipulability = coating.manipulabilityDET(manip)>=1e-3
     if res.success and not isViable(res.x,ray[3:6]):
-        angle_suc=False
-    return tan, res.x, (res.success and angle_suc)
+        angle_suc=False    
+    return tan, res.x, (res.success and angle_suc and manipulability)
 
 def solution(ray):
     reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
@@ -114,8 +102,8 @@ def Qvector(y,Q,dt,sign):
     suc=True
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
-        if fn4(y[-1][0],y[-1][1],y[-1][2]) > 1e-6 :
-            print fn4(y[-1][0],y[-1][1],y[-1][2])
+        if polynomial_spline.fn4(y[-1][0],y[-1][1],y[-1][2]) > 1e-6 :
+            print polynomial_spline.fn4(y[-1][0],y[-1][1],y[-1][2])
         if not coating.CheckDOFLimits(robot,q):
                 return [], y[-1]
         if suc:
@@ -128,7 +116,7 @@ def Qvector(y,Q,dt,sign):
                 res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
-            dv = array(dfn4(xnew[0],xnew[1],xnew[2]))
+            dv = array(polynomial_spline.dfn4(xnew[0],xnew[1],xnew[2]))
             n = dv/sqrt(dot(dv,dv))
             P=concatenate((xnew,n))   
             y.append(P)
@@ -143,7 +131,7 @@ def isViable(q0,norm):
 
 def drawParallel2(ray,q0,sign):
     viable=isViable(q0,ray[3:6])
-    dt = 0.0015
+    dt = 1e-3
     if viable:
         QL=[q0]
         QR=[q0]
@@ -180,7 +168,7 @@ def drawParallel2(ray,q0,sign):
                 tol*=0.1
             y=res.x
 
-            norm = dfn4(y[0],y[1],y[2])
+            norm = polynomial_spline.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
         return drawParallel2(ray,q0,sign)
@@ -195,7 +183,7 @@ def drawParallel2(ray,q0,sign):
 
 def drawParallel(ray,sign):
     sol=solution(ray)
-    dt = 0.0015
+    dt = 1e-3
     if sol:
         q0=sol[0][0]
         QL=[q0]
@@ -227,7 +215,7 @@ def drawParallel(ray,sign):
             y=res.x
 
             
-            norm = dfn4(y[0],y[1],y[2])
+            norm = polynomial_spline.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))       
             ray = [y[0],y[1],y[2],norm[0],norm[1],norm[2]]
         return drawParallel(ray,sign)
@@ -243,7 +231,7 @@ def drawParallel(ray,sign):
 def tangentd(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(dfn4(x,y,z))
+    dv = array(polynomial_spline.dfn4(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -256,7 +244,7 @@ def tangentd(ray,sign):
 def tangent(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(dfn4(x,y,z))
+    dv = array(polynomial_spline.dfn4(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -266,34 +254,30 @@ def tangent(ray,sign):
     return a
 
 def meridian(P0,Rn,sign):
-    dt = 0.001
+    dt = 1e-4
     y=array([float(P0[0]),float(P0[1]),float(P0[2])])
     d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
+    R0=1.425
+    n = math.ceil((d-R0)/0.003)
+    Rn = R0+n*0.003
     dif = d-Rn
     S=(dif>0)
     tol=1e-6
-    t=time.time()
     while abs(dif)>1e-4:
-        t2=time.time()
         tand = tangentd(y,sign)*dt
-        print 'tangentd_time = '+str(time.time()- t2)
         pnew = y+tand
-
-        t2=time.time()
         res = coating.optmizeTan(y, pnew, tol)
-        print 'optimizeTan_time = '+str(time.time()- t2)
         
         if dot(res.x-y,res.x-y)==0:tol*=0.1
-        y=res.x
+        y = res.x
         d = sqrt(res.x[0]**2+res.x[1]**2+res.x[2]**2)
         dif = d-Rn
         if S!=(dif>0):
             sign*=-1
             dt*=0.5
             S=(dif>0)
-    print 'while_time = '+str(time.time()- t)
     
-    norm = dfn4(y[0],y[1],y[2])
+    norm = polynomial_spline.dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     y = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])        
     return y
@@ -301,7 +285,7 @@ def meridian(P0,Rn,sign):
 def meridian2(P0,Rn,sign,q0):
     print 'meridian2'
     Q=[q0]
-    dt = 0.001
+    dt = 1e-4
     y=array([float(P0[0]),float(P0[1]),float(P0[2])])
     d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     dif = d-Rn
@@ -312,12 +296,11 @@ def meridian2(P0,Rn,sign,q0):
         tand = tangentd(y,sign)*dt
         pnew = y+tand
         res = coating.optmizeTan(y, pnew,tol)
-        if dot(res.x-y,res.x-y)==0:
-            tol*=0.1
+        if dot(res.x-y,res.x-y)==0:tol*=0.1
         y=res.x
 
         if notstop:
-            norm = dfn4(y[0],y[1],y[2])
+            norm = polynomial_spline.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
 
@@ -336,7 +319,7 @@ def meridian2(P0,Rn,sign,q0):
             S=(dif>0)
 
             
-    norm = dfn4(y[0],y[1],y[2])
+    norm = polynomial_spline.dfn4(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])  
 
@@ -348,7 +331,7 @@ def meridian2(P0,Rn,sign,q0):
         
     return ray, Q
 
-def nearInSurface(P,points):
+def nearestSample(P,points):
     _,idx = Tree.query(P)
     proximo=points[idx,0:3]
     return proximo
@@ -364,21 +347,19 @@ def nextLine(P0):
     Rn = R0+n*0.003
     return Rn
 
-def main():
-    env.SetViewer('qtcoin')
+def initialPoint():
     rRp = rR[:,0:3]
     soma=[0,0,0]
     for i in rRp:soma=soma+i
     P0 = soma/len(rRp)
-    #P0 = array([-0.37241161, -2.8791986 , -0.07796414])
-    P0 = nearInSurface(P0,rRp)
-    d0 = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
-    R0=1.425
-    n = math.ceil((d0-R0)/0.003)
-    Rn = R0+n*0.003
+    P0 = nearestSample(P0,rRp)
     
     Pd=meridian(P0,Rn,1)
+    return Pd
 
+def main():
+    env.SetViewer('qtcoin')
+    Pd = initialPoint()
     yR, yL, Q = drawParallel(Pd,1)
     t=strftime("%d%b%Y_%H_%M_%S", gmtime())
     savez_compressed('path/yR/'+'_'+t+'.npz', array=yR)
@@ -398,7 +379,7 @@ def getPointsfromQ(Q):
 
 def main2():
     global handles
-    set_handles(handles,env)
+    polynomial_spline.set_handles(handles,env)
     #env.SetViewer('qtcoin')
     yR, yL, Q = main()
     handles=plotPoints(yL, handles,array((0,0,0)))
