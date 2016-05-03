@@ -8,13 +8,6 @@ from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-
-##reachableRays = load('coated_points/pos4_black.npz')
-##reachableRays  = reachableRays['array']
-##AllreachableRays = load('coated_points/pos4_blue.npz')
-##AllreachableRays  = AllreachableRays['array']
-##rays = concatenate((reachableRays,AllreachableRays))
-
 reachableRays = load('blade_sampling/blade_crop_fast.npz')
 reachableRays  = reachableRays['array']
 AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
@@ -28,9 +21,8 @@ center=[500,0,0]
 idx=[]
 handles2=[]
 env2=None
-
+index=-1
 # ======= PESO
-## GAUSS PARAMETERS
 s = 0.11
 c1 = sqrt(2*pi*s**2)
 delta = 2*s**2
@@ -92,6 +84,24 @@ def dvector4(x,y,z):
     G=[dx,dy,dz]
     return G
 
+def dv_vector4(x,y,z):
+    x2=x**2;y2=y**2;z2=z*z;xy=x*y
+    x3=x2*x;y3=y2*y;z3=z2*z;yz=y*z
+    x4=x3*x;y4=y3*y;z4=z3*z;xz=x*z
+    
+    
+    a = [1, z, z2, z3, z4, y, yz, y*z2, y*z3, y2, y2*z, y2*z2, y3, y3*z, y4, x, xz, x*z2, x*z3, xy, xy*z, #20
+            xy*z2, x*y2, xy*yz, x*y3, x2, x2*z, x2*z2, x2*y, x2*yz, x2*y2, x3, x3*z, x3*y, x4]#34
+    
+    dx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z2, z3, y, yz, a[7], y2, a[10], y3,
+          2*x, 2*xz, 2*a[17], 2*xy, 2*a[20], 2*a[22], 3*x2, 3*a[26], 3*a[28], 4*x3]
+    dy = [0, 0, 0, 0, 0, 1, z, z2, z3, 2*y, 2*yz, 2*a[7], 3*y2, 3*a[10], 4*y3, 0, 0,
+          0, 0, x, xz, a[17], 2*xy, 2*a[20], 3*a[22], 0, 0, 0, x2, a[26], 2*a[28], 0, 0, x3, 0]
+    dz = [0, 1, 2*z, 3*z2, 4*z3, 0, y, 2*yz, 3*a[7], 0, y2, 2*a[10], 0, y3, 0, 0, x, 2*xz, 3*a[17], 0,
+          xy, 2*a[20], 0, a[22], 0, 0, x2, 2*a[26], 0, a[28], 0, 0, x3, 0, 0]
+    da=[dx,dy,dz]
+    return [a,da]
+
 def ddvector4(x,y,z):
     dxdx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2*z, 2*z**2, 2*y, 2*y*z, 2*y**2, 6*x, 6*x*z, 6*x*y, 12*x**2]
     dxdy = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z**2, 2*y, 2*y*z, 3*y**2, 0, 0, 0, 2*x, 2*x*z, 4*x*y, 0, 0, 3*x**2, 0]
@@ -108,8 +118,7 @@ def matrix():
     m = []
     S = []
     for ind in idx:
-        a=vector4(rays[ind][0],rays[ind][1],rays[ind][2])   
-        da=dvector4(rays[ind][0],rays[ind][1],rays[ind][2]) 
+        [a,da]=dv_vector4(rays[ind][0],rays[ind][1],rays[ind][2])   
         b = [a,da[0],da[1],da[2]]
         s = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
         S.extend(s)
@@ -117,21 +126,19 @@ def matrix():
     return m, S
 
 def polynomial_surface(point):
-    x=point[0];y=point[1];z=point[2]
-    dx,dy,dz = dvector4(x,y,z)
-    xyz = vector4(x,y,z)
-    H = ddvector4(x,y,z)
-    S = [vector4(x,y,z),dx,dy,dz]
-    c = [dot(v,xyz),dot(v,dx),dot(v,dy),dot(v,dz)]
+    [a,da]=dv_vector4(point[0],point[1],point[2]) 
+    H = ddvector4(point[0],point[1],point[2])
+    S = [a,da[0],da[1],da[2]]
+    c = [dot(v,a),dot(v,da[0]),dot(v,da[1]),dot(v,da[2])]
     for i in H:
         S.append(i)
         c.append(dot(v,i))
     A=[]
     b=[]
     for ind in idx:
+        [a,da]=dv_vector4(rays[ind][0],rays[ind][1],rays[ind][2])
         a=vector4(rays[ind][0],rays[ind][1],rays[ind][2])   
-        dx,dy,dz=dvector4(rays[ind][0],rays[ind][1],rays[ind][2])
-        av = [a,dx,dy,dz]
+        av = [a,da[0],da[1],da[2]]
         bv = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
         A.extend(av)
         b.extend(bv)
@@ -165,8 +172,6 @@ def standard_surface(point):
     v = solve(A, b)
     update_v(v)
     return
-
-index = -1
 
 def update_surface(x,y,z):
     global handles, index
@@ -206,16 +211,11 @@ def update_surface(x,y,z):
 
 def dfn4(x,y,z):
     update_surface(x,y,z)
-##    print 'shape v',shape(v)
-##    print 'shape dvector4(x,y,z)',shape(dvector4(x,y,z))
     return dot(dvector4(x,y,z),transpose(v))
 
 @vectorize
 def fn4(x,y,z):
-    ' to no fn4'
     update_surface(x,y,z)
-    #if update_surface(x,y,z) == -1:
-    #    return -1
     return dot(v,vector4(x,y,z))
 
 def plot():

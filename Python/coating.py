@@ -659,6 +659,12 @@ def alphaCalc2(omegas, deltasT):
             alpha.append(2*(omegas[i][j][0]-omegas[i][j][1])/(deltasT[i][j][0]+deltasT[i][j][1]))
         alphas.append(alpha)
     return alphas
+
+def manipulabilityDET(manip):
+    Jpos = manip.CalculateJacobian()
+    Jori = manip.CalculateAngularVelocityJacobian()
+    J = concatenate((Jpos,Jori))
+    return sqrt(linalg.det(dot(transpose(J),J)))
  
 def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,velocities,deltasT):
      NewOmegas=[]
