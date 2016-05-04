@@ -7,6 +7,7 @@ import time
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.optimize import minimize
 
 reachableRays = load('blade_sampling/blade_crop_fast.npz')
 reachableRays  = reachableRays['array']
@@ -103,18 +104,27 @@ def dv_vector4(x,y,z):
     return [a,da]
 
 def ddvector4(x,y,z):
-    dxdx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2*z, 2*z**2, 2*y, 2*y*z, 2*y**2, 6*x, 6*x*z, 6*x*y, 12*x**2]
-    dxdy = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z**2, 2*y, 2*y*z, 3*y**2, 0, 0, 0, 2*x, 2*x*z, 4*x*y, 0, 0, 3*x**2, 0]
-    dxdz = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2*z, 3*z**2, 0, y, 2*y*z, 0, y**2, 0, 0, 2*x, 4*x*z, 0, 2*x*y, 0, 0, 3*x**2, 0, 0]
+    x2=x*x;y2=y*y;z2=z*z
+    xy=x*y;yz=y*z;xz=x*z
+    
+    dxdx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 2, 2*z, 2*z2, 2*y, 2*yz, 2*y2, 6*x, 6*xz, 6*xy, 12*x2]
+    dxdy = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z2,
+            2*y, 2*yz, 3*y2, 0, 0, 0, 2*x, 2*xz, 4*xy, 0, 0, 3*x2, 0]
+    dxdz = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2*z, 3*z2, 0,
+            y, 2*yz, 0, y2, 0, 0, 2*x, 4*xz, 0, 2*xy, 0, 0, 3*x2, 0, 0]
     #dydx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, z, z**2, 2*y, 2*y*z, 3*y**2, 0, 0, 0, 2*x, 2*x*z, 4*x*y, 0, 0, 3*x**2, 0]
-    dydy = [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2*z, 2*z**2, 6*y, 6*y*z, 12*y**2, 0, 0, 0, 0, 0, 0, 0, 2*x, 2*x*z, 6*x*y, 0, 0, 0, 0, 0, 2*x**2, 0, 0, 0, 0]
-    dydz = [0, 0, 0, 0, 0, 0, 1, 2*z, 3*z**2, 0, 2*y, 4*y*z, 0, 3*y**2, 0, 0, 0, 0, 0, 0, x, 2*x*z, 0, 2*x*y, 0, 0, 0, 0, 0, x**2, 0, 0, 0, 0, 0]
+    dydy = [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2*z, 2*z2, 6*y, 6*yz, 12*y2, 0, 0,
+            0, 0, 0, 0, 0, 2*x, 2*xz, 6*xy, 0, 0, 0, 0, 0, 2*x2, 0, 0, 0, 0]
+    dydz = [0, 0, 0, 0, 0, 0, 1, 2*z, 3*z2, 0, 2*y, 4*yz, 0, 3*y2, 0, 0, 0, 0, 0,
+            0, x, 2*xz, 0, 2*xy, 0, 0, 0, 0, 0, x2, 0, 0, 0, 0, 0]
     #dzdx = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2*z, 3*z**2, 0, y, 2*y*z, 0, y**2, 0, 0, 2*x, 4*x*z, 0, 2*x*y, 0, 0, 3*x**2, 0, 0]
     #dzdy = [0, 0, 0, 0, 0, 0, 1, 2*z, 3*z**2, 0, 2*y, 4*y*z, 0, 3*y**2, 0, 0, 0, 0, 0, 0, x, 2*x*z, 0, 2*x*y, 0, 0, 0, 0, 0, x**2, 0, 0, 0, 0, 0]
-    dzdz = [0, 0, 2, 6*z, 12*z**2, 0, 0, 2*y, 6*y*z, 0, 0, 2*y**2, 0, 0, 0, 0, 0, 2*x, 6*x*z, 0, 0, 2*x*y, 0, 0, 0, 0, 0, 2*x**2, 0, 0, 0, 0, 0, 0, 0]
+    dzdz = [0, 0, 2, 6*z, 12*z2, 0, 0, 2*y, 6*yz, 0, 0, 2*y2, 0, 0, 0, 0, 0,
+            2*x, 6*xz, 0, 0, 2*xy, 0, 0, 0, 0, 0, 2*x2, 0, 0, 0, 0, 0, 0, 0]
     return [dxdx,dxdy,dxdz,dydy,dydz,dzdz]
 
-def matrix():
+def make_matrix():
     m = []
     S = []
     for ind in idx:
@@ -166,7 +176,7 @@ def polynomial_surface(point):
     return
 
 def standard_surface(point):
-    m, S = matrix()
+    m, S = make_matrix()
     A = dot(transpose(m),m)
     b = dot(transpose(m),S)
     v = solve(A, b)
@@ -189,9 +199,9 @@ def update_surface(x,y,z):
             standard_surface(point)
         else:
             print 'recalculando...'
-            if index>-1: handles2.pop(index-1) 
-            handles2.append(env2.plot3(points=rays[idx,0:3],pointsize=5,colors=array((0,0,0))))
-            index=len(handles2)
+            #if index>-1: handles2.pop(index-1) 
+            #handles2.append(env2.plot3(points=rays[idx,0:3],pointsize=5,colors=array((0,0,0))))
+            #index=len(handles2)
             polynomial_surface(point)
 
         maxi=0
@@ -201,9 +211,9 @@ def update_surface(x,y,z):
             if maxi<=tempfn4:
                 maxi=tempfn4
                 ponto = rays[ind]
-        print 'Pior ponto =', ponto[0:3], ' fn4(x,y,z) = ',maxi
-        handles2.append(env2.plot3(points=ponto[0:3],pointsize=5,colors=array((1,0,0))))
-        wait = input("PRESS ENTER TO CONTINUE.")    
+        #print 'Pior ponto =', ponto[0:3], ' fn4(x,y,z) = ',maxi
+        #handles2.append(env2.plot3(points=ponto[0:3],pointsize=5,colors=array((1,0,0))))
+        #wait = input("PRESS ENTER TO CONTINUE.")    
                 
         #print v    
     return  0
@@ -222,3 +232,19 @@ def plot():
     ax = implicit.plot_implicit(fn4,bbox=(-5,5,-5,5,-5,5))
     Axes3D.scatter(ax,rays[:,0],rays[:,1],rays[:,2])
     plt.show()
+
+def optmizeTan(p0, pnew, tol):
+    def func(P):
+        a=P-pnew
+        return dot(a,a)
+    def func_deriv(P):
+        return 2*(P-pnew)
+    def consfunc(P):
+        return fn4(P[0],P[1],P[2])
+    def consfunc_deriv(P):
+        return dfn4(P[0],P[1],P[2])
+    cons = ({'type':'eq',
+             'fun': consfunc,
+            'jac':consfunc_deriv})
+    res = minimize(func, p0,jac=func_deriv,constraints=cons, method='SLSQP',tol=tol, options={'disp': False})
+    return res    

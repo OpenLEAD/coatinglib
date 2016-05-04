@@ -54,22 +54,31 @@ pN=gbase_position[4]
 normal = [-1,0,0]
 pN = concatenate((pN,normal))
 QList = []
+dt = 1e-3 # parallel step
+loops = 2
+loopdistance = 1
 #====================================================================================================================
 
 # DIREITA E PARA BAIXO = 1
 rR = polynomial_spline.rays
 Tree = polynomial_spline.makeTree(rR)
 
+manipulabilityNUM = 0
+
 def tangentOptm(ray,q0):
+    global manipulabilityNUM
     tan = cross(ray[3:6],ray[0:3])
-    tan *= (40.0/60)/sqrt(dot(tan,tan))
-    angle_suc = True
-    limits = True
-    #print 'ray - ', ray[0:3]
+    tan *= 1.0/sqrt(dot(tan,tan))
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
-    manipulability = coating.manipulabilityDET(manip)>=1e-3
-    if res.success and not isViable(res.x,ray[3:6]):
-        angle_suc=False    
+    
+    manipulability = coating.manipulabilityDET(manip)
+    if manipulabilityNUM < manipulability:
+        manipulabilityNUM = manipulability
+        if manipulabilityNUM<=1e-1:
+            manipulability=False
+        else:manipulability=True
+    
+    angle_suc = isViable(res.x,ray[3:6])
     return tan, res.x, (res.success and angle_suc and manipulability)
 
 def solution(ray):
@@ -98,65 +107,70 @@ def fullSolution(ray):
                 return iksolList
     return []
 
-def Qvector(y,Q,dt,sign):
+def Qvector(y,Q,sign):
     suc=True
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
         if polynomial_spline.fn4(y[-1][0],y[-1][1],y[-1][2]) > 1e-6 :
             print polynomial_spline.fn4(y[-1][0],y[-1][1],y[-1][2])
         if not coating.CheckDOFLimits(robot,q):
-                return [], y[-1]
+            print('deu bode')
+            #return [], y[-1]
+            return Q, y
         if suc:
             Q.append(q)
             xold = y[-1][0:3]
             pnew = xold + sign*tan*dt
             tol=1e-5
             xnew = xold
-            while dot(xnew-xold,xnew-xold)<=tol: # ==0
+            while dot(xnew-xold,xnew-xold)<=tol: 
                 res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
             dv = array(polynomial_spline.dfn4(xnew[0],xnew[1],xnew[2]))
-            n = dv/sqrt(dot(dv,dv))
+            normdv = sqrt(dot(dv,dv))
+            #print 'success:', res.success, ' fn:', polynomial_spline.fn4(xnew[0],xnew[1],xnew[2])/normdv
+            n = dv/normdv
             P=concatenate((xnew,n))   
             y.append(P)
             
     return Q,y
 
 def isViable(q0,norm):
-    robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
-    T=manip.GetTransform()
-    Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-    return dot(norm,Rx) >= math.cos(tolerance*math.pi/180)
+    if len(q0)>0:
+        robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
+        return dot(norm,Rx) >= math.cos(tolerance*math.pi/180)
+    else: return False
 
-def drawParallel2(ray,q0,sign):
+def drawParallel(ray,q0,sign):
     viable=isViable(q0,ray[3:6])
-    dt = 1e-3
     if viable:
         QL=[q0]
         QR=[q0]
         y=[ray]
         if sign==1:
-            Qr, yR = Qvector(y,QR,dt,sign)
+            Qr, yR = Qvector(y,QR,sign)
             #print 'sign 1: Qr -',array(Qr).shape,', yR -',array(yR).shape
             y=[ray]
             sign*=-1
-            Ql, yL = Qvector(y,QL,dt,sign)
+            Ql, yL = Qvector(y,QL,sign)
             #print 'sign -1: Ql -',array(Ql).shape,', yL -',array(yL).shape
         else:
-            Ql, yL = Qvector(y,QL,dt,sign)
+            Ql, yL = Qvector(y,QL,sign)
             y=[ray]
             sign*=-1
-            Qr, yR = Qvector(y,QR,dt,sign)
+            Qr, yR = Qvector(y,QR,sign)
         if not Qr:
             iksolList = fullSolution(yR)
-            return drawParallel2(yR,iksolList[0][0],sign*-1)
+            return drawParallel(yR,iksolList[0][0],sign)
         if not Ql:
             iksolList = fullSolution(yL)
-            return drawParallel2(yL,iksolList[0][0],sign*-1)
+            return drawParallel(yL,iksolList[0][0],sign)
     else:
         sign*=-1
-        print 'drawParallel2: solution not found'
+        print 'drawParallel: solution not found'
         tol = 1e-6
         while not viable:
             y=ray[0:3]
@@ -171,54 +185,7 @@ def drawParallel2(ray,q0,sign):
             norm = polynomial_spline.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
-        return drawParallel2(ray,q0,sign)
-    
-    print 'Ql -',array(list(reversed(Ql))).shape,', Qr -',array(Qr[1:]).shape
-    
-    if Ql and Qr[1:]:
-        Q=concatenate((list(reversed(Ql)),Qr[1:]))
-    elif Ql: Q=Ql
-    else: Q=Qr
-    return yR, yL, Q
-
-def drawParallel(ray,sign):
-    sol=solution(ray)
-    dt = 1e-3
-    if sol:
-        q0=sol[0][0]
-        QL=[q0]
-        QR=[q0]
-        y=[ray]
-        if sign==1:
-            Qr, yR = Qvector(y,QR,dt,sign)
-            #print 'sign 1: Qr -',array(Qr).shape,', yR -',array(yR).shape
-            y=[ray]
-            sign*=-1
-            Ql, yL = Qvector(y,QL,dt,sign)
-            #print 'sign -1: Ql -',array(Ql).shape,', yL -',array(yL).shape
-
-        else:
-            Ql, yL = Qvector(y,QL,dt,sign)
-            y=[ray]
-            sign*=-1
-            Qr, yR = Qvector(y,QR,dt,sign)
-    else:
-        sign*=-1
-        print 'drawParallel: solution not found'
-        tol = 1e-6
-        while not solution(ray):
-            y=ray[0:3]
-            tan = tangent(y,sign)*dt
-            pnew = y+tan
-            res = coating.optmizeTan(y, pnew, v,tol)
-            if dot(res.x-y,res.x-y)==0:tol*=0.1
-            y=res.x
-
-            
-            norm = polynomial_spline.dfn4(y[0],y[1],y[2])
-            norm /= sqrt(dot(norm,norm))       
-            ray = [y[0],y[1],y[2],norm[0],norm[1],norm[2]]
-        return drawParallel(ray,sign)
+        return drawParallel(ray,q0,sign)
     
     print 'Ql -',array(list(reversed(Ql))).shape,', Qr -',array(Qr[1:]).shape
     
@@ -253,7 +220,7 @@ def tangent(ray,sign):
     a = tan/sqrt(dot(tan,tan))
     return a
 
-def meridian(P0,Rn,sign):
+def FindNextParallel(P0,sign):
     dt = 1e-4
     y=array([float(P0[0]),float(P0[1]),float(P0[2])])
     d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
@@ -266,7 +233,7 @@ def meridian(P0,Rn,sign):
     while abs(dif)>1e-4:
         tand = tangentd(y,sign)*dt
         pnew = y+tand
-        res = coating.optmizeTan(y, pnew, tol)
+        res = polynomial_spline.optmizeTan(y, pnew, tol)
         
         if dot(res.x-y,res.x-y)==0:tol*=0.1
         y = res.x
@@ -353,29 +320,53 @@ def initialPoint():
     for i in rRp:soma=soma+i
     P0 = soma/len(rRp)
     P0 = nearestSample(P0,rRp)
+    Pd=FindNextParallel(P0,1) #1 para baixo
+    q0=solution(Pd)
+    return Pd, q0
+
+def main3():
+    global handles
+    polynomial_spline.set_handles(handles,env)
+    env.SetViewer('qtcoin')
     
-    Pd=meridian(P0,Rn,1)
-    return Pd
+    Pd, q0 = initialPoint()
+    sign = 1
+    q0=q0[0][0]
+    robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
+    manipulabilityNUM = coating.manipulabilityDET(manip)
+    
+    for i in range(0,loops):
+        yR, yL, Q = drawParallel(Pd,q0,sign)
+        if sign==1:
+            P0=yL[-1]
+            qi=Q[0]
+        else:
+            P0=yR[-1]
+            qi=Q[-1]
+        
+        Rn=nextLine(P0)
+        Rn+=loopdistance*0.003
+        Pd, Qd=meridian2(P0,Rn,1,qi)
+        yM = getPointsfromQ(Qd)
+
+        handles=plotPoints(yL, handles,array((1,0,0)))
+        handles=plotPoints(yR, handles,array((1,0,0)))
+        handles=plotPoints(yM, handles,array((1,0,0)))
+        
+        sign*=-1
+        q0=Qd[-1]
+    return 
 
 def main():
     env.SetViewer('qtcoin')
-    Pd = initialPoint()
-    yR, yL, Q = drawParallel(Pd,1)
+    Pd, q0 = initialPoint()
+    yR, yL, Q = drawParallel(Pd,q0[0][0],1)
     t=strftime("%d%b%Y_%H_%M_%S", gmtime())
     savez_compressed('path/yR/'+'_'+t+'.npz', array=yR)
     savez_compressed('path/yL/'+'_'+t+'.npz', array=yL)
     savez_compressed('path/Q/'+'_'+t+'.npz', array=Q)
     
     return yR, yL, Q
-
-def getPointsfromQ(Q):
-    points=[]
-    for q in Q:
-        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
-        T=manip.GetTransform()
-        points.append(T[0:3,3])
-    return array(points)    
-
 
 def main2():
     global handles
@@ -389,7 +380,7 @@ def main2():
     Rn+=33*0.003
     Pd, Qd=meridian2(P0,Rn,1,Q[0])
     yM = getPointsfromQ(Qd)
-    yR2, yL2, Q2 = drawParallel2(Pd,Qd[-1],-1)
+    yR2, yL2, Q2 = drawParallel(Pd,Qd[-1],-1)
     handles=plotPoints(yM, handles,array((0,0,0)))
     handles=plotPoints(yL2, handles,array((0,0,0)))
     handles=plotPoints(yR2, handles,array((0,0,0)))
@@ -399,7 +390,7 @@ def main2():
     Rn+=33*0.003
     Pd, Qd=meridian2(P0,Rn,1,Q[-1])
     yM = getPointsfromQ(Qd)
-    yR3, yL3, Q3 = drawParallel2(Pd,Qd[-1],1)
+    yR3, yL3, Q3 = drawParallel(Pd,Qd[-1],1)
     handles=plotPoints(yM, handles,array((0,0,0)))
     handles=plotPoints(yL3, handles,array((0,0,0)))
     handles=plotPoints(yR3, handles,array((0,0,0)))
@@ -417,6 +408,14 @@ def realCoatedPoints(Q):
         newY.append(p-0.23*Rx)
     handles=plotPoints(newY, handles,array((0,0,1)))
     return handles
+
+def getPointsfromQ(Q):
+    points=[]
+    for q in Q:
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        points.append(T[0:3,3])
+    return array(points)  
 
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')
