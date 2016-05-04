@@ -805,8 +805,7 @@ def CheckDOFLimits(robot,Q):
         l,u = Joints[i].GetLimits()
         l = l[0]
         u = u[0]
-        if not Q[i]>=l or not Q[i]<=u:
-            print('deu bode')
+        if not Q[i]>=l+0.1 or not Q[i]<=u-0.1:
             return False
     return True    
     
