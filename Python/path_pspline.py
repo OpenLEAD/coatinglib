@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from numpy import *
 import min_distance
 import coating
@@ -55,7 +56,7 @@ normal = [-1,0,0]
 pN = concatenate((pN,normal))
 QList = []
 dt = 1e-3 # parallel step
-loops = 2
+loops = 5
 loopdistance = 1
 #====================================================================================================================
 
@@ -64,27 +65,36 @@ rR = polynomial_spline.rays
 Tree = polynomial_spline.makeTree(rR)
 
 manipulabilityNUM = 0
+globalManipPos = []
+globalManipOri = []
 
 def tangentOptm(ray,q0):
     global manipulabilityNUM
+    global globalManipPos
+    global globalManipOri 
     tan = cross(ray[3:6],ray[0:3])
     tan *= 1.0/sqrt(dot(tan,tan))
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
     
-    manipulability = coating.manipulabilityDET(manip)
-    if manipulabilityNUM < manipulability:
-        manipulabilityNUM = manipulability
-        if manipulabilityNUM<=1e-1:
-            manipulability=False
-        else:manipulability=True
+    manipulability, manipjpos, manipjori = coating.manipulabilityS(manip)
+    globalManipPos.append(manipjpos)
+    globalManipOri.append(manipjori)
+    #print 'manipjpos: ',manipjpos,', manipjori:', manipjori 
+
+    manipjpos = 0.3*manipjpos + 0.7*manipulabilityNUM
+    manipulable=True
+    if manipulabilityNUM > manipjpos and manipulabilityNUM<=1e-1:
+        manipulable=False
+    
+    manipulabilityNUM = manipjpos
     
     angle_suc = isViable(res.x,ray[3:6])
-    return tan, res.x, (res.success and angle_suc and manipulability)
+    return tan, res.x, (res.success and angle_suc and manipulable)
 
 def solution(ray):
-    reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
+    _, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
     print 'solution: iksolList - ',array(iksolList).shape
-    AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2([ray],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
+    _, AlliksolList, _ = coating.AllExtraCoating2([ray],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
     print 'solution: AlliksolList - ',array(AlliksolList).shape
     if iksolList: return iksolList
     elif AlliksolList: return AlliksolList
@@ -102,21 +112,30 @@ def fullSolution(ray):
             alfa = k*i
             Rv1alfa = coating.RotationCalc2(facevector,alfa)
             tempP = dot(p,transpose(Rv1alfa))
-            reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,tempP,theta,coatingdistancetolerance)    
+            _, iksolList, _ = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,tempP,theta,coatingdistancetolerance)    
             if iksolList:
                 return iksolList
     return []
 
+def Qvector_backtrack(y,Q):
+    for rev_y in reversed(y):
+        res = coating.optmizeQ(robot,ikmodel,manip,rev_y,Q[-1])
+        Q.append(res.x)
+        if not res.success:
+            print 'Qvector_backtrack error'
+    return list(reversed(Q))
+
 def Qvector(y,Q,sign):
+    global handles
     suc=True
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
-        if polynomial_spline.fn4(y[-1][0],y[-1][1],y[-1][2]) > 1e-6 :
-            print polynomial_spline.fn4(y[-1][0],y[-1][1],y[-1][2])
         if not coating.CheckDOFLimits(robot,q):
             print('deu bode')
-            #return [], y[-1]
-            return Q, y
+            iksolList = fullSolution(y[-1])
+            Q=[iksolList[0][0]]
+            Q = Qvector_backtrack(y,Q)
+            continue
         if suc:
             Q.append(q)
             xold = y[-1][0:3]
@@ -127,12 +146,14 @@ def Qvector(y,Q,sign):
                 res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
+            temp = polynomial_spline.fn4(xnew[0], xnew[1], xnew[2])
             dv = array(polynomial_spline.dfn4(xnew[0],xnew[1],xnew[2]))
             normdv = sqrt(dot(dv,dv))
             #print 'success:', res.success, ' fn:', polynomial_spline.fn4(xnew[0],xnew[1],xnew[2])/normdv
             n = dv/normdv
             P=concatenate((xnew,n))   
             y.append(P)
+            handles=plotPoint(P, handles,array((1,0,0)))
             
     return Q,y
 
@@ -150,6 +171,7 @@ def drawParallel(ray,q0,sign):
         QL=[q0]
         QR=[q0]
         y=[ray]
+        #Arriscado - Pode caminhar em duas funcoes esquerda-direita
         if sign==1:
             Qr, yR = Qvector(y,QR,sign)
             #print 'sign 1: Qr -',array(Qr).shape,', yR -',array(yR).shape
@@ -162,12 +184,6 @@ def drawParallel(ray,q0,sign):
             y=[ray]
             sign*=-1
             Qr, yR = Qvector(y,QR,sign)
-        if not Qr:
-            iksolList = fullSolution(yR)
-            return drawParallel(yR,iksolList[0][0],sign)
-        if not Ql:
-            iksolList = fullSolution(yL)
-            return drawParallel(yL,iksolList[0][0],sign)
     else:
         sign*=-1
         print 'drawParallel: solution not found'
@@ -307,6 +323,10 @@ def plotPoints(points, handles,color):
     handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
     return handles
 
+def plotPoint(point, handles,color):
+    handles.append(env.plot3(points=array(point)[0:3],pointsize=5,colors=color))
+    return handles
+
 def nextLine(P0):
     d0 = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     R0=1.425
@@ -349,8 +369,8 @@ def main3():
         Pd, Qd=meridian2(P0,Rn,1,qi)
         yM = getPointsfromQ(Qd)
 
-        handles=plotPoints(yL, handles,array((1,0,0)))
-        handles=plotPoints(yR, handles,array((1,0,0)))
+        #handles=plotPoints(yL, handles,array((1,0,0)))
+        #handles=plotPoints(yR, handles,array((1,0,0)))
         handles=plotPoints(yM, handles,array((1,0,0)))
         
         sign*=-1
@@ -416,6 +436,9 @@ def getPointsfromQ(Q):
         T=manip.GetTransform()
         points.append(T[0:3,3])
     return array(points)  
+
+if __name__ == '__main__':
+    main3()
 
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')
