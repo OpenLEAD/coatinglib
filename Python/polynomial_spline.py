@@ -9,9 +9,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import minimize
 
+#reachableRays = load('blade_sampling/blade_crop_3mm.npz')
+#AllreachableRays = load('blade_sampling/blade_crop2_3mm.npz')
 reachableRays = load('blade_sampling/blade_crop_fast.npz')
-reachableRays  = reachableRays['array']
 AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
+reachableRays  = reachableRays['array']
 AllreachableRays  = AllreachableRays['array']
 rays = concatenate((reachableRays,AllreachableRays))
 
@@ -188,13 +190,11 @@ def update_surface(x,y,z):
     point = array([x,y,z])
     dif = point-center
     ratio = dot(dif,dif)/r**2
-    if ratio > 0.25: #0.01
+    if ratio > 0.15: 
         idx = getSamples(point,r)
-        #if len(idx)==0:
-        #    return -1
         update_idx(idx)
         update_center(point)
-        if ratio > 0.85: #update v #0.25
+        if ratio > 0.2: 
             print 'arroe! (x,y,z) - ', point
             standard_surface(point)
         else:

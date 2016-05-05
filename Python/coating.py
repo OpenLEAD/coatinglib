@@ -664,7 +664,19 @@ def manipulabilityDET(manip):
     Jpos = manip.CalculateJacobian()
     Jori = manip.CalculateAngularVelocityJacobian()
     J = concatenate((Jpos,Jori))
-    return sqrt(linalg.det(dot(transpose(J),J)))
+    return sqrt(linalg.det(dot(transpose(J),J))), sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
+
+def manipulabilityS(manip):
+    Jpos = manip.CalculateJacobian()
+    Jori = manip.CalculateAngularVelocityJacobian()
+    J = concatenate((Jpos,Jori))
+    JtposJpos = dot(Jpos,transpose(Jpos))
+    JtoriJori = dot(Jori,transpose(Jori))
+    JtJ = dot(transpose(J),J)
+    w, _ = linalg.eig(JtJ)
+    w1, _ = linalg.eig(JtposJpos)
+    w2, _ = linalg.eig(JtoriJori)
+    return min(w), min(w1), min(w2)
  
 def calculateOmegasbyJacobian(robot,ikmodel,manip,thetas,velocities,deltasT):
      NewOmegas=[]
