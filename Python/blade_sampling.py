@@ -16,7 +16,7 @@ directiondelta = 0.2
 coatingdistance = 0.23
 
 #MAIN
-approachrays,_,_,_,_=PointsToReach(env, target, delta, normalanglerange,directiondelta,'r')
+approachrays,_,_,_,_=PointsToReach(env, target, delta, normalanglerange,directiondelta,'s2')
 approachrays=PointsForCoating(approachrays,coatingdistance)
 
-savez_compressed('blade_sampling/blade2.npz', array=approachrays)
+savez_compressed('blade_sampling_full/s2.npz', array=approachrays)

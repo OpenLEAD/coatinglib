@@ -20,12 +20,12 @@ anglerange = pi/6
 #MAIN
 with env:
 
-    approachrays = load('blade_sampling/blade_crop_3mm.npz')
+    approachrays = load('blade_sampling_full/blade_crop_fast.npz')
     approachrays = approachrays['array']
     N = approachrays.shape[0]
     Ttarget = target.GetTransform()
 
-    #Blade PLC:
+    #Blade PLC:5
 ##    p = [0,0,-1.265741]
 ##    Rt = dot(dot(coating.RunitY(-0.5*math.pi),coating.RunitZ(0.5*math.pi)),coating.RunitY(-31*math.pi/180))
 ##    Ttarget = array([[Rt[0][0],Rt[0][1],Rt[0][2],p[0]],

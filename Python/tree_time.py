@@ -2,9 +2,17 @@ from numpy import *
 from scipy.spatial import KDTree
 import time
 
+b = load('blade_sampling_full/b_crop.npz')
+r = load('blade_sampling_full/r_crop.npz')
 
-##approachrays = load('blade_sampling/blade_crop2.npz')
-##approachrays = approachrays['array']
+
+b  = b['array']
+r  = r['array']
+
+approachrays = concatenate((b,r))
+
+#approachrays = load('blade_sampling_full/t_crop.npz')
+#approachrays = approachrays['array']
 def tree_time(approachrays,r=0.05):
     T = KDTree(approachrays[:,0:3])
     rays = []
@@ -28,5 +36,5 @@ def tree_time(approachrays,r=0.05):
         if i==len(approachrays):break
     print 'total Time = '+str(time.time()- initialTime)
     return rays
-##approachrays = tree_time(approachrays,r=0.003)
-##savez_compressed('blade_sampling/blade_crop2_3mm.npz', array=approachrays)
+approachrays = tree_time(approachrays,r=0.05)
+savez_compressed('blade_sampling_full/blade_crop_fast.npz', array=approachrays)
