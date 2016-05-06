@@ -56,7 +56,7 @@ normal = [-1,0,0]
 pN = concatenate((pN,normal))
 QList = []
 dt = 1e-3 # parallel step
-loops = 5
+loops = 10
 loopdistance = 1
 #====================================================================================================================
 
@@ -76,20 +76,10 @@ def tangentOptm(ray,q0):
     tan *= 1.0/sqrt(dot(tan,tan))
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
     
-    manipulability, manipjpos, manipjori = coating.manipulabilityS(manip)
-    globalManipPos.append(manipjpos)
-    globalManipOri.append(manipjori)
-    #print 'manipjpos: ',manipjpos,', manipjori:', manipjori 
-
-    manipjpos = 0.3*manipjpos + 0.7*manipulabilityNUM
-    manipulable=True
-    if manipulabilityNUM > manipjpos and manipulabilityNUM<=1e-1:
-        manipulable=False
     
-    manipulabilityNUM = manipjpos
     
     angle_suc = isViable(res.x,ray[3:6])
-    return tan, res.x, (res.success and angle_suc and manipulable)
+    return tan, res.x, (res.success and angle_suc)
 
 def solution(ray):
     _, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
@@ -158,16 +148,32 @@ def Qvector(y,Q,sign):
     return Q,y
 
 def isViable(q0,norm):
+    global manipulabilityNUM
+    global globalManipPos
+    global globalManipOri
+    manipulability, manipjpos, manipjori = coating.manipulabilityS(manip)
+    globalManipPos.append(manipjpos)
+    globalManipOri.append(manipjori)
+    #print 'manipjpos: ',manipjpos,', manipjori:', manipjori 
+
+    manipjpos = 0.3*manipjpos + 0.7*manipulabilityNUM
+    manipulable=True
+    if manipulabilityNUM > manipjpos and manipulabilityNUM<=1e-1:
+        manipulable=False    
+    manipulabilityNUM = manipjpos
+    
     if len(q0)>0:
         robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
         T=manip.GetTransform()
         Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-        return dot(norm,Rx) >= math.cos(tolerance*math.pi/180)
+        return dot(norm,Rx) >= math.cos(tolerance*math.pi/180) and manipulable
     else: return False
 
 def drawParallel(ray,q0,sign):
     viable=isViable(q0,ray[3:6])
+    Ql=[]; yL=[]; Qr=[]; yR=[]
     if viable:
+        print 'drawParallel: is viable'
         QL=[q0]
         QR=[q0]
         y=[ray]
@@ -201,7 +207,16 @@ def drawParallel(ray,q0,sign):
             norm = polynomial_spline.dfn4(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
-        return drawParallel(ray,q0,sign)
+        print 'drawParallel: solution found'
+        QL=[q0]
+        QR=[q0]
+        y=[ray]
+        #Arriscado - Pode caminhar em duas funcoes esquerda-direita
+        if sign==1:
+            Qr, yR = Qvector(y,QR,sign)
+        else:
+            Ql, yL = Qvector(y,QL,sign)
+        #return drawParallel(ray,q0,sign)
     
     print 'Ql -',array(list(reversed(Ql))).shape,', Qr -',array(Qr[1:]).shape
     

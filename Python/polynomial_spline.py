@@ -17,6 +17,8 @@ reachableRays  = reachableRays['array']
 AllreachableRays  = AllreachableRays['array']
 rays = concatenate((reachableRays,AllreachableRays))
 
+#rays = load('blade_sampling_full/blade_crop_fast.npz')
+#rays  = rays['array']
 
 v=[]
 r=0.4
