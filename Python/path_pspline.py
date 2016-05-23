@@ -56,7 +56,7 @@ normal = [-1,0,0]
 pN = concatenate((pN,normal))
 QList = []
 dt = 1e-3 # parallel step
-loops = 10
+loops = 6
 loopdistance = 1
 #====================================================================================================================
 
@@ -79,6 +79,7 @@ def tangentOptm(ray,q0):
     
     
     angle_suc = isViable(res.x,ray[3:6])
+   # print 'NORM: ', ray[3:6], '  POINT: ', ray[0:3]
     return tan, res.x, (res.success and angle_suc)
 
 def solution(ray):
@@ -121,7 +122,9 @@ def Qvector(y,Q,sign):
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
         if not coating.CheckDOFLimits(robot,q):
-            print('deu bode')
+            #print('deu bode')
+            print polynomial_spline.v
+            wait = input("deu bode, PRESS 1 ENTER TO CONTINUE.") 
             iksolList = fullSolution(y[-1])
             Q=[iksolList[0][0]]
             Q = Qvector_backtrack(y,Q)
@@ -136,14 +139,14 @@ def Qvector(y,Q,sign):
                 res = coating.optmizeTan(xold, pnew, tol)
                 tol*=0.1
                 xnew = res.x
-            temp = polynomial_spline.fn4(xnew[0], xnew[1], xnew[2])
-            dv = array(polynomial_spline.dfn4(xnew[0],xnew[1],xnew[2]))
+            temp = polynomial_spline.fn(xnew[0], xnew[1], xnew[2])
+            dv = array(polynomial_spline.dfn(xnew[0],xnew[1],xnew[2]))
             normdv = sqrt(dot(dv,dv))
             #print 'success:', res.success, ' fn:', polynomial_spline.fn4(xnew[0],xnew[1],xnew[2])/normdv
             n = dv/normdv
             P=concatenate((xnew,n))   
             y.append(P)
-            handles=plotPoint(P, handles,array((1,0,0)))
+            handles=plotPoint(P, handles,array((0,1,0)))
             
     return Q,y
 
@@ -157,17 +160,23 @@ def isViable(q0,norm):
     #print 'manipjpos: ',manipjpos,', manipjori:', manipjori 
 
     manipjpos = 0.3*manipjpos + 0.7*manipulabilityNUM
-    manipulable=True
-    if manipulabilityNUM > manipjpos and manipulabilityNUM<=1e-1:
-        manipulable=False    
+    if manipulabilityNUM > manipjpos and manipulabilityNUM<=0.15:
+        print "LOW MANIPULABILITY: ", manipjpos
+        return False
     manipulabilityNUM = manipjpos
     
     if len(q0)>0:
         robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
         T=manip.GetTransform()
         Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-        return dot(norm,Rx) >= math.cos(tolerance*math.pi/180) and manipulable
-    else: return False
+        if dot(norm,Rx) >= math.cos(tolerance*math.pi/180):
+            #print 'ANGLE: ', 180*math.acos(dot(norm,Rx))/math.pi
+            return True
+        else:
+            print "ANGLE TOLERANCE FAIL: ", 180*math.acos(dot(norm,Rx))/math.pi
+            return False
+    else:
+        return False
 
 def drawParallel(ray,q0,sign):
     viable=isViable(q0,ray[3:6])
@@ -204,7 +213,7 @@ def drawParallel(ray,q0,sign):
                 tol*=0.1
             y=res.x
 
-            norm = polynomial_spline.dfn4(y[0],y[1],y[2])
+            norm = polynomial_spline.dfn(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
         print 'drawParallel: solution found'
@@ -229,7 +238,7 @@ def drawParallel(ray,q0,sign):
 def tangentd(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(polynomial_spline.dfn4(x,y,z))
+    dv = array(polynomial_spline.dfn(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -242,7 +251,7 @@ def tangentd(ray,sign):
 def tangent(ray,sign):
     P=ray
     x=P[0];y=P[1];z=P[2]
-    dv = array(polynomial_spline.dfn4(x,y,z))
+    dv = array(polynomial_spline.dfn(x,y,z))
     n = dv/sqrt(dot(dv,dv))
     
     P=concatenate((P,n))
@@ -275,7 +284,7 @@ def FindNextParallel(P0,sign):
             dt*=0.5
             S=(dif>0)
     
-    norm = polynomial_spline.dfn4(y[0],y[1],y[2])
+    norm = polynomial_spline.dfn(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     y = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])        
     return y
@@ -298,7 +307,7 @@ def meridian2(P0,Rn,sign,q0):
         y=res.x
 
         if notstop:
-            norm = polynomial_spline.dfn4(y[0],y[1],y[2])
+            norm = polynomial_spline.dfn(y[0],y[1],y[2])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
 
@@ -317,7 +326,7 @@ def meridian2(P0,Rn,sign,q0):
             S=(dif>0)
 
             
-    norm = polynomial_spline.dfn4(y[0],y[1],y[2])
+    norm = polynomial_spline.dfn(y[0],y[1],y[2])
     norm /= sqrt(dot(norm,norm))
     ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])  
 
@@ -360,6 +369,7 @@ def initialPoint():
     return Pd, q0
 
 def main3():
+    QALL = []
     global handles
     polynomial_spline.set_handles(handles,env)
     env.SetViewer('qtcoin')
@@ -378,19 +388,19 @@ def main3():
         else:
             P0=yR[-1]
             qi=Q[-1]
-        
+        QALL.extend(Q)
         Rn=nextLine(P0)
         Rn+=loopdistance*0.003
         Pd, Qd=meridian2(P0,Rn,1,qi)
         yM = getPointsfromQ(Qd)
-
+        QALL.extend(Qd)
         #handles=plotPoints(yL, handles,array((1,0,0)))
         #handles=plotPoints(yR, handles,array((1,0,0)))
         handles=plotPoints(yM, handles,array((1,0,0)))
         
         sign*=-1
         q0=Qd[-1]
-    return 
+    return QALL
 
 def main():
     env.SetViewer('qtcoin')
@@ -453,8 +463,10 @@ def getPointsfromQ(Q):
     return array(points)  
 
 if __name__ == '__main__':
-    main3()
-
+    QALL = main3()
+    savez_compressed('path/QALL/'+'2.npz', array=QALL)
+    #wait = input("PRESS 1 ENTER TO CONTINUE.")
+    #coating.robotPath2(QALL, 0.005,robot,ikmodel)
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')
 #handles=[]

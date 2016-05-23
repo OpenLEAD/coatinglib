@@ -869,10 +869,10 @@ def optmizeTan(p0, pnew, tol):
         return 2*(P-pnew)
     def consfunc(P):
         #return fn4(P[0],P[1],P[2])
-        return polynomial_spline.fn4(P[0],P[1],P[2])
+        return polynomial_spline.fn(P[0],P[1],P[2])
     def consfunc_deriv(P):
         #return dpolynomial(P,rR)
-        return polynomial_spline.dfn4(P[0],P[1],P[2])
+        return polynomial_spline.dfn(P[0],P[1],P[2])
     cons = ({'type':'eq',
              'fun': consfunc,
             'jac':consfunc_deriv})

@@ -11,14 +11,14 @@ from scipy.optimize import minimize
 
 #reachableRays = load('blade_sampling/blade_crop_3mm.npz')
 #AllreachableRays = load('blade_sampling/blade_crop2_3mm.npz')
-reachableRays = load('blade_sampling/blade_crop_fast.npz')
-AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
-reachableRays  = reachableRays['array']
-AllreachableRays  = AllreachableRays['array']
-rays = concatenate((reachableRays,AllreachableRays))
+#reachableRays = load('blade_sampling/blade_crop_fast.npz')
+#AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
+#reachableRays  = reachableRays['array']
+#AllreachableRays  = AllreachableRays['array']
+#rays = concatenate((reachableRays,AllreachableRays))
 
-#rays = load('blade_sampling_full/blade_crop_fast.npz')
-#rays  = rays['array']
+rays = load('blade_sampling_full/blade_crop_fast.npz')
+rays  = rays['array']
 
 v=[]
 r=0.4
@@ -31,6 +31,20 @@ index=-1
 s = 0.11
 c1 = sqrt(2*pi*s**2)
 delta = 2*s**2
+
+def dvector(x,y,z):
+    return dv_vector2(x,y,z)
+def vector(x,y,z):
+    return vector2(x,y,z)
+def dvector(x,y,z):
+    return dvector2(x,y,z)
+def dv_vector(x,y,z):
+    return dv_vector2(x,y,z)
+def polynomial_surface(point):
+    return polynomial_surface2(point)
+
+
+
 def evaluate_gauss(point,mean):
     dif = point-mean
     k = -dot(dif,dif)/delta
@@ -41,7 +55,6 @@ def compute_W(point,rays,idx):
     for i in idx:
         w.append(evaluate_gauss(rays[i][0:3],point))
     return w
-# =======
 
 def set_handles(handles,env):
     global handles2, env2
@@ -128,19 +141,34 @@ def ddvector4(x,y,z):
             2*x, 6*xz, 0, 0, 2*xy, 0, 0, 0, 0, 0, 2*x2, 0, 0, 0, 0, 0, 0, 0]
     return [dxdx,dxdy,dxdz,dydy,dydz,dzdz]
 
+def vector2(x,y,z):
+    return [1, z, z**2, y, y*z, y**2, x, x*z, x*y, x**2]
+
+def dvector2(x,y,z):
+    dx = [0, 0, 0, 0, 0, 0, 1, z, y, 2*x]
+    dy = [0, 0, 0, 1, z, 2*y, 0, 0, x, 0]
+    dz = [0, 1, 2*z, 0, y, 0, 0, x, 0, 0]
+    G=[dx,dy,dz]
+    return G
+
+def dv_vector2(x,y,z):
+    a = vector2(x,y,z)
+    da=dvector2(x,y,z)
+    return [a,da]
+
 def make_matrix():
     m = []
     S = []
     for ind in idx:
-        [a,da]=dv_vector4(rays[ind][0],rays[ind][1],rays[ind][2])   
+        [a,da]=dv_vector(rays[ind][0],rays[ind][1],rays[ind][2])   
         b = [a,da[0],da[1],da[2]]
         s = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
         S.extend(s)
         m.extend(b)   
     return m, S
 
-def polynomial_surface(point):
-    [a,da]=dv_vector4(point[0],point[1],point[2]) 
+def polynomial_surface4(point):
+    [a,da]=dv_vector(point[0],point[1],point[2]) 
     H = ddvector4(point[0],point[1],point[2])
     S = [a,da[0],da[1],da[2]]
     c = [dot(v,a),dot(v,da[0]),dot(v,da[1]),dot(v,da[2])]
@@ -150,8 +178,44 @@ def polynomial_surface(point):
     A=[]
     b=[]
     for ind in idx:
-        [a,da]=dv_vector4(rays[ind][0],rays[ind][1],rays[ind][2])
-        a=vector4(rays[ind][0],rays[ind][1],rays[ind][2])   
+        [a,da]=dv_vector(rays[ind][0],rays[ind][1],rays[ind][2])
+        a=vector(rays[ind][0],rays[ind][1],rays[ind][2])   
+        av = [a,da[0],da[1],da[2]]
+        bv = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
+        A.extend(av)
+        b.extend(bv)
+    At = transpose(A)
+    
+    # ===============================
+    # Polynomial Spline with weights
+    w = compute_W(point,rays,idx)
+    A=array(A)
+    for i in range(0,len(A)):
+        A[i]*=w[i/4]
+    # ===============================
+    
+    b = 2*dot(transpose(A),b)
+    AtA = 2*dot(At,A)
+    w = concatenate((b,c))
+    m, _ = shape(AtA)
+    p, _ = shape(S)
+    U = zeros((m+p,m+p))
+    U[0:m,0:m]=AtA
+    U[0:m,m:m+p]=transpose(S)
+    U[m:m+p,0:m]=S
+    x = solve(U,w)
+    update_v(x[0:m])
+    return
+
+def polynomial_surface2(point):
+    [a,da]=dv_vector(point[0],point[1],point[2]) 
+    S = [a,da[0],da[1],da[2]]
+    c = [dot(v,a),dot(v,da[0]),dot(v,da[1]),dot(v,da[2])]
+    A=[]
+    b=[]
+    for ind in idx:
+        [a,da]=dv_vector(rays[ind][0],rays[ind][1],rays[ind][2])
+        a=vector(rays[ind][0],rays[ind][1],rays[ind][2])   
         av = [a,da[0],da[1],da[2]]
         bv = [0, rays[ind][3], rays[ind][4], rays[ind][5]]
         A.extend(av)
@@ -201,37 +265,48 @@ def update_surface(x,y,z):
             standard_surface(point)
         else:
             print 'recalculando...'
-            #if index>-1: handles2.pop(index-1) 
-            #handles2.append(env2.plot3(points=rays[idx,0:3],pointsize=5,colors=array((0,0,0))))
-            #index=len(handles2)
-            polynomial_surface(point)
+
+
+##            handles2.append(env2.plot3(points=rays[idx,0:3],pointsize=5,colors=array((0,0,0))))
+##            N = rays[idx].shape[0]
+##            normals = []
+##            for i in rays[idx]:
+##                normals.append(st_dfn(i))
+##            #handles2.append(env2.drawlinelist(points=reshape(c_[rays[idx][:,0:3],rays[idx][:,0:3]+0.05*array(normals)],(2*N,3)),linewidth=4,colors=array((1,0,0,1))))
+##            handles2.append(env2.drawlinelist(points=reshape(c_[rays[idx][:,0:3],rays[idx][:,0:3]+0.05*rays[idx][:,3:6]],(2*N,3)),linewidth=4,colors=array((1,0,0,1))))
+##            wait = input("PRESS 1 ENTER TO CONTINUE.")
+##            handles2.pop(-1)
+##            handles2.pop(-1)
+##            polynomial_surface(point)
 
         maxi=0
         ponto=[]
         for ind in idx:
-            tempfn4 = abs(dot(v,vector4(rays[ind][0],rays[ind][1],rays[ind][2])))
-            if maxi<=tempfn4:
-                maxi=tempfn4
+            tempfn = abs(dot(v,vector(rays[ind][0],rays[ind][1],rays[ind][2])))
+            if maxi<=tempfn:
+                maxi=tempfn
                 ponto = rays[ind]
         #print 'Pior ponto =', ponto[0:3], ' fn4(x,y,z) = ',maxi
-        #handles2.append(env2.plot3(points=ponto[0:3],pointsize=5,colors=array((1,0,0))))
-        #wait = input("PRESS ENTER TO CONTINUE.")    
+        #handles2.append(env2.plot3(points=ponto[0:3],pointsize=5,colors=array((1,0,0))))    
                 
         #print v    
     return  0
     
 
-def dfn4(x,y,z):
+def dfn(x,y,z):
     update_surface(x,y,z)
-    return dot(dvector4(x,y,z),transpose(v))
+    return dot(dvector(x,y,z),transpose(v))
+
+def st_dfn(ray):
+    return dot(dvector(ray[0],ray[1],ray[2]),transpose(v))
 
 @vectorize
-def fn4(x,y,z):
+def fn(x,y,z):
     update_surface(x,y,z)
-    return dot(v,vector4(x,y,z))
+    return dot(v,vector(x,y,z))
 
 def plot():
-    ax = implicit.plot_implicit(fn4,bbox=(-5,5,-5,5,-5,5))
+    ax = implicit.plot_implicit(fn,bbox=(-5,5,-5,5,-5,5))
     Axes3D.scatter(ax,rays[:,0],rays[:,1],rays[:,2])
     plt.show()
 
@@ -242,9 +317,9 @@ def optmizeTan(p0, pnew, tol):
     def func_deriv(P):
         return 2*(P-pnew)
     def consfunc(P):
-        return fn4(P[0],P[1],P[2])
+        return fn(P[0],P[1],P[2])
     def consfunc_deriv(P):
-        return dfn4(P[0],P[1],P[2])
+        return dfn(P[0],P[1],P[2])
     cons = ({'type':'eq',
              'fun': consfunc,
             'jac':consfunc_deriv})
