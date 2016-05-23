@@ -36,5 +36,5 @@ def tree_time(approachrays,r=0.05):
         if i==len(approachrays):break
     print 'total Time = '+str(time.time()- initialTime)
     return rays
-approachrays = tree_time(approachrays,r=0.05)
+approachrays = tree_time(approachrays,r=0.01)
 savez_compressed('blade_sampling_full/blade_crop_fast.npz', array=approachrays)
