@@ -256,7 +256,7 @@ def update_surface(x,y,z):
     point = array([x,y,z])
     dif = point-center
     ratio = dot(dif,dif)/r**2
-    if ratio > 0.15: 
+    if ratio > 0.05: 
         idx = getSamples(point,r)
         update_idx(idx)
         update_center(point)
@@ -277,7 +277,7 @@ def update_surface(x,y,z):
 ##            wait = input("PRESS 1 ENTER TO CONTINUE.")
 ##            handles2.pop(-1)
 ##            handles2.pop(-1)
-##            polynomial_surface(point)
+            polynomial_surface(point)
 
         maxi=0
         ponto=[]
