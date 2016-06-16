@@ -53,8 +53,8 @@ pN=gbase_position[4]
 normal = [-1,0,0]
 pN = concatenate((pN,normal))
 QList = []
-dt = 1e-3 # parallel step
-loops = 6
+dt = 3e-3 # parallel step
+loops = 20
 loopdistance = 1
 #====================================================================================================================
 
@@ -68,15 +68,11 @@ globalManipPos = []
 globalManipOri = []
 
 def tangentOptm(ray,q0):
-    global manipulabilityNUM
-    global globalManipPos
-    global globalManipOri 
     tan = cross(ray[3:6],ray[0:3])
     tan = tan/sqrt(dot(tan,tan))
     res = coating.optmizeQ(robot,ikmodel,manip,ray,q0)
 
     angle_suc = isViable(res.x,ray[3:6])
-   # print 'NORM: ', ray[3:6], '  POINT: ', ray[0:3]
     return tan, res.x, (res.success and angle_suc)
 
 def solution(ray):
@@ -119,7 +115,7 @@ def Qvector(y,Q,sign):
     while suc:
         tan, q, suc = tangentOptm(y[-1],Q[-1])
         if not coating.CheckDOFLimits(robot,q):
-            wait = input("deu bode, PRESS 1 ENTER TO CONTINUE.") 
+            #wait = input("deu bode, PRESS 1 ENTER TO CONTINUE.") 
             iksolList = fullSolution(y[-1])
             Q=[iksolList[0][0]]
             Q = Qvector_backtrack(y,Q)
@@ -188,17 +184,10 @@ def drawParallel(ray,q0,sign):
     else:
         sign*=-1
         print 'drawParallel: solution not found'
-        tol = 1e-6
         while not viable:
             y=ray[0:3]
             tan, q0, viable = tangentOptm(ray,q0)
-            tan *= sign*dt
-            pnew = y+tan
-            res = coating.optmizeTan(y, pnew, tol)
-            if dot(res.x-y,res.x-y)==0:
-                tol*=0.1
-            y=res.x
-
+            y=curvepoint(y+sign*tan*dt)
             norm = RBF.df([y[0],y[1],y[2]])
             norm /= sqrt(dot(norm,norm))
             ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
@@ -269,28 +258,10 @@ def onecurvepoint(p0):
 
 def FindNextParallel(P0,sign):
     global Rn
-##    dt = 1e-4
-##    y=array([float(P0[0]),float(P0[1]),float(P0[2])])
     d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     R0=1.425
     n = math.ceil((d-R0)/0.003)
     Rn = R0+n*0.003
-##    dif = d-Rn
-##    S=(dif>0)
-##    tol=1e-6
-##    while abs(dif)>1e-4:
-##        tand = tangentd(y,sign)*dt
-##        pnew = y+tand
-##        res = RBF.optmizeTan(y, pnew, tol)
-##        
-##        if dot(res.x-y,res.x-y)==0:tol*=0.1
-##        y = res.x
-##        d = sqrt(res.x[0]**2+res.x[1]**2+res.x[2]**2)
-##        dif = d-Rn
-##        if S!=(dif>0):
-##            sign*=-1
-##            dt*=0.5
-##            S=(dif>0)
     y = curvepoint(P0)    
     norm = RBF.df([y[0],y[1],y[2]])
     norm /= sqrt(dot(norm,norm))
@@ -300,38 +271,6 @@ def FindNextParallel(P0,sign):
 def meridian2(P0,sign,q0):
     print 'meridian2'
     Q=[q0]
-##    dt = 1e-4
-##    y=array([float(P0[0]),float(P0[1]),float(P0[2])])
-##    d = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
-##    dif = d-Rn
-##    S=(dif>0)
-##    tol=1e-6
-##    notstop = True
-##    while abs(dif)>1e-4:
-##        tand = tangentd(y,sign)*dt
-##        pnew = y+tand
-##        res = coating.optmizeTan(y, pnew,tol)
-##        if dot(res.x-y,res.x-y)==0:tol*=0.1
-##        y=res.x
-##
-##        if notstop:
-##            norm = RBF.df([y[0],y[1],y[2]])
-##            norm /= sqrt(dot(norm,norm))
-##            ray = array([y[0],y[1],y[2],norm[0],norm[1],norm[2]])
-##
-##            resQ = coating.optmizeQ(robot,ikmodel,manip,ray,Q[-1])
-##            if resQ.success:
-##                Q.append(resQ.x)
-##            else:
-##                print 'Meridian Error'
-##        
-##        d = sqrt(res.x[0]**2+res.x[1]**2+res.x[2]**2)
-##        dif = d-Rn
-##        if S!=(dif>0):
-##            notstop = False
-##            sign*=-1
-##            dt*=0.5
-##            S=(dif>0)
     P0=array([P0[0],P0[1],P0[2]])
     y = curvepoint(P0)
             
@@ -343,8 +282,7 @@ def meridian2(P0,sign,q0):
     if resQ.success:
         Q.append(resQ.x)
     else:
-        print 'Meridian Error'
-        
+        print 'Meridian Error'        
     return ray, Q
 
 def nearestSample(P,points):
@@ -377,7 +315,7 @@ def initialPoint():
     q0=solution(Pd)
     return Pd, q0
 
-def main3():
+def main():
     QALL = []
     global handles
     global Rn
@@ -403,53 +341,11 @@ def main3():
         Pd, Qd=meridian2(P0,1,qi)
         yM = getPointsfromQ(Qd)
         QALL.extend(Qd)
-        #handles=plotPoints(yL, handles,array((1,0,0)))
-        #handles=plotPoints(yR, handles,array((1,0,0)))
         handles=plotPoints(yM, handles,array((1,0,0)))
         
         sign*=-1
         q0=Qd[-1]
     return QALL
-
-def main():
-    env.SetViewer('qtcoin')
-    Pd, q0 = initialPoint()
-    yR, yL, Q = drawParallel(Pd,q0[0][0],1)
-    t=strftime("%d%b%Y_%H_%M_%S", gmtime())
-    savez_compressed('path/yR/'+'_'+t+'.npz', array=yR)
-    savez_compressed('path/yL/'+'_'+t+'.npz', array=yL)
-    savez_compressed('path/Q/'+'_'+t+'.npz', array=Q)
-    
-    return yR, yL, Q
-
-def main2():
-    global handles
-    RBF.set_handles(handles,env)
-    #env.SetViewer('qtcoin')
-    yR, yL, Q = main()
-    handles=plotPoints(yL, handles,array((0,0,0)))
-    handles=plotPoints(yR, handles,array((0,0,0)))
-    P0=yL[-1]
-    Rn=nextLine(P0)
-    Rn+=33*0.003
-    Pd, Qd=meridian2(P0,1,Q[0])
-    yM = getPointsfromQ(Qd)
-    yR2, yL2, Q2 = drawParallel(Pd,Qd[-1],-1)
-    handles=plotPoints(yM, handles,array((0,0,0)))
-    handles=plotPoints(yL2, handles,array((0,0,0)))
-    handles=plotPoints(yR2, handles,array((0,0,0)))
-
-    P0=yR2[-1]
-    Rn=nextLine(P0)
-    Rn+=33*0.003
-    Pd, Qd=meridian2(P0,1,Q[-1])
-    yM = getPointsfromQ(Qd)
-    yR3, yL3, Q3 = drawParallel(Pd,Qd[-1],1)
-    handles=plotPoints(yM, handles,array((0,0,0)))
-    handles=plotPoints(yL3, handles,array((0,0,0)))
-    handles=plotPoints(yR3, handles,array((0,0,0)))
-    
-    return yR3, yL3, Q3,yR2, yL2, Q2, yR, yL, Q
 
 def realCoatedPoints(Q):
     global handles
@@ -472,7 +368,7 @@ def getPointsfromQ(Q):
     return array(points)  
 
 if __name__ == '__main__':
-    QALL = main3()
+    QALL = main()
     #savez_compressed('path/QALL/'+'t.npz', array=QALL)
     #wait = input("PRESS 1 ENTER TO CONTINUE.")
     #coating.robotPath2(QALL, 0.005,robot,ikmodel)

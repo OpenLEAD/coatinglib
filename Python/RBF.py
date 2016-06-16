@@ -9,29 +9,21 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import minimize
 
-reachableRays = load('blade_sampling/blade_crop_fast.npz')
-#AllreachableRays = load('blade_sampling/blade_crop_fast2.npz')
+reachableRays = load('blade_sampling/blade_crop_ufast.npz')
 reachableRays  = reachableRays['array']
-#AllreachableRays  = AllreachableRays['array']
-#rays = concatenate((reachableRays,AllreachableRays))
 rays = reachableRays
 
-#rays = load('blade_sampling_full/blade_crop_fast.npz')
-#rays  = rays['array']
 rayspos = copy.copy(rays)
-raysneg = copy.copy(rays)
 eps = 0.001
 for i in range(0,len(rayspos)):
     rayspos[i][0:3] = rayspos[i][0:3]+rayspos[i][3:6]*eps
-    raysneg[i][0:3] = raysneg[i][0:3]-raysneg[i][3:6]*eps
-raysE = concatenate((rayspos,raysneg))
 
-raysExt = concatenate((rays,raysE))
+raysExt = concatenate((rays,rayspos))
 N=len(raysExt)
 #savetxt("raysExt.csv", raysExt[:,0:3], delimiter=",")
     
 w=[]
-w = load('w/r3eps.npz')
+w = load('w/IQ_back_ufast.npz')
 w = w['array']
 savetxt("w.csv", w, delimiter=",")
 
@@ -50,11 +42,6 @@ def makeTree(rR):
 
 Tree = makeTree(rays)
 
-def update_w():
-    global w
-    w = compute_w()
-    return
-    
 def poly(ci):
     return poly1(ci)
 
@@ -62,36 +49,61 @@ def poly1(ci):
     return [1, ci[0], ci[1], ci[2]]
 
 def phi(ci,cj):
-    return phi_x3(ci,cj)
+    return x3(ci,cj)
 
 def dphi(ci,cj):
-    return dphi_x3(ci,cj)
+    return dx3(ci,cj)
 
-def phi_x3(ci,cj):
+def x3(ci,cj):
     c = ci-cj
     c = sqrt(dot(c,c))
-    return c**3
+    return c*c*c
 
-def dphi_x3(ci,cj):
+def dx3(ci,cj):
     c = ci-cj
     nc = 3*sqrt(dot(c,c))
     return array([nc*c[0],nc*c[1],nc*c[2]])
 
-def compute_w():
-    K = []
-    d = []
-    for i in range(0,N):
-        ki=[]
-        for ray in raysExt:
-            ki.append(phi(rays[i][0:3],ray[0:3]))
-        K.append(ki)    
-        if i>=N/2:
-            d.append(eps)
-        else: d.append(0)    
-    return solve(K,d)    
+def phi_log(ci,cj):
+    c = ci-cj
+    c2 = dot(c,c)
+    if c2==0:
+        return 0
+    c = sqrt(c2)
+    return c2*log(c)
 
-def main():
-    update_w()
+def dphi_log(ci,cj):
+    c = ci-cj
+    c2 = dot(c,c)
+    if c2==0:
+        return array([0,0,0])
+    return array([c[0]*log(c2)+c[0],c[1]*log(c2)+c[1],c[2]*log(c2)+c[2]])
+
+def gauss(ci,cj):
+    e = 0.1
+    c = ci-cj
+    c2 = e**2*dot(c,c)
+    return exp(-c2)
+
+def dgauss(ci,cj):
+    e = 0.1; e2 = e*e 
+    k = -2*e2
+    c = ci-cj
+    c2 = e2*dot(c,c)
+    oexp = exp(-c2)
+    return array([k*c[0]*oexp,k*c[1]*oexp,k*c[2]*oexp])
+
+def IQ(ci,cj):
+    e = 0.001
+    c = ci-cj
+    c2 = e**2*dot(c,c)
+    return 1/(1+c2)
+
+def dIQ(ci,cj):
+    e2 = 0.001**2; k = -2*e2
+    c = ci-cj
+    c2 = 1/((e2*dot(c,c)+1)**2)
+    return array([k*c[0]*c2,k*c[1]*c2,k*c[2]*c2])
 
 def f(c):
     f=0
@@ -112,19 +124,3 @@ def plot():
     ax = implicit.plot_implicit(f3,bbox=(-5,5,-5,5,-5,5))
     Axes3D.scatter(ax,rays[:,0],rays[:,1],rays[:,2])
     plt.show()
-
-def optmizeTan(p0, pnew, tol):
-    def func(P):
-        a=P-pnew
-        return dot(a,a)
-    def func_deriv(P):
-        return 2*(P-pnew)
-    def consfunc(P):
-        return f(P)
-    def consfunc_deriv(P):
-        return df(P)
-    cons = ({'type':'eq',
-             'fun': consfunc,
-            'jac':consfunc_deriv})
-    res = minimize(func, p0,jac=func_deriv,constraints=cons, method='SLSQP',tol=tol, options={'disp': False})
-    return res      
