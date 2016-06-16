@@ -17,7 +17,7 @@ from scipy.optimize import minimize
 #AllreachableRays  = AllreachableRays['array']
 #rays = concatenate((reachableRays,AllreachableRays))
 
-rays = load('blade_sampling_full/blade_crop_fast.npz')
+rays = load('blade_sampling/blade_crop_fast.npz')
 rays  = rays['array']
 
 v=[]
@@ -33,15 +33,15 @@ c1 = sqrt(2*pi*s**2)
 delta = 2*s**2
 
 def dvector(x,y,z):
-    return dv_vector2(x,y,z)
+    return dv_vector4(x,y,z)
 def vector(x,y,z):
-    return vector2(x,y,z)
+    return vector4(x,y,z)
 def dvector(x,y,z):
-    return dvector2(x,y,z)
+    return dvector4(x,y,z)
 def dv_vector(x,y,z):
-    return dv_vector2(x,y,z)
+    return dv_vector4(x,y,z)
 def polynomial_surface(point):
-    return polynomial_surface2(point)
+    return polynomial_surface4(point)
 
 
 
@@ -292,6 +292,11 @@ def update_surface(x,y,z):
         #print v    
     return  0
     
+def df(point):
+    return dfn(point[0],point[1],point[2])
+
+def f(point):
+    return fn(point[0],point[1],point[2])
 
 def dfn(x,y,z):
     update_surface(x,y,z)
