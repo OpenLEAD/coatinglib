@@ -41,7 +41,7 @@ for body in env.GetBodies():
     Ti.append(body.GetTransform())
 
 alpha = 1.0*BladePosition*pi/180;
-T = numpy.array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
+T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                  [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
 
 for ibody in range(0,len(env.GetBodies())):
@@ -86,7 +86,7 @@ real_index = indexList[~indexAll]
 pN = copy.copy(base)
 pN[1]+=y
 normal = [-1,0,0]
-pN = numpy.concatenate((pN,normal))
+pN = concatenate((pN,normal))
 reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, gapproachrays[~indexAll],robot,ikmodel,facevector,theta,coatingdistancetolerance)
 indexBlackList.append(real_index[indexlist1])
 AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays[~indexAll],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
