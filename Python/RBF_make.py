@@ -12,36 +12,16 @@ from scipy.optimize import minimize
 reachableRays = load('blade_sampling_full/blade_crop_ufast.npz')
 reachableRays  = reachableRays['array']
 rays = reachableRays
-
 rayspos = copy.copy(rays)
 eps = 0.001
 for i in range(0,len(rayspos)):
     rayspos[i][0:3] = rayspos[i][0:3]+rayspos[i][3:6]*eps
-
-raysExt = concatenate((rays,rayspos))
-N=len(raysExt)
-#savetxt("raysExt.csv", raysExt[:,0:3], delimiter=",")
+rays = concatenate((rays,rayspos))
+N=len(rays)
+ 
+def update_w():
+    return compute_w()
     
-w=[]
-w = load('w/x3_full_ufast.npz')
-w = w['array']
-#savetxt("w.csv", w, delimiter=",")
-
-handles2=[]
-env2=None
-index=-1
-def set_handles(handles,env):
-    global handles2, env2
-    handles2 = handles
-    env2 = env
-    return
-
-def makeTree(rR):
-    Tree = KDTree(rR[:,0:3])
-    return Tree
-
-Tree = makeTree(rays)
-
 def poly(ci):
     return poly1(ci)
 
@@ -51,18 +31,10 @@ def poly1(ci):
 def phi(ci,cj):
     return x3(ci,cj)
 
-def dphi(ci,cj):
-    return dx3(ci,cj)
-
 def x3(ci,cj):
     c = ci-cj
     c = sqrt(dot(c,c))
-    return c*c*c
-
-def dx3(ci,cj):
-    c = ci-cj
-    nc = 3*sqrt(dot(c,c))
-    return array([nc*c[0],nc*c[1],nc*c[2]])
+    return c**3
 
 def phi_log(ci,cj):
     c = ci-cj
@@ -72,26 +44,11 @@ def phi_log(ci,cj):
     c = sqrt(c2)
     return c2*log(c)
 
-def dphi_log(ci,cj):
-    c = ci-cj
-    c2 = dot(c,c)
-    if c2==0:
-        return array([0,0,0])
-    return array([c[0]*log(c2)+c[0],c[1]*log(c2)+c[1],c[2]*log(c2)+c[2]])
-
 def gauss(ci,cj):
     e = 0.1
     c = ci-cj
     c2 = e**2*dot(c,c)
     return exp(-c2)
-
-def dgauss(ci,cj):
-    e = 0.1; e2 = e*e 
-    k = -2*e2
-    c = ci-cj
-    c2 = e2*dot(c,c)
-    oexp = exp(-c2)
-    return array([k*c[0]*oexp,k*c[1]*oexp,k*c[2]*oexp])
 
 def IQ(ci,cj):
     e = 0.001
@@ -99,28 +56,37 @@ def IQ(ci,cj):
     c2 = e**2*dot(c,c)
     return 1/(1+c2)
 
-def dIQ(ci,cj):
-    e2 = 0.001**2; k = -2*e2
-    c = ci-cj
-    c2 = 1/((e2*dot(c,c)+1)**2)
-    return array([k*c[0]*c2,k*c[1]*c2,k*c[2]*c2])
+def compute_w():
+    K = []
+    d = []
+    for i in range(0,N):
+        ki=[]
+        for ray in rays:
+            ki.append(phi(rays[i][0:3],ray[0:3]))
+        K.append(ki)    
+        if i>=N/2:
+            d.append(eps)
+        else: d.append(0)    
+    return solve(K,d)    
+
+def main():
+    w = update_w()
+    savez_compressed('w/'+'x3_full_ufast.npz', array=w)
+    return
 
 def f(c):
     f=0
     for i in range(0,N):
-        f+=w[i]*phi(c,raysExt[i][0:3])
+        f+=w[i]*phi(c,rays[i][0:3])
     return f
 
 def f3(x,y,z):
     return f([x,y,z])
-
-def df(c):
-    df=array([0,0,0])
-    for i in range(0,N):
-        df=df+w[i]*dphi(c,raysExt[i][0:3])
-    return df
         
 def plot():
     ax = implicit.plot_implicit(f3,bbox=(-5,5,-5,5,-5,5))
     Axes3D.scatter(ax,rays[:,0],rays[:,1],rays[:,2])
     plt.show()
+
+if __name__ == '__main__':
+    main()
