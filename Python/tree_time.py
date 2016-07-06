@@ -11,7 +11,7 @@ import time
 ##
 ##approachrays = concatenate((b,r))
 
-approachrays = load('blade_sampling/blade_crop_fast.npz')
+approachrays = load('blade_sampling_full/blade_crop_fast.npz')
 approachrays = approachrays['array']
 
 def tree_time(approachrays,r=0.05):
@@ -37,5 +37,5 @@ def tree_time(approachrays,r=0.05):
         if i==len(approachrays):break
     print 'total Time = '+str(time.time()- initialTime)
     return rays
-approachrays = tree_time(approachrays,r=0.2)
-savez_compressed('blade_sampling/blade_crop_02fast.npz', array=approachrays)
+approachrays = tree_time(approachrays,r=0.1)
+savez_compressed('blade_sampling_full/blade_crop_ufast.npz', array=approachrays)

@@ -20,7 +20,7 @@ anglerange = pi/6
 #MAIN
 with env:
 
-    approachrays = load('blade_sampling/blade_crop_ufast.npz')
+    approachrays = load('blade_sampling_full/blade_crop_ufast.npz')
     approachrays = approachrays['array']
     N = approachrays.shape[0]
     Ttarget = target.GetTransform()
