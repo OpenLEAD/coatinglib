@@ -48,7 +48,13 @@ def drawParallel(Y):
     with open('trajectory/counter.txt','r') as f:
         counter = int(f.read())
     ray = Y[-1][-1]
-    theta0 = 180*math.acos(ray[2]/Rn)/math.pi
+    try:
+        with open('trajectory/theta.txt','r') as f:
+            theta0 = int(f.read())
+    except:
+        theta0 = 180*math.acos(ray[2]/Rn)/math.pi
+        with open('trajectory/theta.txt','w') as f:
+                    f.write('%f' % theta0)
     while True:
         tan = tangent(Y[-1][-1])
         p1 = curvepoint(Y[-1][-1][0:3]-tan*dt)
@@ -144,7 +150,10 @@ def main():
     try:
         Y = load('trajectory/Y.npz')
         Y = Y['array']
-        Y = list(Y)
+        tempY = []
+        for y in Y:
+            tempY.append(list(y))
+        Y = tempY
         Pd = Y[-1][-1]
         Rn = math.sqrt(Pd[0]**2+Pd[1]**2+Pd[2]**2)
         plotPointsArray(Y, handles,array((0,1,0)))
