@@ -8,7 +8,7 @@ import copy
 
 env=Environment()
 env.SetViewer('qtcoin')
-env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
+env.Load("../Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
@@ -61,6 +61,13 @@ gbase_position=array([[ -2.14387087e+00,  -3.22000000e+00,  -9.97857391e-01],
        [ -1.35417734e+00,  -3.22000000e+00,   6.67255206e-01],
        [ -1.19623863e+00,  -3.22000000e+00,   1.00027773e+00]])
 
+borderpoint = array([-0.94670736, -2.63243936, -1.32629051])
+borderpxy = array([-0.94670736, -3.22, -1.32629051])
+bordernormal = array([ -0.68951295,  0.05221131, -0.722389  ])
+bordernxy = array([ -0.68951295,  0, -0.722389  ])
+
+ptest = borderpxy+bordernxy
+
 # Saved Variables
 indexBlack = zeros(len(gapproachrays),dtype=bool)
 indexBlue = zeros(len(gapproachrays),dtype=bool)
@@ -80,7 +87,7 @@ handles=[]
 handles.append(env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0))))
 
 # Compute Solutions
-base = gbase_position[6]
+base = gbase_position[0] # ptest
 
 real_index = indexList[~indexAll]
 pN = copy.copy(base)
