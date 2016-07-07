@@ -43,20 +43,38 @@ def tangent(ray):
     tan = tan/sqrt(dot(tan,tan))   
     return tan
 
-def drawParallel(ray):
+def drawParallel(Y):
     global handles
-    y = [ray]
+    with open('trajectory/counter.txt','r') as f:
+        counter = int(f.read())
+    ray = Y[-1][-1]
+    theta0 = 180*math.acos(ray[2]/Rn)/math.pi
     while True:
-        tan = tangent(y[-1])
-        #print 'tan= ', tan[0],tan[1],tan[2]
-        p1 = curvepoint(y[-1][0:3]-tan*dt)
+        tan = tangent(Y[-1][-1])
+        p1 = curvepoint(Y[-1][-1][0:3]-tan*dt)
         dv = array(RBF.df(p1))
         normdv = sqrt(dot(dv,dv))
         n = dv/normdv
-        P=concatenate((p1,n))   
-        y.append(P)
+        P=concatenate((p1,n))
+
+        r = math.sqrt(P[0]**2+P[1]**2+P[2]**2)
+        theta = 180*math.acos(P[2]/Rn)/math.pi
+        
+        if counter==0:
+            if theta<theta0:
+                counter+=1
+                with open('trajectory/counter.txt','w') as f:
+                    f.write('%d' % counter)
+        else:
+            if theta>theta0:
+                counter=0
+                with open('trajectory/counter.txt','w') as f:
+                    f.write('%d' % counter)
+                return Y
+        Y[-1].append(P)
+        savez_compressed('trajectory/'+'Y.npz', array=Y)
         handles=plotPoint(P, handles,array((0,1,0)))
-    return y
+    
 
 def curvepoint(p0):
     tol=1e-4
@@ -67,7 +85,6 @@ def curvepoint(p0):
         beta = (-f1+f2*df1df1/df1df2)/(df1df2-df1df1*df2df2/df1df2)
         alpha = (-f1+f2*df1df2/df2df2)/(df1df1-df1df2*df1df2/df2df2)
         dk = alpha*df1+beta*df2
-        #print 'preso= ', sqrt(dot(dk,dk))
         p1 = p0+dk
         if sqrt(dot(dk,dk))<tol:
             return p1
@@ -98,6 +115,12 @@ def plotPoint(point, handles,color):
     handles.append(env.plot3(points=array(point)[0:3],pointsize=5,colors=color))
     return handles
 
+def plotPointsArray(pointsArray, handles,color):
+    for points in pointsArray:
+        handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
+    return handles
+
+
 def nextLine(P0):
     d0 = sqrt(P0[0]**2+P0[1]**2+P0[2]**2)
     R0=1.425
@@ -107,12 +130,9 @@ def nextLine(P0):
 
 def initialPoint():
     rRp = rR[:,0:3]
-    #soma=[0,0,0]
-    #for i in rRp:soma=soma+i
-    #P0 = soma/len(rRp)
     P0 = rRp[argmin(rRp[:,1])]
     P0 = nearestSample(P0,rRp)
-    Pd=FindNextParallel(P0,1) #1 para baixo
+    Pd=FindNextParallel(P0,1)
     return Pd
 
 def main():
@@ -121,19 +141,32 @@ def main():
     RBF.set_handles(handles,env)
     env.SetViewer('qtcoin')
     
-    Pd = initialPoint()
-    for i in range(0,loops):
-        y = drawParallel(Pd)
-        P0=y[-1]
-        Rn+=loopdistance*0.003
-        #Pd, Qd=meridian2(P0,1,qi)
-    return y
+    try:
+        Y = load('trajectory/Y.npz')
+        Y = Y['array']
+        Y = list(Y)
+        Pd = Y[-1][-1]
+        Rn = math.sqrt(Pd[0]**2+Pd[1]**2+Pd[2]**2)
+        plotPointsArray(Y, handles,array((0,1,0)))
+    except:
+        Y=[[]]
+        Pd = initialPoint()
+        Y[0].append(Pd)
+        
+    while Rn>1.425:
+        Y = drawParallel(Y)
+        P0=Y[-1][-1]
+        Rn-=loopdistance*0.003
+
+        Pd = curvepoint([P0[0],P0[1],P0[2]])    
+        norm = RBF.df(Pd)
+        norm /= sqrt(dot(norm,norm))
+        Pd = [Pd[0],Pd[1],Pd[2],norm[0],norm[1],norm[2]]
+        Pd=[Pd]
+    return
 
 if __name__ == '__main__':
-    y = main()
-    #savez_compressed('path/QALL/'+'t.npz', array=QALL)
-    #wait = input("PRESS 1 ENTER TO CONTINUE.")
-    #coating.robotPath2(QALL, 0.005,robot,ikmodel)
+    main()
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')
 #handles=[]
