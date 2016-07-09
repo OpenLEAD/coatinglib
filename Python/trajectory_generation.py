@@ -45,16 +45,10 @@ def tangent(ray):
 
 def drawParallel(Y):
     global handles
-    with open('trajectory/counter.txt','r') as f:
-        counter = int(f.read())
     ray = Y[-1][-1]
-    try:
-        with open('trajectory/theta.txt','r') as f:
-            theta0 = int(f.read())
-    except:
-        theta0 = 180*math.acos(ray[2]/Rn)/math.pi
-        with open('trajectory/theta.txt','w') as f:
-                    f.write('%f' % theta0)
+    theta0 = 180*math.acos(ray[2]/Rn)/math.pi
+    counter = 0
+           
     while True:
         tan = tangent(Y[-1][-1])
         p1 = curvepoint(Y[-1][-1][0:3]-tan*dt)
@@ -69,16 +63,11 @@ def drawParallel(Y):
         if counter==0:
             if theta<theta0:
                 counter+=1
-                with open('trajectory/counter.txt','w') as f:
-                    f.write('%d' % counter)
         else:
             if theta>theta0:
                 counter=0
-                with open('trajectory/counter.txt','w') as f:
-                    f.write('%d' % counter)
                 return Y
         Y[-1].append(P)
-        savez_compressed('trajectory/'+'Y.npz', array=Y)
         handles=plotPoint(P, handles,array((0,1,0)))
     
 
@@ -152,10 +141,10 @@ def main():
         Y = Y['array']
         tempY = []
         for y in Y:
-            tempY.append(list(y))
+            tempY.append(list(y))   
         Y = tempY
         Pd = Y[-1][-1]
-        Rn = math.sqrt(Pd[0]**2+Pd[1]**2+Pd[2]**2)
+        Rn = math.sqrt(Pd[0]**2+Pd[1]**2+Pd[2]**2)-loopdistance*0.003
         plotPointsArray(Y, handles,array((0,1,0)))
     except:
         Y=[[]]
@@ -164,6 +153,7 @@ def main():
         
     while Rn>1.425:
         Y = drawParallel(Y)
+        savez_compressed('trajectory/'+'Y.npz', array=Y)   
         P0=Y[-1][-1]
         Rn-=loopdistance*0.003
 
@@ -172,10 +162,11 @@ def main():
         norm /= sqrt(dot(norm,norm))
         Pd = [Pd[0],Pd[1],Pd[2],norm[0],norm[1],norm[2]]
         Pd=[Pd]
-    return
+    return Y
 
 if __name__ == '__main__':
-    main()
+    Y = main()
+    savez_compressed('trajectory/'+'Y.npz', array=Y)  
 #coating.robotPath2(Q, 0.005,robot,ikmodel)
 #env.SetViewer('qtcoin')
 #handles=[]
