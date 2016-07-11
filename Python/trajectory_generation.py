@@ -1,3 +1,13 @@
+#!/usr/bin/env python
+# Given the blade model (RBF) and the samples,
+# this script generate the robot trajectories. The trajectories are the
+# intersection between the spheres (radius 1.425 to 3.770) with the RBF model of
+# the blade. The algorithm follows the marching method, available in
+# http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf page 94
+# intersection surface - surface.
+
+# TODO: parallel computation of the trajectories as they are independent
+# of the radius of the sphere
 from numpy import *
 import coating
 from openravepy import *
@@ -48,7 +58,7 @@ def drawParallel(Y):
     ray = Y[-1][-1]
     theta0 = 180*math.acos(ray[2]/Rn)/math.pi
     counter = 0
-           
+    y = []       
     while True:
         tan = tangent(Y[-1][-1])
         p1 = curvepoint(Y[-1][-1][0:3]-tan*dt)
@@ -65,10 +75,10 @@ def drawParallel(Y):
                 counter+=1
         else:
             if theta>theta0:
-                counter=0
+                Y.append(y)
                 return Y
-        Y[-1].append(P)
-        handles=plotPoint(P, handles,array((0,1,0)))
+        y.append(P)
+        #handles=plotPoint(P, handles,array((0,1,0)))
     
 
 def curvepoint(p0):
@@ -134,7 +144,7 @@ def main():
     global handles
     global Rn
     RBF.set_handles(handles,env)
-    env.SetViewer('qtcoin')
+    #env.SetViewer('qtcoin')
     
     try:
         Y = load('trajectory/Y.npz')
@@ -145,7 +155,7 @@ def main():
         Y = tempY
         Pd = Y[-1][-1]
         Rn = math.sqrt(Pd[0]**2+Pd[1]**2+Pd[2]**2)-loopdistance*0.003
-        plotPointsArray(Y, handles,array((0,1,0)))
+        #plotPointsArray(Y, handles,array((0,1,0)))
     except:
         Y=[[]]
         Pd = initialPoint()
