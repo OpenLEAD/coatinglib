@@ -13,7 +13,8 @@ robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
 
-
+# Robot Position
+#prime_rail = 
 
 # PARAMETERS
 facevector = [1,0,0]
@@ -55,7 +56,7 @@ if not ikmodel.load():
     ikmodel.autogenerate()
 
 #approachrays = load('bladepoints16Back.npz')
-approachrays = load('blade_sampling/blade_crop_fast.npz')
+approachrays = load('blade_sampling_full/blade_crop_ufast.npz')
 approachrays = approachrays['array']
 N = approachrays.shape[0]
 
@@ -79,10 +80,12 @@ borderpoint = array([-0.94670736, -2.63243936, -1.32629051])
 borderpxy = array([-0.94670736, -3.22, -1.32629051])
 bordernormal = array([ -0.68951295,  0.05221131, -0.722389  ])
 bordernxy = array([ -0.68951295,  0, -0.722389  ])
+p0=array([1, -3.22, 0, 1, 0, 0])
 
 index=0
 for pos in BladePositions:
     alpha = 1.0*pos*pi/180;
+    alpha = 0# 0.10038996418102937
     T = numpy.array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                      [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
 
@@ -96,7 +99,7 @@ for pos in BladePositions:
         gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
 
         # Compute Solutions
-        reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(borderxy, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta)
+        reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(p0, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta)
         #EXTRA COATING
         AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays,indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector)
 
@@ -114,7 +117,7 @@ extrareachableRays = coating.IndexToPoints(gapproachrays,indexlistblue)
 
 handles.append(env.plot3(points=extrareachableRays[:,0:3],pointsize=5,colors=array((0,0,1))))    
 handles.append(env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((0,0,0))))    
- 
+     
 #reachableRays2 = coating.IndexToPoints(gapproachrays,indexlist2)
 #handles.append(env.plot3(points=reachableRays2[:,0:3],pointsize=5,colors=array((0,0,1))))    
 

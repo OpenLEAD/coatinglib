@@ -2,8 +2,6 @@ from numpy import *
 import coating
 from openravepy import *
 from openravepy.misc import SpaceSamplerExtra
-import math
-from time import gmtime, strftime
 #====================================================================================================================
 env=Environment()
 env.Load("../Turbina/env_mh12_0_16.xml")
@@ -23,14 +21,7 @@ coatingdistance = 0.23 # coating distance
 coatingdistancetolerance = 0.01
 numberofangles = 8 # degree step
 tolerance = 30 # degrees
-pN=[-1.51211605e+00,-3.22000000e+00,3.34232687e-01]
-normal = [-1,0,0]
-pN = concatenate((pN,normal))
 #====================================================================================================================
-
-# DIREITA E PARA BAIXO = 1
-rR = RBF.rays
-Tree = RBF.makeTree(rR)
 
 manipulabilityNUM = 0
 globalManipPos = []
@@ -97,22 +88,32 @@ def isViable(q0,norm):
     else:
         return False
 
-def sortTrajectories(x, trajectories):
+def sortTrajectories(pNx, trajectories):
     sortedTrajectories = []
     i=0
     for trajectory in trajectories:
-        theta = []
-        for point in trajectory:
-            theta.append(math.atan2(-point[2],point[0]))
-        St = [x for (y,x) in sorted(zip(theta[theta>0],trajectory[theta>0]))]
-        En = [x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))]
-        if x<0:
-            sortedTrajectory=concatenate((St,En))
-        else:    
-            sortedTrajectory=concatenate((St,En))
-        if i%2:
-            sortedTrajectory.reverse()
-        sortedTrajectories.append(sortedTrajectory)    
+        if len(trajectory)>1:
+            theta = []
+            for point in trajectory:
+                theta.append(math.atan2(-point[2],point[0]))
+            theta=array(theta)
+            St = []; En = []
+            if len(theta[theta>0])>0:    
+                St = [x for (y,x) in sorted(zip(theta[theta>0],trajectory[theta>0]))]
+            if len(theta[theta<0])>0:
+                En = [x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))]
+            if St and En:
+                if pNx<0:
+                    print 'St = ', St
+                    print 'En = ', En
+                    sortedTrajectory=concatenate((St,En))
+                else:    
+                    sortedTrajectory=concatenate((St,En))
+            if i%2:
+                sortedTrajectory.reverse()
+            sortedTrajectories.append(sortedTrajectory)
+        elif len(trajectory)==1:
+            sortedTrajectories.append(trajectory)
     return sortedTrajectories        
 
 def doPath(pN, trajectories):
@@ -166,6 +167,3 @@ def getPointsfromQ(Q):
         T=manip.GetTransform()
         points.append(T[0:3,3])
     return array(points)  
-
-if __name__ == '__main__':
-    Q = main()
