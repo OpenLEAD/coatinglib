@@ -906,3 +906,30 @@ def optmizeTanNotMLS(p0, pnew, v,tol):
             'jac':consfunc_deriv})
     res = minimize(func, p0,jac=func_deriv,constraints=cons, method='SLSQP',tol=tol, options={'disp': False})
     return res
+
+def plotPoints(env, points, handles,color):
+    handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
+    return handles
+
+def plotPoint(env, point, handles,color):
+    handles.append(env.plot3(points=array(point)[0:3],pointsize=5,colors=color))
+    return handles
+
+def plotPointsArray(env, pointsArray, handles,color):
+    for points in pointsArray:
+        handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
+    return handles
+
+def RotateBodies(env, BladePosition):
+    Ti = []
+    for body in env.GetBodies():
+        Ti.append(body.GetTransform())
+
+    alpha = 1.0*BladePosition*pi/180
+    T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
+                     [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
+
+    for ibody in range(0,len(env.GetBodies())):
+        if ibody!=5:
+            env.GetBodies()[ibody].SetTransform(dot(T,Ti[ibody]))
+    return env
