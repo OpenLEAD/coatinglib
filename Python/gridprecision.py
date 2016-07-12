@@ -68,7 +68,7 @@ BladePositions = [-0]
 #BladePositions = [-20,-10,10]
 #BladePositions = [-20,-10,10,30]
 
-RobotPositions = [0.5]
+RobotPositions = [0.9]
 #RobotPositions = [0,0.1]
 #RobotPositions = [0,0.1,-0.1]
 #RobotPositions = [0,0.1,-0.1,-0.3]
