@@ -56,7 +56,7 @@ def drawParallel(Y,Pd):
                 Y.append(y)
                 return Y
         y.append(P)
-        #handles=coating.plotPoint(env, P, handles,array((0,1,0)))
+        #handles=coating.plotPoint(env, P, handles,array((1,0,0)))
     
 
 def curvepoint(p0):
