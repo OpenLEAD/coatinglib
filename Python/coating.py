@@ -124,7 +124,9 @@ def genVec(normal): # Given a direction (normal), generates two arbitrary vector
     v3 = v3/sqrt(dot(v3,v3))
     return v1,v3
 
-def genTransform(pointnormal, facevector): # Generates the matrix T, given point, normal vector and vector to face normal
+def genTransform(pointnormal, facevector):
+    # Generates the matrix T, given point,
+    # normal vector and vector to face normal
     normal = pointnormal[3:6]
     point = pointnormal[0:3]
 
@@ -170,8 +172,11 @@ def poseDummy(pointnormal, distance): # Computes robot position in respect of gi
     v2 = [0,1,0]
     v3 = cross(v1,v2)
 
-    T = [[v1[0],v2[0],v3[0],pM[0]],[v1[1],v2[1],v3[1],pM[1]],
-         [v1[2],v2[2],v3[2],pM[2]],[0,0,0,1]]
+    T = eye(4)
+    T[0:3,0] = v1 # X axis
+    T[0:3,1] = v2 # Y axis
+    T[0:3,2] = v3 # Z axis
+    T[0:3,3] = pM # Position
     
     return T
 
@@ -274,7 +279,9 @@ def AllKinematicSolve(bladepoints,ikmodel,facevector,coatingdistancetolerance=0)
         i+=1    
      return reachableRays, iksolList, indexlist
 
-def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0,printa=False): # Pose the robot and solve inverse kinematics for all specific points, normal vectors, robot, and vector to face normal vector of the blade.
+def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0,printa=False):
+    # Pose the robot and solve inverse kinematics for all specific points,
+    # normal vectors, robot, and vector to face normal vector of the blade.
     thetaX = theta[0]
     thetaY = theta[1]
     thetaZ = theta[2]
@@ -283,6 +290,9 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
     Tn = RzM(Tn,thetaZ)
     Tn = RxM(Tn,thetaX)
     robot.SetTransform(Tn)
+    return Workspace(bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance,printa)
+
+def Workspace(bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0,printa=False):
     reachableRays=zeros((0,6))
     iksolList = []
     indexlist = zeros(len(bladepoints),dtype=bool)
@@ -298,6 +308,7 @@ def WorkspaceOnPose(robotpose, distance, bladepoints,robot,ikmodel,facevector,th
           if printa:
               if i%1000==0: print str(i)+'/'+str(Ntot)
     return reachableRays, iksolList, indexlist
+    
 
 def BestBaseDistance(robotpose,initialdistance,bladepoints,robot,ikmodel,facevector,theta,coatingdistancetolerance=0): # Computes best robot position to coat blade points
     distance = initialdistance
@@ -917,9 +928,7 @@ def plotPoint(env, point, handles,color):
 
 def plotPointsArray(env, pointsArray, handles,color):
     for points in pointsArray:
-        try:
-            handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
-        except: None    
+        handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
     return handles
 
 def RotateBodies(env, alpha):
@@ -930,8 +939,7 @@ def RotateBodies(env, alpha):
         Ti.append(body.GetTransform())
 
     #alpha = 1.0*BladePosition*pi/180
-    T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
-                     [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
+    T = matrixFromAxisAngle( [alpha, 0, 0] )
 
     for ibody in range(0,len(env.GetBodies())):
         body = env.GetBodies()[ibody]
