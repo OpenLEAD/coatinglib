@@ -25,7 +25,7 @@ def place_rail((p,s,alpha)):
     # Primary Rail - offset HARDCODED
     primary = next(body for body in bodies if body.GetName()=='primary_rail')
     primary_extent = primary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
-    primary_offset = array([-primary_extent[0],0,-primary_extent[2]])+array([0.2 0 0])
+    primary_offset = array([-primary_extent[0],0,-primary_extent[2]])+array([0.2, 0, 0])
     primary_offset_transform = eye(4)
     primary_offset_transform[0:3,3] = primary_offset
     
@@ -38,7 +38,7 @@ def place_rail((p,s,alpha)):
     secondary.InitFromBoxes(numpy.array([concatenate([zeros(3),secondary_extent])]),True)
     env.AddKinBody(secondary)
     #
-    secondary_offset = array([-secondary_extent[0],0,-secondary_extent[2]])+array([0.2 0 0])
+    secondary_offset = array([-secondary_extent[0],0,-secondary_extent[2]])+array([0.2, 0, 0])
     secondary_offset_transform = eye(4)
     secondary_offset_transform[0:3,3] = secondary_offset
 
