@@ -186,8 +186,29 @@ handles.append(env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((0
 
 
 def try_new_rail():
-    rd = rand_rail()
-    place_rail(rd); place_robot(rd) 
+    while True:
+        rd = rand_rail()
+        place_rail(rd)
+        if env.CheckCollision(primary,target):
+            print 'Primary rail collision... Redoing'
+            continue
+        if env.CheckCollision(secondary,target):
+            print 'Secondary rail collision... Redoing'
+            continue
+        
+        place_robot(rd)
+        collisions = [env.CheckCollision(robot,body) for body in bodies];
+        if True in collisions:
+            print 'Robot collision with ', bodies[collisions.index(True)].GetName(),'... Redoing'
+            continue
+    
+        break
+
+    Ttarget = target.GetTransform()
+    gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
+
+    indexlistblack = zeros((len(approachrays),),dtype=bool)
+    indexlistblue = zeros((len(approachrays),),dtype=bool)
     # Compute Solutions
     reachableRays, iksolList, indexlist1 = coating.Workspace(gapproachrays,robot,ikmodel,facevector,theta)
     #EXTRA COATING
