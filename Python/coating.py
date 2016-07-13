@@ -917,7 +917,9 @@ def plotPoint(env, point, handles,color):
 
 def plotPointsArray(env, pointsArray, handles,color):
     for points in pointsArray:
-        handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
+        try:
+            handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
+        except: None    
     return handles
 
 def RotateBodies(env, alpha):
