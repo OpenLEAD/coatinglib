@@ -12,6 +12,56 @@ env.Load("../Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
+floor = array([0,-3.22,0])
+handles=[]
+
+def rail2cart((p,s,alpha)):
+    return array([p+s*sin(alpha),0,-s*cos(alpha)])+floor
+
+def place_rail((p,s,alpha)):
+    #Get primary and secondary from bodies
+    bodies = env.GetBodies()
+    
+    # Primary Rail - offset HARDCODED
+    primary = next(body for body in bodies if body.GetName()=='primary_rail')
+    primary_extent = primary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
+    primary_offset = array([-primary_extent[0],0,-primary_extent[2]])+array([0.2 0 0])
+    primary_offset_transform = eye(4)
+    primary_offset_transform[0:3,3] = primary_offset
+    
+    # Secondary Rail - offset HARDCODED
+    secondary = next(body for body in bodies if body.GetName()=='secondary_rail')
+    secondary_extent = secondary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
+    #Resizing
+    secondary_extent[0] = (abs(s)+0.2)/2 
+    env.RemoveKinBody(secondary)
+    secondary.InitFromBoxes(numpy.array([concatenate([zeros(3),secondary_extent])]),True)
+    env.AddKinBody(secondary)
+    #
+    secondary_offset = array([-secondary_extent[0],0,-secondary_extent[2]])+array([0.2 0 0])
+    secondary_offset_transform = eye(4)
+    secondary_offset_transform[0:3,3] = secondary_offset
+
+    #TODO transfromlookto para colocar os dois rails
+
+def rand_rail(N = 1): #P - primary rail, S - secondary rail, alpha - angle from the perpendicular to the primary rail
+    Slimit = 1 # sencondary rail limit range
+    xmax = 1.5; xmin = -1
+    zmax = Slimit; zmin = -Slimit
+
+    # Randomness
+    x,z,alpha = numpy.random.rand(3,N) 
+    # Random limits
+    x = (xmax - xmin)*x + xmin# xmin <= x < xmax - same for z
+    z = (zmax - zmin)*z + zmin
+    alphalimit = arccos(abs(z/Slimit))
+    alpha = alphalimit*(2*alpha-1) # - alphalimit <= alpha < alphalimit
+
+    # S/P conversion
+    S = -z/cos(alpha)
+    P = x - S*sin(alpha)
+    
+    return (P,S,alpha)
 
 # Robot Position
 #prime_rail = 
@@ -23,14 +73,6 @@ coatingdistance = 0.23 # coating distance
 robottobladedistance = -0.3 # robot to blade distance
 numberofangles = 8 # degree step
 tolerance = 20 # degrees
-alpha = 1.0*pi/180; #degree blade step
-
-
-#pN = numpy.array([-1.412,-2.567,-0.617])# Extremo esquerdo superior
-
-#pN = numpy.array([-0.576,-2.984,0.106])# Extremo direito superior
-
-#pN = numpy.array([-0.4,-3.573,0.26])# Extremo direito inferior
 
 pN = numpy.array([ -1, -3.3, 0 ])
 
@@ -38,24 +80,13 @@ normal = [-1,0,0]
 pN = numpy.concatenate((pN,normal))
 
 # CAMERA SETTINGS
-Tcamera = numpy.array([[ 0.05777387, -0.06852652,  0.99597505, -4.08520365],
-       [-0.32092178, -0.94596499, -0.04646983, -1.95519543],
-       [ 0.94534194, -0.31694535, -0.07664371, -0.661735  ],
-       [ 0        ,  0        ,  0        ,  1        ]])
-
-env.GetViewer().SetCamera(Tcamera)
-
-# Initial T
-Ti = []
-for body in env.GetBodies():
-    Ti.append(body.GetTransform())
+env.GetViewer().SetCamera(transformLookat(floor +[0,0.5,0],[6,0.5,0],[0,-1,0]))
 
 #MAIN
 ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=IkParameterization.Type.Transform6D)
 if not ikmodel.load():
     ikmodel.autogenerate()
 
-#approachrays = load('bladepoints16Back.npz')
 approachrays = load('blade_sampling_full/blade_crop_ufast.npz')
 approachrays = approachrays['array']
 N = approachrays.shape[0]
@@ -64,35 +95,15 @@ indexlistblack = zeros((len(approachrays),),dtype=bool)
 indexlistblue = zeros((len(approachrays),),dtype=bool)
 
 # Initial position
-BladePositions = [-0]
-#BladePositions = [-20,-10]
-#BladePositions = [-20,-10,10]
-#BladePositions = [-20,-10,10,30]
+alpha = 0.10038996418102937 #offset center blade
+coating.RotateBodies(env,alpha)
+BladePositions = [0]
 
 RobotPositions = [0.9]
-#RobotPositions = [0,0.1]
-#RobotPositions = [0,0.1,-0.1]
-#RobotPositions = [0,0.1,-0.1,-0.3]
-handles=[]
-
-borderxy = array([-0.94670736, -3.22, -1.32629051,-0.68951295,  0, -0.722389])
-borderpoint = array([-0.94670736, -2.63243936, -1.32629051])
-borderpxy = array([-0.94670736, -3.22, -1.32629051])
-bordernormal = array([ -0.68951295,  0.05221131, -0.722389  ])
-bordernxy = array([ -0.68951295,  0, -0.722389  ])
 p0=array([1, -3.22, 0, 1, 0, 0])
 
-index=0
 for pos in BladePositions:
-    alpha = 1.0*pos*pi/180;
-    alpha = 0# 0.10038996418102937
-    T = numpy.array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
-                     [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
 
-    i=0
-    for body in env.GetBodies():
-        body.SetTransform(dot(T,Ti[i]))
-        i+=1
     for robottobladedistance in RobotPositions:
         ##PLOT BLADE POINTS FOR COATING
         Ttarget = target.GetTransform()

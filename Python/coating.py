@@ -920,16 +920,20 @@ def plotPointsArray(env, pointsArray, handles,color):
         handles.append(env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color))
     return handles
 
-def RotateBodies(env, BladePosition):
+def RotateBodies(env, alpha):
+    #alpha - Angle in Radians (old BladePosition)
+    excludelist = ('secondary_rail','primary_rail','arocamara')
     Ti = []
     for body in env.GetBodies():
         Ti.append(body.GetTransform())
 
-    alpha = 1.0*BladePosition*pi/180
+    #alpha = 1.0*BladePosition*pi/180
     T = array([[1,0,0,0],[0,cos(alpha),-sin(alpha),0],
                      [0,sin(alpha),cos(alpha),0],[0,0,0,1]])
 
     for ibody in range(0,len(env.GetBodies())):
-        if ibody!=5:
-            env.GetBodies()[ibody].SetTransform(dot(T,Ti[ibody]))
+        body = env.GetBodies()[ibody]
+        if body.GetName() in excludelist:
+            continue
+        env.GetBodies()[ibody].SetTransform(dot(T,Ti[ibody]))
     return env
