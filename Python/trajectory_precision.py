@@ -12,41 +12,65 @@ env.Load("../Turbina/env_mh12_0_16.xml")
 robot = env.GetRobots()[0]
 target = env.GetBodies()[0]
 manip = robot.GetActiveManipulator()
-floor = array([0,-3.22,0])
+floor_origin = array([0,-3.22,0])
 handles=[]
 
-def rail2cart((p,s,alpha)):
-    return array([p+s*sin(alpha),0,-s*cos(alpha)])+floor
+def rail2xyz((p,s,alpha)):
+    #P - primary rail,
+    #S - secondary rail,
+    #alpha - angle from the perpendicular to the primary rail
+    return array([p+s*sin(alpha),0,s*cos(alpha)])+floor_origin
 
+def place_robot((p,s,alpha)):
+    Placement = eye(4)
+    #  offset HARDCODED 0.02 ref Secondary rail collision
+    Placement[0:3,3] = rail2xyz((p,s,alpha))+[0,0.02,0]
+    R = matrixFromAxisAngle([0, alpha, 0])
+    robot.SetTransform(dot(Placement,R))
+
+        
 def place_rail((p,s,alpha)):
+    #P - primary rail,
+    #S - secondary rail,
+    #alpha - angle from the perpendicular to the primary rail
+    #ISSUE - p and s cannot be ZERO, but ignoring because random
+    #Using camera standard axis for rails
     #Get primary and secondary from bodies
     bodies = env.GetBodies()
     
-    # Primary Rail - offset HARDCODED
+    # Primary Rail - offset HARDCODED 0.2
     primary = next(body for body in bodies if body.GetName()=='primary_rail')
     primary_extent = primary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
-    primary_offset = array([-primary_extent[0],0,-primary_extent[2]])+array([0.2, 0, 0])
+    primary_offset = array([0,-primary_extent[1],-primary_extent[2]])+array([0, 0, 0.2])
     primary_offset_transform = eye(4)
     primary_offset_transform[0:3,3] = primary_offset
     
-    # Secondary Rail - offset HARDCODED
+    # Secondary Rail - offset HARDCODED 0.2 and 0.01
     secondary = next(body for body in bodies if body.GetName()=='secondary_rail')
     secondary_extent = secondary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
     #Resizing
-    secondary_extent[0] = (abs(s)+0.2)/2 
+    secondary_extent[2] = abs(s)/2.0 + 0.2 
     env.RemoveKinBody(secondary)
     secondary.InitFromBoxes(numpy.array([concatenate([zeros(3),secondary_extent])]),True)
     env.AddKinBody(secondary)
     #
-    secondary_offset = array([-secondary_extent[0],0,-secondary_extent[2]])+array([0.2, 0, 0])
+    secondary_offset = array([0,-secondary_extent[1],secondary_extent[2]])+array([0, 0.01, -0.2])
     secondary_offset_transform = eye(4)
     secondary_offset_transform[0:3,3] = secondary_offset
+    
+    # Rails Traonsform and Placement
+    primary_transform = transformLookat(floor_origin,floor_origin + array([p,0,0]),[0,1,0])
+    primary.SetTransform(dot(primary_transform,primary_offset_transform))
+    
+    secondary_transform = transformLookat(rail2xyz((p,s,alpha)),floor_origin + array([p,0,0]),[0,1,0])    
+    secondary.SetTransform(dot(secondary_transform,secondary_offset_transform))
 
-    #TODO transfromlookto para colocar os dois rails
-
-def rand_rail(N = 1): #P - primary rail, S - secondary rail, alpha - angle from the perpendicular to the primary rail
-    Slimit = 1 # sencondary rail limit range
-    xmax = 1.5; xmin = -1
+def rand_rail(N = 1):
+    #P - primary rail,
+    #S - secondary rail,
+    #alpha - angle from the perpendicular to the primary rail
+    Slimit = 2 # sencondary rail limit range
+    xmax = 1.5; xmin = -1 # Reasonable distances from the blade
     zmax = Slimit; zmin = -Slimit
 
     # Randomness
@@ -54,7 +78,7 @@ def rand_rail(N = 1): #P - primary rail, S - secondary rail, alpha - angle from 
     # Random limits
     x = (xmax - xmin)*x + xmin# xmin <= x < xmax - same for z
     z = (zmax - zmin)*z + zmin
-    alphalimit = arccos(abs(z/Slimit))
+    alphalimit = min(arccos(abs(z/Slimit)),pi/6.0) # min( Physical limits, Reasonable Angles)
     alpha = alphalimit*(2*alpha-1) # - alphalimit <= alpha < alphalimit
 
     # S/P conversion
@@ -62,6 +86,7 @@ def rand_rail(N = 1): #P - primary rail, S - secondary rail, alpha - angle from 
     P = x - S*sin(alpha)
     
     return (P,S,alpha)
+    
 
 # Robot Position
 #prime_rail = 
@@ -80,19 +105,13 @@ normal = [-1,0,0]
 pN = numpy.concatenate((pN,normal))
 
 # CAMERA SETTINGS
-env.GetViewer().SetCamera(transformLookat(floor +[0,0.5,0],[6,0.5,0],[0,-1,0]))
+env.GetViewer().SetCamera(transformLookat(floor_origin +[0,0.5,0],[6,0.5,0],floor_origin+[6,1,0]))
 
 #MAIN
 ikmodel = databases.inversekinematics.InverseKinematicsModel(robot=robot,iktype=IkParameterization.Type.Transform6D)
 if not ikmodel.load():
     ikmodel.autogenerate()
 
-approachrays = load('blade_sampling_full/blade_crop_ufast.npz')
-approachrays = approachrays['array']
-N = approachrays.shape[0]
-
-indexlistblack = zeros((len(approachrays),),dtype=bool)
-indexlistblue = zeros((len(approachrays),),dtype=bool)
 
 # Initial position
 alpha = 0.10038996418102937 #offset center blade
@@ -102,15 +121,48 @@ BladePositions = [0]
 RobotPositions = [0.9]
 p0=array([1, -3.22, 0, 1, 0, 0])
 
+# Initializing points
+
+approachrays = load('blade_sampling_full/blade_crop_ufast.npz')
+approachrays = approachrays['array']
+N = approachrays.shape[0]
+
+Ttarget = target.GetTransform()
+gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
+
+indexlistblack = zeros((len(approachrays),),dtype=bool)
+indexlistblue = zeros((len(approachrays),),dtype=bool)
+
+
+# Randomize and check collisions
+bodies = env.GetBodies()
+primary = next(body for body in bodies if body.GetName()=='primary_rail')
+secondary = next(body for body in bodies if body.GetName()=='secondary_rail')
+
+while True:
+    rd = rand_rail()
+    place_rail(rd)
+    if env.CheckCollision(primary,target):
+        print 'Primary rail collision... Redoing'
+        continue
+    if env.CheckCollision(secondary,target):
+        print 'Secondary rail collision... Redoing'
+        continue
+    
+    place_robot(rd)
+    collisions = [env.CheckCollision(robot,body) for body in bodies];
+    if True in collisions:
+        print 'Robot collision with ', bodies[collisions.index(True)].GetName(),'... Redoing'
+        continue
+    
+    break
+
 for pos in BladePositions:
 
     for robottobladedistance in RobotPositions:
-        ##PLOT BLADE POINTS FOR COATING
-        Ttarget = target.GetTransform()
-        gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
-
         # Compute Solutions
-        reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(p0, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta)
+        #reachableRays, iksolList, indexlist1 = coating.WorkspaceOnPose(p0, robottobladedistance, gapproachrays,robot,ikmodel,facevector,theta)
+        reachableRays, iksolList, indexlist1 = coating.Workspace(gapproachrays,robot,ikmodel,facevector,theta)
         #EXTRA COATING
         AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays,indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector)
 
@@ -130,5 +182,29 @@ handles.append(env.plot3(points=extrareachableRays[:,0:3],pointsize=5,colors=arr
 handles.append(env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((0,0,0))))    
      
 #reachableRays2 = coating.IndexToPoints(gapproachrays,indexlist2)
-#handles.append(env.plot3(points=reachableRays2[:,0:3],pointsize=5,colors=array((0,0,1))))    
+#handles.append(env.plot3(points=reachableRays2[:,0:3],pointsize=5,colors=array((0,0,1))))   
+
+
+def try_new_rail():
+    rd = rand_rail()
+    place_rail(rd); place_robot(rd) 
+    # Compute Solutions
+    reachableRays, iksolList, indexlist1 = coating.Workspace(gapproachrays,robot,ikmodel,facevector,theta)
+    #EXTRA COATING
+    AllreachableRays, AlliksolList, indexlist2 = coating.AllExtraCoating2(gapproachrays,indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector)
+
+    # Index List
+    indexlistblack = indexlistblack|indexlist1
+    indexlistblue = indexlistblue|indexlist2
+    
+
+    approachgraphs = env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0)))    
+    #reachableRays = coating.IndexToPoints(gapproachrays,indexlist)    
+    #handles.append(env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((random(),random(),random()))))    
+
+    reachableRays = coating.IndexToPoints(gapproachrays,indexlistblack)
+    extrareachableRays = coating.IndexToPoints(gapproachrays,indexlistblue)
+
+    handles.append(env.plot3(points=extrareachableRays[:,0:3],pointsize=5,colors=array((0,0,1))))    
+    handles.append(env.plot3(points=reachableRays[:,0:3],pointsize=5,colors=array((0,0,0))))  
 
