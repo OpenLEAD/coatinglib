@@ -331,9 +331,12 @@ def robotPath(iksolList, timesleep,robot,ikmodel): # Show robot motion
         time.sleep(timesleep)
     return
 
-def robotPath2(iksolList, timesleep,robot,ikmodel): # Show robot motion
+def robotPath2(iksolList, timesleep,robot,ikmodel,env,handles,color):
+    # Show robot motion
     for sol in iksolList:
         robot.SetDOFValues(sol,ikmodel.manip.GetArmIndices())
+        point = robot.GetActiveManipulator().GetTransform()[0:3,3]
+        plotPoint(env, point, handles,color)
         time.sleep(timesleep)
     return
 
@@ -832,46 +835,6 @@ def CheckDOFLimits(robot,Q):
             return False
     return True    
     
-def optmizeQ(robot,ikmodel,manip,P,q0):
-    n = [P[3],P[4],P[5]]; P=[P[0],P[1],P[2]]
-    def func(q):
-        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
-        T=manip.GetTransform()
-        Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-        return -dot(n,Rx)
-    def consfunc(q):
-        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
-        T=manip.GetTransform()
-        pos = T[0:3,3]
-        v = pos-P
-        return dot(v,v)
-    cons = ({'type':'eq',
-             'fun': consfunc})
-    res = minimize(func, q0, constraints=cons, method='SLSQP', options={'disp': False})
-    return res
-
-def optmizeSurface(p0): #TODO jogar para a superficie - nao precisa ser perto, optimizeTan jogar pra perto.
-    def func(P):
-        x=P[0];y=P[1];z=P[2]
-        return (x**2+y**2+z**2-R**2)**2
-    def consfunc(x,y,z):
-        return dot(vector4,transpose(v))
-    cons = ({'type':'eq',
-             'fun': consfunc})
-    res = minimize(func, p0, constraints=cons, method='SLSQP', options={'disp': False})
-    return res
-
-def optmizeP(p0, R, v):
-    def func(P):
-        x=P[0];y=P[1];z=P[2]
-        return (x**2+y**2+z**2-R**2)**2
-    def consfunc(x,y,z):
-        return dot(vector4,transpose(v))
-    cons = ({'type':'eq',
-             'fun': consfunc})
-    res = minimize(func, p0, constraints=cons, method='SLSQP', options={'disp': False})
-    return res
-
 def optmizeTan(p0, pnew, tol):
     def func(P):
         a=P-pnew
