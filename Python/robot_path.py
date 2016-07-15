@@ -22,12 +22,10 @@ coatingdistancetolerance = 0.01
 numberofangles = 8 # degree step
 tolerance = 30 # degrees
 #====================================================================================================================
-
-manipulabilityNUM = 0
-globalManipPos = []
-globalManipOri = []
-
 def solution(pN, ray):
+# inputs: - pN (6x1) is the manipulator's base position and orientation.
+# - ray (6x1) is the point to be coated
+# solution finds joints solutions for a specific point given maximum tolerance.
     _, iksolList, indexlist1 = coating.WorkspaceOnPose(pN, 0, [ray],robot,ikmodel,facevector,theta,coatingdistancetolerance)
     print 'solution: iksolList - ',array(iksolList).shape
     _, AlliksolList, _ = coating.AllExtraCoating2([ray],indexlist1,coatingdistance,numberofangles,tolerance,ikmodel,facevector,coatingdistancetolerance)
@@ -36,7 +34,10 @@ def solution(pN, ray):
     elif AlliksolList: return AlliksolList
     else: return False
 
-def fullSolution(ray):
+def fullSolution(pN,ray):
+# inputs: - pN (6x1) is the manipulator's base position and orientation.
+# - ray (6x1) is the point to be coated
+# fullSolution finds all joints solutions for a specific point given tolerance.
     angles = arange(0,tolerance,0.1)
     numberofangles = 10
     for angle in angles:
@@ -54,6 +55,10 @@ def fullSolution(ray):
     return []
 
 def Qvector_backtrack(y,Q):
+# inputs: - y is array(), computed coated points.
+# - Q is array(), computed robot's joints.
+# Qvector_backtrack method is called when the optimization failed and the previous
+# solution should be recomputed.
     for rev_y in reversed(y):
         res = coating.optmizeQ(robot,ikmodel,manip,rev_y,Q[-1])
         Q.append(res.x)
@@ -61,109 +66,94 @@ def Qvector_backtrack(y,Q):
             print 'Qvector_backtrack error'
     return list(reversed(Q))
 
-def isViable(q0,norm):
-    # Alterar
-    global manipulabilityNUM
-    global globalManipPos
-    global globalManipOri
-    manipulability, manipjpos, manipjori = coating.manipulabilityS(manip)
-    globalManipPos.append(manipjpos)
-    globalManipOri.append(manipjori)
-
-    manipjpos = 0.3*manipjpos + 0.7*manipulabilityNUM
-    if manipulabilityNUM > manipjpos and manipulabilityNUM<=0.15:
-        print "LOW MANIPULABILITY: ", manipjpos
-        return False
-    manipulabilityNUM = manipjpos
-    
-    if len(q0)>0:
-        robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
-        T=manip.GetTransform()
-        Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
-        if dot(norm,Rx) >= math.cos(tolerance*math.pi/180):
-            return True
-        else:
-            print "ANGLE TOLERANCE FAIL: ", 180*math.acos(dot(norm,Rx))/math.pi
-            return False
-    else:
-        return False
-
 def sortTrajectories(pNx, trajectories):
+# inputs: - pNx is the manipulator's base x position
+# - trajectories are non-sorted array(array()), points to be coated.
+# sortTrajectories is the method which iterates points of the trajectories,
+# sorting those points in the right order to be coated, as a cropped path
+# should not keep the right order.
     sortedTrajectories = []
-    i=0
+    i=1
     for trajectory in trajectories:
         if len(trajectory)>1:
             theta = []
             for point in trajectory:
                 theta.append(math.atan2(-point[2],point[0]))
             theta=array(theta)
-            St = []; En = []
+            sortedTrajectory = []
             if len(theta[theta>0])>0:    
-                St = [x for (y,x) in sorted(zip(theta[theta>0],trajectory[theta>0]))]
+                sortedTrajectory.extend([x for (y,x) in sorted(zip(theta[theta>0],trajectory[theta>0]))])
             if len(theta[theta<0])>0:
-                En = [x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))]
-            if St and En:
                 if pNx<0:
-                    print 'St = ', St
-                    print 'En = ', En
-                    sortedTrajectory=concatenate((St,En))
-                else:    
-                    sortedTrajectory=concatenate((St,En))
+                    sortedTrajectory.extend([x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))])
+                else:
+                    En = [x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))]
+                    En.extend(sortedTrajectory)
+                    sortedTrajectory = En
             if i%2:
                 sortedTrajectory.reverse()
             sortedTrajectories.append(sortedTrajectory)
         elif len(trajectory)==1:
             sortedTrajectories.append(trajectory)
+        i+=1    
     return sortedTrajectories        
 
+def optmizeQ(robot,ikmodel,manip,P,q0):
+# inputs: - P 6x1 vector is the goal (point to be coated).
+# - q0 is the inicial configuration of the robot (robot's joints).
+# optimzeQ minimizes the orientation error.   
+    n = [P[3],P[4],P[5]]; P=[P[0],P[1],P[2]]
+    def func(q):
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        Rx = T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0]))
+        return -dot(n,Rx)
+    def consfunc(q):
+        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
+        T=manip.GetTransform()
+        pos = T[0:3,3]
+        v = pos-P
+        return dot(v,v)
+    cons = ({'type':'eq',
+             'fun': consfunc})
+    res = minimize(func, q0, constraints=cons, method='SLSQP', options={'disp': False})
+    return res
+
 def doPath(pN, trajectories):
+# inputs: - pN 6x1 vector is the manipulator's base
+# position and orientation (x,y,z,nx,ny,nz).
+# - trajectories are sorted array(array()) (points to be coated in the right order)
+# doPath is the method which iterates points of the trajectories,
+# computing optimal robot's joints (minimizing orientation error).
+    global handles
     QA = []
-    q0=solution(trajectories[0][0])
+    q0=solution(pN,trajectories[0][0])
     q0=q0[0][0]
     robot.SetDOFValues(q0,ikmodel.manip.GetArmIndices())
     for trajectory in trajectories:
-        Q=[q0]
-        for index in range(0,len(trajectory[1:])):
-            res = coating.optmizeQ(robot,ikmodel,manip,trajectory[index],q0)
+        Q=[]
+        for index in range(0,len(trajectory)):
+            res = optmizeQ(robot,ikmodel,manip,trajectory[index],q0)
             if not coating.CheckDOFLimits(robot,res.x):
-                #TODO Verificar colisao tb
-                iksolList = fullSolution(point)
+                #TODO check collision and angle (tolerance)
+                iksolList = fullSolution(pN,trajectory[index])
                 Q=[iksolList[0][0]]
                 Q = Qvector_backtrack(trajectory[:index],Q)
             else:
                 if res.success:
                     Q.append(res.x)
                     q0=res.x
-                    handles=coating.plotPoint(point, handles,array((0,1,0)))
+                    handles=coating.plotPoint(env,trajectory[index], handles,array((1,0,0)))
                 else: break
-        QA.append(Q)        
+        QA.append(Q)
+        savez_compressed('trajectory/'+'Q.npz', array=QA)
     return QA
     
 def main(pN, BladePosition, trajectories):
     global handles
     coating.RotateBodies(env, BladePosition)
     trajectories = sortTrajectories(pN[0], trajectories)
+    savez_compressed('trajectory/'+'croppedTraj.npz', array=trajectories)
     
-    env.SetViewer('qtcoin')
     Q = doPath(pN, trajectories)
-    return Q
-
-def realCoatedPoints(Q):
-    global handles
-    newY=[]
-    for q in Q:
-        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
-        T=manip.GetTransform()
-        Rx = array(T[0:3,0]/sqrt(dot(T[0:3,0],T[0:3,0])))
-        p = T[0:3,3]
-        newY.append(p-0.23*Rx)
-    handles=plotPoints(newY, handles,array((0,0,1)))
-    return handles
-
-def getPointsfromQ(Q):
-    points=[]
-    for q in Q:
-        robot.SetDOFValues(q,ikmodel.manip.GetArmIndices())
-        T=manip.GetTransform()
-        points.append(T[0:3,3])
-    return array(points)  
+    return Q, trajectories
