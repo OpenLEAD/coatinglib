@@ -3,3 +3,7 @@
 !/Python/blade_sampling_full/blade_crop_ufast.npz
 *.csv
 *.pyc
+/Turbine/
+/motoman/
+*.wrl
+*.xml
