@@ -7,3 +7,6 @@
 /motoman/
 *.wrl
 *.xml
+*.txt
+/trajectory
+/plots
