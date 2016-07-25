@@ -17,6 +17,7 @@ class RBF:
         self._dphi_dict = {'r3':self._dr3,'logr':self._dlogr,'gaussr':self._dgaussr,'iqr':self._diqr}
         self._name = name
         self._eps = eps
+        self.model_type = 'RBF'
         try:
             makedirs('./RBF')
         except OSError as exception:
@@ -140,5 +141,5 @@ class RBF:
                     d.append(self._eps)
                 else: d.append(0)    
             self._w = solve(K,d)
-            savez_compressed('RBF/'+self._name+'_'+self._kernel+'_w.npz', array=self._w)
+            return self._w, self._points, self._kernel
         else: print "RBF::make - There are no points to make a RBF. Please create an RBF object with the points from the object to be modeled"    
