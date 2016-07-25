@@ -4,23 +4,16 @@ from openravepy import *
 from openravepy.misc import SpaceSamplerExtra
 import time
 import math
+import mathtools
 
 env=Environment()
 env.SetViewer('qtcoin')
-env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
+env.Load("../Turbina/env_mh12_0_16.xml")
 target = env.GetBodies()[0]
 
-# PARAMETERS
-delta = 0.02
-normalanglerange = 0
-directiondelta = 0.4
-anglerange = pi/6
-
-
-#MAIN
 with env:
-
-    approachrays = load('blade_sampling_full/blade_crop_ufast.npz')
+    
+    approachrays = load('Blade/jiraublade_points.npz')
     approachrays = approachrays['array']
     N = approachrays.shape[0]
     Ttarget = target.GetTransform()
@@ -42,6 +35,6 @@ with env:
 ##    Ttarget=dot(T,Ttarget)
     #---------------
     
-    gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
+    #gapproachrays = c_[dot(approachrays[0:N,0:3],transpose(Ttarget[0:3,0:3]))+tile(Ttarget[0:3,3],(N,1)),dot(approachrays[0:N,3:6],transpose(Ttarget[0:3,0:3]))]
 ##    savez_compressed('blade_sampling/blade_pcl.npz', array=gapproachrays)
-    approachgraphs = env.plot3(points=gapproachrays[:,0:3],pointsize=5,colors=array((1,0,0)))
+    approachgraphs = env.plot3(points=approachrays[:,0:3],pointsize=5,colors=array((1,0,0)))
