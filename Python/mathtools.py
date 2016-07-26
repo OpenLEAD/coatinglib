@@ -1,5 +1,5 @@
-from numpy import array, dot
-from math import cos, sin, sqrt
+from numpy import array, dot, cross
+from math import cos, sin, sqrt, ceil
 
 def Rotate(obj, theta, axis):
     """ Rotate object in x, y, or z axis (world frame)
@@ -136,18 +136,36 @@ def curvepoint(s1, s2, p0, tol=1e-4):
     p0 -- initial point.
     tol -- tolerance, stop criteria.
     """
-    
+    print "curvepoint begin"
     while True:
         df1 = s1.df(p0); f1 = s1.f(p0)
         df2 = s2.df(p0); f2 = s2.f(p0)
         df1df2 = dot(df1,df2); df1df1 = dot(df1,df1); df2df2 = dot(df2,df2)
-        beta = (-f1+f2*df1df1/df1df2)/(df1df2-df1df1*df2df2/df1df2)
-        alpha = (-f1+f2*df1df2/df2df2)/(df1df1-df1df2*df1df2/df2df2)
+        print 'df1 =', df1
+        print 'df2 =', df2
+        print 'df1df2 =', df1df2
+        print 'df2df2 =', df2df2
+        beta = (-f1*df1df2+f2*df1df1)/(df1df2**2-df1df1*df2df2)
+        alpha = (-f1*df2df2+f2*df1df2)/(df1df1*df2df2-df1df2*df1df2)
         dk = alpha*df1+beta*df2
         p1 = p0+dk
         if sqrt(dot(dk,dk))<tol:
+            norm = s1.df([p1[0],p1[1],p1[2]])
+            norm /= sqrt(dot(norm,norm))
+            p1 = array([p1[0],p1[1],p1[2],norm[0],norm[1],norm[2]]) 
             return p1
         else: p0=p1
+
+def surfaces_tangent(ray, s2):
+    """ Find the tangent of two surfaces in point/normal ray 
+
+    Keyword arguments:
+    ray -- 6x1 vector, point and normal in surface 1.
+    s2 -- surface 2.
+    """
+    tan = cross(ray[3:6],s2.df(ray))
+    tan = tan/sqrt(dot(tan,tan))   
+    return tan
 
 class sphere:
     """ Sphere surface class. An object of this class can be
@@ -157,7 +175,7 @@ class sphere:
     Rn0 - first radius of the sphere
     """
 
-    def __init__(self, Rn0):
+    def __init__(self, Rn0=3.770):
         self._Rn = Rn0
 
     def update(self):
@@ -171,3 +189,12 @@ class sphere:
 
     def find_iter(self, p0):
         self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-0.003
+
+    def criteria(self):
+        return self._Rn>1.425
+
+    def findnextparallel(self, p):
+        d = sqrt(p[0]**2+p[1]**2+p[2]**2)
+        Rn0=1.425
+        n = ceil((d-Rn0)/0.003)
+        self._Rn = Rn0+n*0.003
