@@ -1,22 +1,24 @@
-from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, tile, meshgrid, array, shape, sum, eye, dot
+from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, tile
+from numpy import meshgrid, array, shape, sum, eye, dot, argmin, concatenate, sqrt
 from os import makedirs
 import errno
 from openravepy import RaveCreateCollisionChecker
 from openravepy.misc import SpaceSamplerExtra
 from scipy.spatial import KDTree
 import mathtools
-from math import sqrt
+from math import atan2, pi
 
 class Blade:
     """ Blade class.
 
     Keyword arguments:
     name -- the name of the blade.
-    env -- environment object
+    env -- environment object.
+    blade_string -- name of the blade in xml.
     """
 
-    def __init__(self, name, env):
-        blade = next(body for body in env.GetBodies() if body.GetName()=='pa1')
+    def __init__(self, name, env, blade_string):
+        blade = next(body for body in env.GetBodies() if body.GetName()==blade_string)
         self._name = name
         self.blade = blade
 
@@ -26,17 +28,19 @@ class BladeModeling:
 
     Keyword arguments:
     name -- the name of the blade.
-    model_type -- RBF object.
+    model_type -- model object (e.g. RBF).
     env -- environment object
     blade -- body blade object.
     """
 
     def __init__(self, name, model_type, env, blade):
+        self.handles = []
         self._name = name
         self._model = model_type
         self._env = env
-        bodies = env.GetBodies()
         self._blade = blade
+        self._modelLoaded = False
+        
         try:
             makedirs('./Blade')
         except OSError as exception:
@@ -46,10 +50,24 @@ class BladeModeling:
         try:
             self._points = load('Blade/'+self._name+'_points.npz')
             self._points = self._points['array']
-            print "A blade sampling was loaded."
+            print "BladeModeling::init - samples are loaded."
         except:
             self._points = []
-            print "A blade sampling could not be loaded. Use method sampling."
+            print "BladeModeling::init - samples could not be loaded. Call method BladeModeling::sampling." 
+
+        try:
+            self._model._w = load('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz')
+            self._model._w = self._model._w['array']
+            self._model._points = load('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz')
+            self._model._points = self._model._points['array']
+            self._modelLoaded = True
+            print "model::init - model is loaded."
+        except:
+            self._model._w = []
+            self._model._points = self._points
+            print "BladeModeling::init - model could not be loaded."
+
+            
 
     def sampling(self, Rminmax=[1.59,3.75], delta = 0.01, coatingdistance = 0.23, bladerotation=[0,'']):
         print 'Balde::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
@@ -69,11 +87,11 @@ class BladeModeling:
                      (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0),
                      (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0)
                      ))
-        maxlen = 2*math.sqrt(sum(e**2))+0.03
+        maxlen = 2*sqrt(sum(e**2))+0.03
         self._points = zeros((0,6))
         for side in sides:
-            ex = math.sqrt(sum(side[6:9]**2))
-            ey = math.sqrt(sum(side[9:12]**2))
+            ex = sqrt(sum(side[6:9]**2))
+            ey = sqrt(sum(side[9:12]**2))
             XX,YY = meshgrid(r_[arange(-ex,-0.25*delta,delta),0,arange(delta,ex,delta)],
                                   r_[arange(-ey,-0.25*delta,delta),0,arange(delta,ey,delta)])
             localpos = outer(XX.flatten(),side[6:9]/ex)+outer(YY.flatten(),side[9:12]/ey)
@@ -109,6 +127,7 @@ class BladeModeling:
             return array(rays)
         self._points = treeFilter(self._points)
         savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
+        print "BladeModeling::samplig - terminates."
         
     def make_model(self):
         try:
@@ -117,10 +136,13 @@ class BladeModeling:
             if exception.errno != errno.EEXIST:
                 print "BladeModeling::make_model - Problem creating Blade/mode_type folder"
                 raise
+            
         self._model._points = self._points
-        w, RBFpoints, kernel = self._model.make()
-        savez_compressed('Blade/'+self._model.model_type+'/'+self._name+'_'+kernel+'_w.npz', array=w)
-        savez_compressed('Blade/'+self._model.model_type+'/'+self._name+'_'+kernel+'_points.npz', array=RBFpoints)
+        self._model.make()
+        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz', array=self._model._w)
+        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz', array=self._model._points)
+        self._modelLoaded = True
+        print "BladeModeling::make_model - terminates."
             
 
     def generate_trajectory(self, iter_surface):
@@ -131,8 +153,36 @@ class BladeModeling:
         http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
         page 94 intersection surface - surface.
         """
-
         print "BladeModeling::generate_trajectory - Warning: this is a data-intensive computing and might freeze your computer."
+
+        if self._modelLoaded: None
+        else:
+            print "BladeModeling::generate_trajectory - Model is not loaded. Load the model first with make_model method"
+            return
+
+        def plotPoint(env, point, handles, color):
+            handles.append(env.plot3(points=array(point)[0:3], pointsize=5, colors=color))
+            return handles
+
+        def drawParallel(Y, Pd, iter_surface):
+            dt = 3e-3
+            theta0 = 180*atan2(-Pd[2],Pd[0])/pi
+            counter = 0
+            y = [Pd]       
+            while True:
+                tan = mathtools.surfaces_tangent(y[-1], iter_surface)
+                P = mathtools.curvepoint(self._model, iter_surface, y[-1][0:3]-tan*dt)
+                theta = 180*atan2(-P[2],P[0])/pi
+                if counter==0:
+                    if theta>theta0:
+                        counter+=1
+                else:
+                    if theta<theta0:
+                        Y.append(y)
+                        return Y
+                y.append(P)
+                self.handles=plotPoint(self._env, P, self.handles, array((1,0,0)))
+
         try:
             makedirs('./Blade/Trajectory')
         except OSError as exception:
@@ -140,7 +190,7 @@ class BladeModeling:
                 print "BladeModeling::generate_trajectory - Problem creating Blade/Trajectory folder"
                 raise
         try:
-            Y = load('Blade/Trajectory/'+self._name+'.npz')
+            Y = load('Blade/Trajectory/'+self._name+'_trajectories.npz')
             Y = Y['array']
             tempY = []
             for y in Y:
@@ -149,11 +199,18 @@ class BladeModeling:
             Pd = Y[-1][-1]
             Rn = iter_surface.find_iter(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
-            norm = self._model.df(Pd)
-            norm /= sqrt(dot(norm,norm))
-            Pd = [Pd[0],Pd[1],Pd[2],norm[0],norm[1],norm[2]]
             print "BladeModeling::generate_trajectory - Trajectories are loaded."
         except:
             print "BladeModeling::generate_trajectory - Trajectories could not be loaded."
             Y=[[]]
-            Pd = initialPoint()
+            Pd = self._points[argmin(self._points[:,1])]
+            iter_surface.findnextparallel(Pd)
+            Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
+
+        while iter_surface.criteria:
+            Y = drawParallel(Y, Pd, iter_surface)
+            savez_compressed('Blade/trajectory/'+self._name+'_trajectories.npz', array=Y)   
+            p0=Y[-1][-1]
+            iter_surface.update()
+            Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])    
+        print "BladeModeling::generate_trajectory - terminates."
