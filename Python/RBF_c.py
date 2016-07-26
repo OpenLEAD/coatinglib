@@ -1,7 +1,8 @@
-from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed
+from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed, sum, zeros
 from scipy.linalg import solve
 from os import makedirs
 import errno
+from copy import copy
 
 
 class RBF:
@@ -15,36 +16,25 @@ class RBF:
         self._kernel = kernel
         self._phi_dict = {'r3':self._r3,'logr':self._logr,'gaussr':self._gaussr,'iqr':self._iqr}
         self._dphi_dict = {'r3':self._dr3,'logr':self._dlogr,'gaussr':self._dgaussr,'iqr':self._diqr}
-        self._name = name
+        self._name = name+'_'+kernel
         self._eps = eps
+        self._w = []
+        self._points = points
         self.model_type = 'RBF'
-        try:
-            makedirs('./RBF')
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                print "RBF::init - Problem creating RBF folder"
-                raise
-        try:
-            self._w = load('RBF/'+self._name+'_'+self._kernel+'_w.npz')
-            self._w = self._w['array']
-            self._points = load('RBF/'+self._name+'_'+kernel+'_points.npz')
-            self._points = self._points['array']
-            print "RBF::init - RBF was loaded."
-        except:
-            self._w = []
-            self._points = points
-            print "RBF::init - RBF could not be loaded."
-            #raise
-
+        
     def _r3(self, ci, cj):
-        c = ci-cj
-        c = sqrt(dot(c, c))
+        c = cj-ci
+        c = sqrt(sum(c*c,1))
         return c*c*c
 
     def _dr3(self, ci, cj):
-        c = ci-cj
-        nc = 3*sqrt(dot(c, c))
-        return array([nc*c[0], nc*c[1], nc*c[2]])
+        c = cj-ci
+        nc = 3*sqrt(sum(c*c,1))
+        b = zeros((len(c),3))
+        b[:,0] = nc*c[:,0]*self._w
+        b[:,1] = nc*c[:,1]*self._w
+        b[:,2] = nc*c[:,2]*self._w
+        return sum(b,0)
 
     def _logr(self, ci, cj):
         c = ci-cj
@@ -89,57 +79,45 @@ class RBF:
         c2 = 1/((e2*dot(c,c)+1)**2)
         return array([k*c[0]*c2,k*c[1]*c2, k*c[2]*c2])        
 
-    def _phi(self, ci,cj):
+    def _phi(self, ci, cj):
         try:
             return self._phi_dict[self._kernel](ci, cj)
         except:
-            raise ValueError('kernel is not in list.')
+            raise #ValueError('kernel is not in list.')
         return
 
     def _dphi(self, ci,cj):
         try:
             return self._dphi_dict[self._kernel](ci, cj)
         except:
-            raise ValueError('kernel is not in list.')
+            raise #ValueError('kernel is not in list.')
         return
 
     def f(self, c):
         c = array(c)
-        f=0
-        for i in range(0,len(self._points)):
-            f+=self._w[i]*self._phi(c, self._points[i][0:3])
-        return f
+        return dot(self._w, self._phi(c, self._points[:,0:3]))
         
     def df(self, c):
         c = array(c)
-        df=array([0,0,0])
-        for i in range(0,len(self._points)):
-            df=df+self._w[i]*self._dphi(c, self._points[i][0:3])
-        return df
+        return self._dphi(c, self._points[:,0:3])
 
     def _pointsaugment(self):
-        for point in self._points:
-            temp = point
-            temp[0:3]=temp[0:3]+point[3:6]*self._eps
-            self._points = vstack((self._points,temp))
-        savez_compressed('RBF/'+self._name+'_'+self._kernel+'_points.npz', array=self._points)    
+        b = copy(self._points)
+        b[:,0:3]=b[:,0:3]+b[:,3:6]*self._eps
+        self._points = vstack((self._points,b))   
         return    
 
     def make(self):
         print 'RBF::make -  Warning: this is a data-intensive computing and might freeze your computer.'
         if len(self._points)>0:
             self._pointsaugment()
-            K = []
-            d = []
             N = len(self._points)
+            K = zeros((N, N))
+            d = []
             for i in range(0,N):
-                ki=[]
-                for point in self._points:
-                    ki.append(self._phi(self._points[i][0:3],point[0:3]))
-                K.append(ki)    
+                K[i,:] = self._phi(self._points[i,0:3],self._points[:,0:3])
                 if i>=N/2:
                     d.append(self._eps)
                 else: d.append(0)    
             self._w = solve(K,d)
-            return self._w, self._points, self._kernel
-        else: print "RBF::make - There are no points to make a RBF. Please create an RBF object with the points from the object to be modeled"    
+        else: print "RBF::make - There are no points to make a RBF. Please create points with BladeModeling::sampling."    
