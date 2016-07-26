@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.optimize import minimize
 
-reachableRays = load('blade_sampling_full/blade_crop_ufast.npz')
+##reachableRays = load('blade_sampling_full/blade_crop_ufast.npz')
+##reachableRays  = reachableRays['array']
+reachableRays = load('Blade/jiraublade_points.npz')
 reachableRays  = reachableRays['array']
 rays = reachableRays
 
@@ -23,8 +25,11 @@ N=len(raysExt)
 #savetxt("raysExt.csv", raysExt[:,0:3], delimiter=",")
     
 w=[]
-w = load('w/x3_full_ufast.npz')
+#w = load('w/x3_full_ufast.npz')
+#w = w['array']
+w = load('Blade/RBF/jiraublade_r3_w.npz')
 w = w['array']
+
 #savetxt("w.csv", w, delimiter=",")
 
 handles2=[]
