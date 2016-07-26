@@ -16,7 +16,7 @@ import math
 import RBF
 #====================================================================================================================
 env=Environment()
-env.Load("/home/renan/workspace/coatinglib/Turbina/env_mh12_0_16.xml")
+env.Load("../Turbina/env_mh12_0_16.xml")
 target = env.GetBodies()[0]
 handles=[]
 
@@ -56,7 +56,7 @@ def drawParallel(Y,Pd):
                 Y.append(y)
                 return Y
         y.append(P)
-        #handles=coating.plotPoint(env, P, handles,array((1,0,0)))
+        handles=coating.plotPoint(env, P, handles,array((1,0,0)))
     
 
 def curvepoint(p0):
@@ -108,10 +108,10 @@ def main():
     global handles
     global Rn
     RBF.set_handles(handles,env)
-    #env.SetViewer('qtcoin')
+    env.SetViewer('qtcoin')
     
     try:
-        Y = load('trajectory/Y.npz')
+        Y = load('trajectory/Ytest.npz')
         Y = Y['array']
         tempY = []
         for y in Y:
@@ -130,7 +130,7 @@ def main():
         
     while Rn>1.425:
         Y = drawParallel(Y,Pd)
-        savez_compressed('trajectory/'+'Y.npz', array=Y)   
+        savez_compressed('trajectory/'+'Ytest.npz', array=Y)   
         P0=Y[-1][-1]
         Rn-=loopdistance*0.003
 
@@ -142,4 +142,4 @@ def main():
 
 if __name__ == '__main__':
     Y = main()
-    savez_compressed('trajectory/'+'Y.npz', array=Y)  
+    savez_compressed('trajectory/'+'Ytest.npz', array=Y)  
