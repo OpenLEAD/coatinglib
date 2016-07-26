@@ -1,4 +1,4 @@
-import coating
+import ConfigParser
 from numpy import array, cross, dot
 from openravepy import Environment
 ##from openravepy.misc import SpaceSamplerExtra
@@ -6,14 +6,12 @@ from openravepy import Environment
 ##from random import *
 ##import sys
 
-env=Environment()
-#env.SetViewer('qtcoin')
-env.Load("../Turbina/env_mh12_0_16.xml")
-robot = env.GetRobots()[0]
-target = env.GetBodies()[0]
-manip = robot.GetActiveManipulator()
-floor_origin = array([0,-3.22,0])
-handles=[]
+
+
+_PARSE_SECTION = "Environment"
+_PARSE_LOAD = "load"
+_PARSE_FLOOR_ORIGIN = "floor_origin"
+_PARSE_NOSE_AXIS = "nose_axis"
 
 _PRIMARY_RAIL = "primary_rail"
 _SECONDARY_RAIL = "secondary_rail"
@@ -35,13 +33,33 @@ class Turbine:
                  _RUNNER_AREA: "runner area"
                  _IRIS: "iris"
                  }
+    
+    handles=[]
 
-    def __init__(self,env,floor_origin,nose_axis):
-        self.env = env
+    def __init__(self,config_file, viewer = True): #env,floor_origin,nose_axis
+
+        config = ConfigParser.RawConfigParser()
+        config.read(config_file)
+        load = config.get(_PARSE_SECTION,_PARSE_LOAD)
+
+        floor_origin = config.get(_PARSE_SECTION,_PARSE_FLOOR_ORIGIN)
+        self._floor_origin = array([float(c) for c in floor_origin.strip('()[]').split(',')])
+
+        nose_axis = config.get(_PARSE_SECTION,_PARSE_NOSE_AXIS)
+        self._nose_axis = array([float(c) for c in nose_axis.strip('()[]').split(',')])
+        
+        
+        self.env = Environment()
+        self.env.Load("../Turbina/env_mh12_0_16.xml")
+        if viewer:
+            env.SetViewer('qtcoin')
+        self.manipulator = robot.GetActiveManipulator()
+        self.robot = env.GetRobots()[0]
+        
+        
         bodies = env.GetBodies()
-            
-        self._floor_origin = floor_origin
-        self._floor_axis = array([nose_axis, cross(floor_origin,nose_axis)])
+        
+        self._floor_axis = array([self._nose_axis, cross(self._floor_origin,self._nose_axis)])
 
         
         try:
