@@ -34,7 +34,6 @@ class BladeModeling:
     """
 
     def __init__(self, name, model_type, env, blade):
-        self.handles = []
         self._name = name
         self._model = model_type
         self._env = env
@@ -181,7 +180,6 @@ class BladeModeling:
                         Y.append(y)
                         return Y
                 y.append(P)
-                self.handles=plotPoint(self._env, P, self.handles, array((1,0,0)))
 
         try:
             makedirs('./Blade/Trajectory')
@@ -209,7 +207,7 @@ class BladeModeling:
 
         while iter_surface.criteria:
             Y = drawParallel(Y, Pd, iter_surface)
-            savez_compressed('Blade/trajectory/'+self._name+'_trajectories.npz', array=Y)   
+            savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=Y)   
             p0=Y[-1][-1]
             iter_surface.update()
             Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])    
