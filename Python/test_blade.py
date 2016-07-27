@@ -7,7 +7,6 @@ import mathtools
 
 env=Environment()
 env.Load("../Turbina/env_mh12_0_16.xml")
-env.SetViewer('qtcoin')
 
 rbf = RBF_c.RBF('jiraublade','r3')
 
