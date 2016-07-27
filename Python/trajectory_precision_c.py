@@ -21,10 +21,9 @@ class Placement:
         positions (in the sense described by the method) for the rail
         and place both robot and rail system on the designed positions.
     """
-    def __init__(self, env, robot, target, primary, secondary,
-                 floor_origin = array([0,-3.22,0]), primary_safe_margin = 0.2,
+    def __init__(self, turbine, primary_safe_margin = 0.2,
                  secondary_safe_margin = 0.2, robot_level_difference = 0.01):
-        self._env = env
+        self._turbine = turbine
         self._bodies = env.GetBodies()
         self._target = target
         self._primary = primary
@@ -35,13 +34,18 @@ class Placement:
         self._secondary_safe_margin = secondary_safe_margin
         self._robot_level_difference = robot_level_difference
 
+
+    def floor2xyz(self, v ):
+        return dot(v,self._turbine.getFloorAxis())+self._turbine.getFloorOrigin()
+    
+    def xyz2floor(self, v ):
+        return dot(self._turbine.getFloorAxis(), v - self._turbine.getFloorOrigin())      
+
     def rail2xyz(self,(p,s,alpha)):
         #P - primary rail,
         #S - secondary rail,
         #alpha - angle from the perpendicular to the primary rail
-        return self._floor_origin + array([p+ s*sin(alpha),
-                                           0,
-                                           s*cos(alpha)])
+        return self._floor2xyz(array([ p + s*sin(alpha), s*cos(alpha) ])    
 
     def place_robot(self, (p,s,alpha)):
         Placement = eye(4)
