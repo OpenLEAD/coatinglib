@@ -45,8 +45,6 @@ def drawParallel(Y,Pd):
         normdv = sqrt(dot(dv,dv))
         n = dv/normdv
         P=concatenate((p1,n))
-
-        r = math.sqrt(P[0]**2+P[1]**2+P[2]**2)
         theta = 180*math.atan2(-P[2],P[0])/math.pi
         if counter==0:
             if theta>theta0:
