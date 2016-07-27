@@ -31,9 +31,9 @@ class RBF:
         c = cj-ci
         nc = 3*sqrt(sum(c*c,1))
         b = zeros((len(c),3))
-        b[:,0] = nc*c[:,0]*self._w
-        b[:,1] = nc*c[:,1]*self._w
-        b[:,2] = nc*c[:,2]*self._w
+        b[:,0] = -nc*c[:,0]*self._w
+        b[:,1] = -nc*c[:,1]*self._w
+        b[:,2] = -nc*c[:,2]*self._w
         return sum(b,0)
 
     def _logr(self, ci, cj):
@@ -94,11 +94,11 @@ class RBF:
         return
 
     def f(self, c):
-        c = array(c)
+        c = array(c[0:3])
         return dot(self._w, self._phi(c, self._points[:,0:3]))
         
     def df(self, c):
-        c = array(c)
+        c = array(c[0:3])
         return self._dphi(c, self._points[:,0:3])
 
     def _pointsaugment(self):
