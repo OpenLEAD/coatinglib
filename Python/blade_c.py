@@ -39,6 +39,7 @@ class BladeModeling:
         self._env = env
         self._blade = blade
         self._modelLoaded = False
+        self._samplingLoaded = False
         
         try:
             makedirs('./Blade')
@@ -50,6 +51,7 @@ class BladeModeling:
             self._points = load('Blade/'+self._name+'_points.npz')
             self._points = self._points['array']
             print "BladeModeling::init - samples are loaded."
+            self._samplingLoaded = True
         except:
             self._points = []
             print "BladeModeling::init - samples could not be loaded. Call method BladeModeling::sampling." 
@@ -66,10 +68,31 @@ class BladeModeling:
             self._model._points = self._points
             print "BladeModeling::init - model could not be loaded."
 
+        try:
+            makedirs('./Blade/Trajectory')
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                print "BladeModeling::init - Problem creating Blade/Trajectory folder"
+                raise    
+        try:
+            self._trajectories = load('Blade/Trajectory/'+self._name+'_trajectories.npz')
+            self._trajectories = self._trajectories['array']
+            self._trajLoaded = True
+            print "BladeModeling::init - Trajectories are loaded."
+        except:
+            self._trajectories = [[]]
+            self._trajLoaded = False
+            print "BladeModeling::init - Trajectories could not be loaded."
             
 
     def sampling(self, Rminmax=[1.59,3.75], delta = 0.01, coatingdistance = 0.23, bladerotation=[0,'']):
         print 'Balde::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
+        while True:
+            if self._samplingLoaded:
+                answer = raw_input("You are performing resampling, as the samples were loaded. Are you sure you want to continue? [y or n]")
+                if answer == 'y':break
+                elif answer=='n':return                   
+            
         cc = RaveCreateCollisionChecker(self._env,'ode')
         if cc is not None:
                 ccold = self._env.GetCollisionChecker()
@@ -127,6 +150,7 @@ class BladeModeling:
         self._points = treeFilter(self._points)
         savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
         print "BladeModeling::samplig - terminates."
+        self._samplingLoaded = True
         
     def make_model(self):
         try:
@@ -159,10 +183,6 @@ class BladeModeling:
             print "BladeModeling::generate_trajectory - Model is not loaded. Load the model first with make_model method"
             return
 
-        def plotPoint(env, point, handles, color):
-            handles.append(env.plot3(points=array(point)[0:3], pointsize=5, colors=color))
-            return handles
-
         def drawParallel(Y, Pd, iter_surface):
             dt = 3e-3
             theta0 = 180*atan2(-Pd[2],Pd[0])/pi
@@ -181,34 +201,23 @@ class BladeModeling:
                         return Y
                 y.append(P)
 
-        try:
-            makedirs('./Blade/Trajectory')
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                print "BladeModeling::generate_trajectory - Problem creating Blade/Trajectory folder"
-                raise
-        try:
-            Y = load('Blade/Trajectory/'+self._name+'_trajectories.npz')
-            Y = Y['array']
+        if self._trajLoaded:
             tempY = []
-            for y in Y:
+            for y in self._trajectories:
                 tempY.append(list(y))   
-            Y = tempY
-            Pd = Y[-1][-1]
+            self._trajectories = tempY
+            Pd = self._trajectories[-1][-1]
             Rn = iter_surface.find_iter(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
-            print "BladeModeling::generate_trajectory - Trajectories are loaded."
-        except:
-            print "BladeModeling::generate_trajectory - Trajectories could not be loaded."
-            Y=[[]]
+        else:
             Pd = self._points[argmin(self._points[:,1])]
             iter_surface.findnextparallel(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
 
         while iter_surface.criteria:
-            Y = drawParallel(Y, Pd, iter_surface)
-            savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=Y)   
-            p0=Y[-1][-1]
+            self._trajectories = drawParallel(self._trajectories, Pd, iter_surface)
+            savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)   
+            p0=self._trajectories[-1][-1]
             iter_surface.update()
             Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])    
         print "BladeModeling::generate_trajectory - terminates."
