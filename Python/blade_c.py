@@ -7,22 +7,7 @@ from openravepy.misc import SpaceSamplerExtra
 from scipy.spatial import KDTree
 import mathtools
 from math import atan2, pi
-from openrave_plotting import plotPoints, plotPointsArray
-
-class Blade:
-    """ Blade class.
-
-    Keyword arguments:
-    name -- the name of the blade.
-    env -- environment object.
-    blade_string -- name of the blade in xml.
-    """
-
-    def __init__(self, name, env, blade_string):
-        blade = next(body for body in env.GetBodies() if body.GetName()==blade_string)
-        self._name = name
-        self.blade = blade
-
+from openrave_plotting import plotPoints, plotPointsArray, plotPoint
 
 class BladeModeling:
     """ BladeModeling class for blade modelling.
@@ -34,15 +19,16 @@ class BladeModeling:
     blade -- body blade object.
     """
 
-    def __init__(self, name, model_type, env, blade, visualization = False):
+    def __init__(self, name, model_type, turbine, visualization = False):
+        self.turbine = turbine
         self._name = name
         self._model = model_type
-        self._env = env
-        self._blade = blade
+        self._env = turbine.env
+        self._blade = turbine.blades[0]
         self._modelLoaded = False
         self._samplingLoaded = False
-        self.modelingplotter = openrave_plotting.plotter(env)
-        if visualization:
+        self.visualization = visualization
+        if self.visualization:
             turbine.env.SetViewer('qtcoin')
         
         try:
@@ -89,8 +75,11 @@ class BladeModeling:
             print "BladeModeling::init - Trajectories could not be loaded."
             
 
-    def sampling(self, Rminmax=[1.59,3.75], delta = 0.01, coatingdistance = 0.23, bladerotation=[0,''], visualization = False):
+    def sampling(self, delta = 0.01):
         print 'Balde::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
+        coatingdistance = self.turbine.coating.ideal_distance
+        Rminmax = [self.turbine.environment.nose_radius, self.turbine.environment.rotor_radius]
+        bladerotation=[self.turbine.environment.blade_angle, 'y']
         while True:
             if self._samplingLoaded:
                 answer = raw_input("You are performing resampling, as the samples were loaded. Are you sure you want to continue? [y or n]")
@@ -155,8 +144,8 @@ class BladeModeling:
         savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
         print "BladeModeling::samplig - terminates."
         self._samplingLoaded = True
-        if visualization:
-            plotPoints(self._points, 'sampling', ((1,0,0)))
+        if self.visualization:
+            plotPoints(self.turbine, self._points, 'sampling', ((1,0,0)))
         
     def make_model(self):
         try:
@@ -174,7 +163,7 @@ class BladeModeling:
         print "BladeModeling::make_model - terminates."
             
 
-    def generate_trajectory(self, iter_surface, visualization = False):
+    def generate_trajectory(self, iter_surface):
         """ Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
         to be iterated, e.g. spheres (radius 1.425 to 3.770). The algorithm
@@ -205,8 +194,8 @@ class BladeModeling:
                     if theta<theta0:
                         Y.append(y)
                         return Y
-                if visualization:
-                    plotPoint(turbine, P, 'trajectories', ((0,0,1)))    
+                if self.visualization:
+                    plotPoint(self.turbine, P, 'trajectories', ((0,0,1)))    
                 y.append(P)
         if self._trajLoaded:
             tempY = []
@@ -216,8 +205,8 @@ class BladeModeling:
             Pd = self._trajectories[-1][-1]
             Rn = iter_surface.find_iter(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
-            if visualization:
-                plotPointsArray(turbine, self._trajectories, 'trajectories', ((0,0,1)))
+            if self.visualization:
+                plotPointsArray(self.turbine, self._trajectories, 'trajectories', ((0,0,1)))
         else:
             Pd = self._points[argmin(self._points[:,1])]
             iter_surface.findnextparallel(Pd)

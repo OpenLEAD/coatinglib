@@ -1,18 +1,15 @@
-from openravepy import Environment
 import RBF_c
 import blade_c
 import math
 import mathtools
+from turbine import Turbine
 
-
-env=Environment()
-env.Load("../Turbina/env_mh12_0_16.xml")
-env.SetViewer('qtcoin')
 
 rbf = RBF_c.RBF('jiraublade','r3')
 
-blade = blade_c.Blade('jiraublade', env, 'pa1')
-blademodel = blade_c.BladeModeling('jiraublade', rbf, env, blade.blade)
+turbine = Turbine('turbine_std.cfg', False)
+
+blademodel = blade_c.BladeModeling('jiraublade', rbf, turbine, False)
 
 ##blademodel.sampling(bladerotation=[-27*math.pi/180,'y'])
 ##
