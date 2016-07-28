@@ -33,8 +33,6 @@ class Turbine:
                  _RUNNER_AREA: "runner area",
                  _IRIS: "iris"
                  }
-    
-    handles=[]
 
     def __init__(self,config_file, viewer = True): #env,floor_origin,nose_axis
 
