@@ -7,6 +7,7 @@ import mathtools
 
 env=Environment()
 env.Load("../Turbina/env_mh12_0_16.xml")
+env.SetViewer('qtcoin')
 
 rbf = RBF_c.RBF('jiraublade','r3')
 
@@ -18,4 +19,4 @@ blademodel = blade_c.BladeModeling('jiraublade', rbf, env, blade.blade)
 #blademodel.make_model()
 
 sphere = mathtools.sphere()
-blademodel.generate_trajectory(sphere)
+blademodel.generate_trajectory(sphere, True)
