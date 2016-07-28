@@ -7,12 +7,6 @@ from openravepy import Environment
 ##import sys
 
 
-
-_PARSE_SECTION = "Environment"
-_PARSE_LOAD = "load"
-_PARSE_FLOOR_ORIGIN = "floor_origin"
-_PARSE_NOSE_AXIS = "nose_axis"
-
 _PRIMARY_RAIL = "primary_rail"
 _SECONDARY_RAIL = "secondary_rail"
 _BLADE = "pa"
@@ -34,21 +28,12 @@ class Turbine:
                  _IRIS: "iris"
                  }
 
-    def __init__(self,config_file, viewer = True): #env,floor_origin,nose_axis
-
-        config = ConfigParser.RawConfigParser()
-        config.read(config_file)
-        load = config.get(_PARSE_SECTION,_PARSE_LOAD)
-
-        floor_origin = config.get(_PARSE_SECTION,_PARSE_FLOOR_ORIGIN)
-        self._floor_origin = array([float(c) for c in floor_origin.strip('()[]').split(',')])
-
-        nose_axis = config.get(_PARSE_SECTION,_PARSE_NOSE_AXIS)
-        self._nose_axis = array([float(c) for c in nose_axis.strip('()[]').split(',')])
+    def __init__(self,config_file, viewer = True):
+        self._parse_file(config_file)
         
         
         self.env = Environment()
-        self.env.Load("../Turbina/env_mh12_0_16.xml")
+        self.env.Load(self.environment.load)
         if viewer:
             self.env.SetViewer('qtcoin')
         self.robot = self.env.GetRobots()[0]
@@ -56,9 +41,6 @@ class Turbine:
         
         
         bodies = self.env.GetBodies()
-        
-        self._floor_axis = array([self._nose_axis, cross(self._floor_origin,self._nose_axis)])
-
         
         try:
             self.primary = next(body for body in bodies if body.GetName()==_PRIMARY_RAIL)
@@ -84,6 +66,36 @@ class Turbine:
             except StopIteration:
                 blade_found = False
 
+    def _parse_file(self,config_file):
+        
+        config = ConfigParser.RawConfigParser()
+        config.read(config_file)
+        class struct:
+            pass
+        
+        # environment Section
+        self.environment = struct()
+        self.environment.load = config.get("environment","load")
+        self.environment.floor_origin = config.getfloat("environment","floor_origin")
+        self.environment.primary_safe_margin = config.getfloat("environment","primary_safe_margin")
+        self.environment.secondary_safe_margin = config.getfloat("environment","secondary_safe_margin")
+        self.environment.robot_level_difference = config.getfloat("environment","robot_level_difference")
+        self.environment.blade_angle = config.getfloat("environment","blade_angle")
+        self.environment.rotor_angle = config.getfloat("environment","rotor_angle")
+
+        # coating Section
+        self.coating = struct()
+        self.coating.min_distance = config.getfloat("coating","min_distance")
+        self.coating.ideal_distance = config.getfloat("coating","ideal_distance")
+        self.coating.max_distance = config.getfloat("coating","max_distance")
+        self.coating.angle_tolerance = config.getfloat("coating","angle_tolerance")
+        self.coating.coating_speed = config.getfloat("coating","coating_speed")
+        self.coating.parallel_gap = config.getfloat("coating","parallel_gap")
+
+        # model Section
+        self.model = struct()
+        self.model.nose_radius = config.getfloat("model","nose_radius")
+        self.model.runner_radius = config.getfloat("model","runner_radius")
 
     def getFloorOrigin(self):
         return array(self._floor_origin)
