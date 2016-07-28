@@ -30,7 +30,7 @@ class Turbine:
     std_name = { _PRIMARY_RAIL: "primary rail",
                  _SECONDARY_RAIL: "secondary rail",
                  _BLADE: "blade",
-                 _RUNNER_AREA: "runner area"
+                 _RUNNER_AREA: "runner area",
                  _IRIS: "iris"
                  }
     
@@ -52,12 +52,12 @@ class Turbine:
         self.env = Environment()
         self.env.Load("../Turbina/env_mh12_0_16.xml")
         if viewer:
-            env.SetViewer('qtcoin')
-        self.manipulator = robot.GetActiveManipulator()
-        self.robot = env.GetRobots()[0]
+            self.env.SetViewer('qtcoin')
+        self.robot = self.env.GetRobots()[0]
+        self.manipulator = self.robot.GetActiveManipulator()
         
         
-        bodies = env.GetBodies()
+        bodies = self.env.GetBodies()
         
         self._floor_axis = array([self._nose_axis, cross(self._floor_origin,self._nose_axis)])
 
