@@ -11,9 +11,10 @@ turbine = Turbine('turbine_std.cfg', False)
 
 blademodel = blade_c.BladeModeling('jiraublade', rbf, turbine, False)
 
-##blademodel.sampling(bladerotation=[-27*math.pi/180,'y'])
+##blademodel.sampling()
 ##
 #blademodel.make_model()
 
-sphere = mathtools.sphere()
-blademodel.generate_trajectory(sphere, True)
+sphere = mathtools.sphere(turbine.environment.rotor_radius, turbine.environment.nose_radius,
+                          turbine.coating.parallel_gap)
+blademodel.generate_trajectory(sphere)
