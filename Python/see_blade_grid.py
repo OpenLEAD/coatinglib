@@ -8,13 +8,14 @@ import mathtools
 
 env=Environment()
 env.SetViewer('qtcoin')
-env.Load("../Turbina/env_mh12_0_16.xml")
+env.Load("../Turbina/env_mh12_0_16b.xml")
 target = env.GetBodies()[0]
 
 with env:
     
-    approachrays = load('Blade/jiraublade_points.npz')
+    approachrays = load('Blade/Trajectory/jiraublade_trajectories.npz')
     approachrays = approachrays['array']
+    approachrays = array([item for sublist in approachrays for item in sublist])
     N = approachrays.shape[0]
     Ttarget = target.GetTransform()
 
