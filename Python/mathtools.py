@@ -170,11 +170,13 @@ class sphere:
     Rn0 - first radius of the sphere
     """
 
-    def __init__(self, Rn0=3.770):
+    def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
         self._Rn = Rn0
+        self.stopR = stopR
+        self.coatingstep = coatingstep
 
     def update(self):
-        self._Rn = self._Rn-0.003
+        self._Rn = self._Rn-self.coatingstep
 
     def f(self, p):
         return p[0]**2+p[1]**2+p[2]**2-self._Rn**2
@@ -183,13 +185,12 @@ class sphere:
         return array([2*p[0], 2*p[1], 2*p[2]])
 
     def find_iter(self, p0):
-        self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-0.003
+        self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-self.coatingstep
 
     def criteria(self):
-        return self._Rn>1.425
+        return self._Rn>self.stopR
 
     def findnextparallel(self, p):
         d = sqrt(p[0]**2+p[1]**2+p[2]**2)
-        Rn0=1.425
-        n = ceil((d-Rn0)/0.003)
-        self._Rn = Rn0+n*0.003
+        n = ceil((d-self.stopR)/self.coatingstep)
+        self._Rn = self.stopR+n*self.coatingstep
