@@ -7,7 +7,7 @@ from openravepy.misc import SpaceSamplerExtra
 from scipy.spatial import KDTree
 import mathtools
 from math import atan2, pi
-from openrave_plotting import plotPoints, plotPointsArray, plotPoint
+from openrave_plotting import plotPoints, plotPointsArray, plotPoint, removePoints
 
 class BladeModeling:
     """ BladeModeling class for blade modelling.
@@ -212,10 +212,20 @@ class BladeModeling:
             iter_surface.findnextparallel(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
 
+        counter = 0
         while iter_surface.criteria():
             self._trajectories = drawParallel(self._trajectories, Pd, iter_surface)
-            savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)   
+            if counter%100==0:
+                savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)   
             p0=self._trajectories[-1][-1]
             iter_surface.update()
-            Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])    
+            Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])
+            counter+=1
         print "BladeModeling::generate_trajectory - terminates."
+        savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)
+
+    def RemoveTrajectoriesFromEnv(self):
+        removePoints(self.turbine, 'trajectories')
+
+    def RemoveSamplingFromEnv(self):
+        removePoints(self.turbine, 'sampling')    
