@@ -1,6 +1,7 @@
 import ConfigParser
 from numpy import array, cross, dot
 from openravepy import Environment, databases, IkParameterization
+from openravepy.misc import InitOpenRAVELogging 
 ##from openravepy.misc import SpaceSamplerExtra
 ##import scipy
 ##from random import *
@@ -35,16 +36,20 @@ class Turbine:
         
         
         self.env = Environment()
+        InitOpenRAVELogging()
         self.env.Load(self.environment.load)
         if viewer:
             self.env.SetViewer('qtcoin')
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
         
-        self.ikmodel = openravepy.databases.inversekinematics.InverseKinematicsModel(robot=self.robot,
-                                                                                     iktype=openravepy.IkParameterization.Type.Transform6D)
-        if not ikmodel.load():
-            ikmodel.autogenerate()
+        self.ikmodel = databases.inversekinematics.InverseKinematicsModel(
+            robot=self.robot,
+            iktype=IkParameterization.Type.Transform6D
+            )
+        
+        if not  self.ikmodel.load():
+             self.ikmodel.autogenerate()
             
         self.bodies = self.env.GetBodies()
         
