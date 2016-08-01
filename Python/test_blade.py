@@ -15,6 +15,6 @@ blademodel = blade_c.BladeModeling('jiraublade', rbf, turbine, False)
 ##
 #blademodel.make_model()
 
-sphere = mathtools.sphere(turbine.environment.rotor_radius, turbine.environment.nose_radius,
+sphere = mathtools.sphere(turbine.model.runner_radius, turbine.model.nose_radius,
                           turbine.coating.parallel_gap)
 blademodel.generate_trajectory(sphere)
