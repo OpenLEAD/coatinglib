@@ -1,6 +1,6 @@
 import ConfigParser
 from numpy import array, cross, dot
-from openravepy import Environment
+from openravepy import Environment, databases, IkParameterization
 ##from openravepy.misc import SpaceSamplerExtra
 ##import scipy
 ##from random import *
@@ -41,7 +41,11 @@ class Turbine:
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
         
-        
+        self.ikmodel = openravepy.databases.inversekinematics.InverseKinematicsModel(robot=self.robot,
+                                                                                     iktype=openravepy.IkParameterization.Type.Transform6D)
+        if not ikmodel.load():
+            ikmodel.autogenerate()
+            
         self.bodies = self.env.GetBodies()
         
         try:
