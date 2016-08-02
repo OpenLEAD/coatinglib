@@ -77,7 +77,6 @@ class BladeModeling:
 
     def sampling(self, delta = 0.01):
         print 'Balde::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
-        coatingdistance = self.turbine.coating.ideal_distance
         Rminmax = [self.turbine.environment.nose_radius, self.turbine.environment.rotor_radius]
         bladerotation=[self.turbine.environment.blade_angle, 'y']
         while True:
@@ -120,8 +119,7 @@ class BladeModeling:
                   self._points = r_[self._points,newinfo]
         self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))>Rminmax[0]]
         self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))<Rminmax[1]]
-        self._points[:,0:3] = self._points[:,0:3] + coatingdistance*self._points[:,3:6]
-        T = mathtools.T(bladerotation[0],bladerotation[1])
+        T = mathtools.T(bladerotation[0], bladerotation[1])
         self._points[:,0:3] = dot(self._points[:,0:3],T[0:3,0:3])
         def treeFilter(points, r=0.05):
             print "Blade::_treeFilter - Starting filtering points"
