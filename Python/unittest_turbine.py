@@ -36,6 +36,24 @@ class TestTurbine(unittest.TestCase):
     def test_parsed_rotor_angle(self):
         self.assertEqual(TestTurbine.turb.environment.rotor_angle,-5.73)
 
+    def test_parsed_x_max(self):
+        self.assertEqual(TestTurbine.turb.environment.x_max,1.5)
+
+    def test_parsed_x_min(self):
+        self.assertEqual(TestTurbine.turb.environment.x_min,-1)
+
+    def test_parsed_y_max(self):
+        self.assertEqual(TestTurbine.turb.environment.y_max,2)
+
+    def test_parsed_y_min(self):
+        self.assertEqual(TestTurbine.turb.environment.y_min,-2)
+
+    def test_parsed_rail_angle_limit(self):
+        self.assertEqual(TestTurbine.turb.environment.rail_angle_limit,0.34906585)
+
+    def test_parsed_rail_angle_limit(self):
+        self.assertEqual(TestTurbine.turb.environment.rail_angle_mean,0.523598776)
+
     # coating
     def test_parsed_min_distance(self):
         self.assertEqual(TestTurbine.turb.coating.min_distance,0.21)

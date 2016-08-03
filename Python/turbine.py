@@ -99,6 +99,12 @@ class Turbine:
             self.environment.robot_level_difference = config.getfloat("environment","robot_level_difference")
             self.environment.blade_angle = config.getfloat("environment","blade_angle")
             self.environment.rotor_angle = config.getfloat("environment","rotor_angle")
+            self.environment.x_max = config.getfloat("environment","x_max")
+            self.environment.x_min = config.getfloat("environment","x_min")
+            self.environment.y_max = config.getfloat("environment","y_max")
+            self.environment.y_min = config.getfloat("environment","y_min")
+            self.environment.rail_angle_mean = config.getfloat("environment","rail_angle_mean")
+            self.environment.rail_angle_limit = config.getfloat("environment","rail_angle_limit")
 
             # coating Section
             self.coating.min_distance = config.getfloat("coating","min_distance")
