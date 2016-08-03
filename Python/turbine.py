@@ -153,8 +153,18 @@ class Turbine:
                                                    [0,0,1])    
         self.secondary.SetTransform(dot(secondary_transform,secondary_offset_transform))
 
+    def check_rail_collision(self):
+        collisions = [self.env.CheckCollision(self.primary,blade)
+                      or self.env.CheckCollision(self.secondary,blade)
+                      for blade in self.blades]
+        return any(collisions)
+
     def place_robot(self,rail_place):
         Placement = eye(4)
         Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, self.environment.robot_level_difference]
         R = matrixFromAxisAngle([0, 0, rail_place.alpha])
         self.robot.SetTransform(dot(Placement, R))
+
+    def check_robot_collision(self):
+        collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
+        return any(collisions)
