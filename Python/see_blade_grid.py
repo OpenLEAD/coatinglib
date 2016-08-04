@@ -13,9 +13,11 @@ target = env.GetBodies()[0]
 
 with env:
     
-    approachrays = load('Blade/jiraublade_points.npz')
+    approachrays = load('Blade/Trajectory/jiraublade_trajectories.npz')
     approachrays = approachrays['array']
-    #approachrays = array([item for sublist in approachrays for item in sublist])
+    approachrays = array([item for sublist in approachrays for item in sublist])
+    T = mathtools.T(-0.471225, 'y')
+    approachrays[:,0:3] = dot(approachrays[:,0:3],T[0:3,0:3])
     N = approachrays.shape[0]
     Ttarget = target.GetTransform()
 

@@ -8,6 +8,7 @@ from scipy.spatial import KDTree
 import mathtools
 from math import atan2, pi
 from openrave_plotting import plotPoints, plotPointsArray, plotPoint, removePoints
+import copy
 
 class BladeModeling:
     """ BladeModeling class for blade modelling.
@@ -23,7 +24,6 @@ class BladeModeling:
         self.turbine = turbine
         self._name = name
         self._model = model_type
-        self._env = turbine.env
         self._blade = turbine.blades[0]
         self._modelLoaded = False
         self._samplingLoaded = False
@@ -75,31 +75,35 @@ class BladeModeling:
             print "BladeModeling::init - Trajectories could not be loaded."
             
 
-    def sampling(self, delta = 0.01):
-        print 'Balde::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
-        Rminmax = [self.turbine.environment.nose_radius, self.turbine.environment.rotor_radius]
+    def sampling(self, delta = 0.005):
+        print 'Blade::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
+        
+        Rminmax = [self.turbine.model.nose_radius, self.turbine.model.runner_radius]
         bladerotation=[self.turbine.environment.blade_angle, 'y']
         while True:
             if self._samplingLoaded:
                 answer = raw_input("You are performing resampling, as the samples were loaded. Are you sure you want to continue? [y or n]")
-                if answer == 'y':break
-                elif answer=='n':return                   
+                if answer == 'y':
+                    self._points = []
+                    break
+                elif answer=='n':return
+            else: break    
             
-        cc = RaveCreateCollisionChecker(self._env,'ode')
+        cc = RaveCreateCollisionChecker(self.turbine.env,'ode')
         if cc is not None:
-                ccold = self._env.GetCollisionChecker()
-                self._env.SetCollisionChecker(cc)
+                ccold = self.turbine.env.GetCollisionChecker()
+                self.turbine.env.SetCollisionChecker(cc)
                 cc = ccold
         self._blade.SetTransform(eye(4))
-        self._blade = mathtools.Rotate(self._blade, bladerotation[0], bladerotation[1])
+        self._blade = mathtools.Rotate(self._blade, -bladerotation[0], bladerotation[1])
         ab = self._blade.ComputeAABB()
         p = ab.pos()
         e = ab.extents()+0.01 # increase since origin of ray should be outside of object
         sides = array((
-                     (e[0],0,0,-1,0,0,0,e[1],0,0,0,e[2]),
-                     (-e[0],0,0,1,0,0,0,e[1],0,0,0,e[2]),
-                     (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0),
-                     (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0)
+                     (e[0],0,0,-1,0,0,0,e[1],0,0,0,e[2]), #x
+                     (-e[0],0,0,1,0,0,0,e[1],0,0,0,e[2]), #-x
+                     (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0), #z
+                     (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0) #-z
                      ))
         maxlen = 2*sqrt(sum(e**2))+0.03
         self._points = zeros((0,6))
@@ -111,7 +115,7 @@ class BladeModeling:
             localpos = outer(XX.flatten(),side[6:9]/ex)+outer(YY.flatten(),side[9:12]/ey)
             N = localpos.shape[0]
             rays = c_[tile(p+side[0:3],(N,1))+localpos,maxlen*tile(side[3:6],(N,1))]
-            collision, info = self._env.CheckCollisionRays(rays,self._blade)
+            collision, info = self.turbine.env.CheckCollisionRays(rays,self._blade)
             # make sure all normals are the correct sign: pointing outward from the object)
             newinfo = info[collision,:]
             if len(newinfo) > 0:
@@ -119,8 +123,8 @@ class BladeModeling:
                   self._points = r_[self._points,newinfo]
         self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))>Rminmax[0]]
         self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))<Rminmax[1]]
-        T = mathtools.T(bladerotation[0], bladerotation[1])
-        self._points[:,0:3] = dot(self._points[:,0:3],T[0:3,0:3])
+        self._points = self._points[dot(self._points[:,3:6],[0,1,0])<0.8] # Filtering normals close to [0,1,0]
+        self._points[:,0:3] = self._points[:,0:3] + 0.1*self._points[:,3:6] # Shifting points for tree filtering
         def treeFilter(points, r=0.05):
             print "Blade::_treeFilter - Starting filtering points"
             T = KDTree(points[:,0:3])
@@ -139,11 +143,15 @@ class BladeModeling:
                 if i==len(points):break
             return array(rays)
         self._points = treeFilter(self._points)
+        self._points[:,0:3] = self._points[:,0:3] - 0.1*self._points[:,3:6]
         savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
         print "BladeModeling::samplig - terminates."
         self._samplingLoaded = True
+        
         if self.visualization:
-            plotPoints(self.turbine, self._points, 'sampling', ((1,0,0)))
+            self.turbine.env.RemoveKinBody(self.turbine.primary)  
+            self.turbine.env.RemoveKinBody(self.turbine.secondary)
+            plotPoints(self.turbine, self._points, 'sampling', ((1,0,0)))   
         
     def make_model(self):
         try:
@@ -164,13 +172,22 @@ class BladeModeling:
     def generate_trajectory(self, iter_surface):
         """ Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
-        to be iterated, e.g. spheres (radius 1.425 to 3.770). The algorithm
+        to be iterated, e.g. spheres. The algorithm
         follows the marching method, documentation available in:
         http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
         page 94 intersection surface - surface.
         """
         print "BladeModeling::generate_trajectory - Warning: this is a data-intensive computing and might freeze your computer."
 
+        if self.visualization:
+            try:
+                self.turbine.env.RemoveKinBody(self.turbine.primary)  
+                self.turbine.env.RemoveKinBody(self.turbine.secondary)
+            except: None
+            
+        self._blade.SetTransform(eye(4))
+        self._blade = mathtools.Rotate(self._blade, -self.turbine.environment.blade_angle, 'y')
+        
         if self._modelLoaded: None
         else:
             print "BladeModeling::generate_trajectory - Model is not loaded. Load the model first with make_model method"
@@ -178,22 +195,28 @@ class BladeModeling:
 
         def drawParallel(Y, Pd, iter_surface):
             dt = 3e-3
-            theta0 = 180*atan2(-Pd[2],Pd[0])/pi
+            P0 = copy.copy(Pd)
             counter = 0
-            y = [Pd]       
+            y = [Pd]
             while True:
                 tan = mathtools.surfaces_tangent(y[-1], iter_surface)
                 P = mathtools.curvepoint(self._model, iter_surface, y[-1][0:3]-tan*dt)
-                theta = 180*atan2(-P[2],P[0])/pi
                 if counter==0:
-                    if theta>theta0:
-                        counter+=1
+                    dP = abs(P-P0)
+                    if dP[0]<=dt:
+                        if dP[1]<=dt:
+                            if dP[2]<=dt:
+                                counter+=1
                 else:
-                    if theta<theta0:
-                        Y.append(y)
-                        return Y
+                    dP = abs(P-P0)
+                    if dP[0]<=dt:
+                        if dP[1]<=dt:
+                            if dP[2]<=dt:
+                                Y.append(y)
+                                return Y
                 if self.visualization:
-                    plotPoint(self.turbine, P, 'trajectories', ((0,0,1)))    
+                    plotPoint(self.turbine, P, 'trajectories', ((0,0,1)))
+
                 y.append(P)
         if self._trajLoaded:
             tempY = []
@@ -213,7 +236,7 @@ class BladeModeling:
         counter = 0
         while iter_surface.criteria():
             self._trajectories = drawParallel(self._trajectories, Pd, iter_surface)
-            if counter%100==0:
+            if counter%50==0:
                 savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)   
             p0=self._trajectories[-1][-1]
             iter_surface.update()

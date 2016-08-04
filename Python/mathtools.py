@@ -81,10 +81,7 @@ def RzM(obj,theta):
     obj -- object.
     theta -- angle in rad.
     """
-    T = dot(array([[cos(theta), -sin(theta), 0, 0],
-                   [sin(theta), cos(theta), 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 0, 0, 1]]),
+    T = dot(Tz(theta),
             obj.GetTransform())
     
     obj.SetTransform(T)
@@ -97,10 +94,7 @@ def RxM(obj,theta):
     obj -- object.
     theta -- angle in rad.
     """
-    T = dot(array([[1, 0, 0, 0],
-                   [0, cos(theta), -sin(theta), 0],
-                   [0, sin(theta), cos(theta), 0],
-                   [0, 0, 0, 1]]),
+    T = dot(Tx(theta),
             obj.GetTransform())
     
     obj.SetTransform(T)
@@ -113,10 +107,7 @@ def RyM(obj,theta):
     obj -- object.
     theta -- angle in rad.
     """
-    T = dot(array([[cos(theta), 0, sin(theta), 0],
-                   [0, 1, 0, 0],
-                   [-sin(theta), 0, cos(theta), 0],
-                   [0, 0, 0, 1]]),
+    T = dot(Ty(theta),
             obj.GetTransform())
     
     obj.SetTransform(T)
@@ -142,7 +133,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
         if sqrt(dot(dk,dk))<tol:
             norm = s1.df([p1[0],p1[1],p1[2]])
             norm /= sqrt(dot(norm,norm))
-            p1 = array([p1[0],p1[1],p1[2],norm[0],norm[1],norm[2]]) 
+            p1 = array([p1[0],p1[1],p1[2],norm[0],norm[1],norm[2]])
             return p1
         else: p0=p1
 
@@ -216,4 +207,4 @@ class sphere:
     def findnextparallel(self, p):
         d = sqrt(p[0]**2+p[1]**2+p[2]**2)
         n = ceil((d-self.stopR)/self.coatingstep)
-        self._Rn = self.stopR+n*self.coatingstep
+        self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
