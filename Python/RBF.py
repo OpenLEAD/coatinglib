@@ -118,6 +118,14 @@ class RBF:
                 K[i,:] = self._phi(self._points[i,0:3],self._points[:,0:3])
                 if i>=N/2:
                     d.append(self._eps)
-                else: d.append(0)    
-            self._w = solve(K,d)
-        else: print "RBF::make - There are no points to make a RBF. Please create points with BladeModeling::sampling."    
+                else: d.append(0)
+            try:    
+                self._w = solve(K,d)
+                return True
+            except:
+                "RBF::make - weights could not be computed"
+                return False
+        else:
+            print "RBF::make - There are no points to make a RBF. Please create points with BladeModeling::sampling."
+            return False
+        

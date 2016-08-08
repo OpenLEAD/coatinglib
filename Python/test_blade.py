@@ -3,21 +3,47 @@ import blade
 import math
 import mathtools
 from turbine import Turbine
+import unittest
+import os
 
-name = "jiraublade_t"
+class TestBladeModeling(unittest.TestCase):
 
-rbf = RBF.RBF(name,'r3')
+    @classmethod
+    def setUpClass(cls):
+        super(TestBladeModeling, cls).setUpClass()
+        name = "testblade"
+        
+        try:
+            os.remove('Blade/testblade_points.npz')
+        except: None
 
-turbine = Turbine('turbine_std.cfg', False)
+        try:
+            os.remove('Blade/Trajectory/testblade_r3_trajectories.npz')
+        except: None
 
-blademodel = blade.BladeModeling(name, rbf, turbine, True)
+        try:
+            os.remove('Blade/RBF/testblade_r3_points.npz')
+        except: None
 
-blademodel.sampling()
-##
-#blademodel.make_model()
+        try:
+            os.remove('Blade/RBF/testblade_r3_w.npz')
+        except: None
+        
+        rbf = RBF.RBF(name,'r3')
+        cls.turb = Turbine('turbine_std.cfg',False)
+        cls.blade = blade.BladeModeling(name, rbf, TestBladeModeling.turb, False)
 
-#sphere = mathtools.sphere(turbine.model.runner_radius,
-#                          turbine.model.nose_radius,
-#                          turbine.coating.parallel_gap
-#                          )
-#blademodel.generate_trajectory(sphere)
+
+    def test_modeling(self):
+        self.assertTrue(TestBladeModeling.blade.sampling())
+        self.assertTrue(TestBladeModeling.blade.make_model())
+        sphere = mathtools.sphere(TestBladeModeling.turb.model.runner_radius,
+                                  TestBladeModeling.turb.model.nose_radius,
+                                  TestBladeModeling.turb.coating.parallel_gap
+                                  )
+        self.assertTrue(TestBladeModeling.blade.generate_trajectory(sphere))
+
+        
+
+if __name__ == '__main__':
+    unittest.main()
