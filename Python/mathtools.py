@@ -1,4 +1,4 @@
-from numpy import array, dot, cross, outer
+from numpy import array, dot, cross, outer, eye
 from math import cos, sin, sqrt, ceil, pi
 from openravepy import IkFilterOptions
 
@@ -208,3 +208,36 @@ class sphere:
         d = sqrt(p[0]**2+p[1]**2+p[2]**2)
         n = ceil((d-self.stopR)/self.coatingstep)
         self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
+
+class plane:
+    """ Plane surface class. An object of this class can be
+    a surface to be iterated and generate the coating trajectories.
+
+    Keyword arguments:
+    z - height of the plane
+    """
+
+    def __init__(self, z0=3.770, stopZ=1.59, coatingstep = 0.003):
+        self._Zn = z0
+        self.stopZ = stopZ
+        self.coatingstep = coatingstep
+
+    def update(self):
+        self._Zn = self._Zn-self.coatingstep
+
+    def f(self, p):
+        return p[2]-self._Zn
+
+    def df(self, p):
+        return array([0, 0, 1])
+
+    def find_iter(self, p0):
+        self._Zn = p0[2]-self.coatingstep
+
+    def criteria(self):
+        return self._Zn>self.stopZ
+
+    def findnextparallel(self, p):
+        d = p[2]
+        n = ceil((d-self.stopZ)/self.coatingstep)
+        self._Zn = min(self.stopZ+n*self.coatingstep, self._Zn)        
