@@ -1,7 +1,8 @@
 from mathtools import hat, Rab, Raxis
-from numpy import minimize, sqrt, dot, concatenate, arange
+from numpy import sqrt, dot, concatenate, arange, array
 from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2
+from scipy.optimize import minimize
 
 """ Main package for robot joints' positions and velocities planning,
 robot base calculation, torque and manipulability analysis.
@@ -11,19 +12,19 @@ places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
   
-def sortTrajectories(x, place):
-""" Arrange the trajectories in a zigzagging way.
+def sortTrajectories(x, trajectories):
+    """ Arrange the trajectories in a zigzagging way.
 
-Keyword arguments:
-x - x position of the robot
-"""
+    Keyword arguments:
+    x - x position of the robot
+    """
     sortedTrajectories = []
     i=1
-    for trajectory in place.trajectories:
+    for trajectory in trajectories:
         if len(trajectory)>1:
             theta = []
             for point in trajectory:
-                theta.append(math.atan2(-point[2],point[0]))
+                theta.append(atan2(-point[2],point[0]))
             theta=array(theta)
             sortedTrajectory = []
             if len(theta[theta>0])>0:    
@@ -81,12 +82,12 @@ def compute_joints(places):
         Q = doPath(place, turbine)
 
 def optmizeQ(turbine, P, q0):
-""" Minimizes the orientation error.
+    """ Minimizes the orientation error.
 
-Keyword arguments:
-P -- 6x1 vector is the goal (point to be coated).
-q0 -- is the inicial configuration of the robot (robot's joints).
-"""
+    Keyword arguments:
+    P -- 6x1 vector is the goal (point to be coated).
+    q0 -- is the inicial configuration of the robot (robot's joints).
+    """
     n = [P[3],P[4],P[5]]; P=[P[0],P[1],P[2]]
     def func(q):
         turbine.robot.SetDOFValues(q, turbine.ikmodel.manip.GetArmIndices())
