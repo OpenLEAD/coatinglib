@@ -1,7 +1,23 @@
 from turbine import Turbine
-from numpy import array, sin, cos, pi, maximum, minimum, random, tan, arctan2
+from numpy import array, sin, cos, pi, maximum, minimum, random, tan, arctan2, sign, abs, mean, argmax, argmin
+from time import time
 
+def _rand_angle(turbine, x, y, alpha_seed):
 
+    alpha_min = turbine.environment.rail_angle_mean - turbine.environment.rail_angle_limit
+    alpha_max = turbine.environment.rail_angle_mean + turbine.environment.rail_angle_limit
+    
+    # Get min and max angles for that position (so to fit inside the avaible area)
+    local_limit = [sign(y)*arctan2(abs(turbine.environment.x_max - x), abs(y)),
+                   -sign(y)*arctan2(abs(turbine.environment.x_min - x), abs(y))]
+
+    
+    alpha_max = minimum( maximum(local_limit[0],local_limit[1]), alpha_max)
+    alpha_min = maximum( minimum(local_limit[0],local_limit[1]), alpha_min)
+
+    alpha = (alpha_max - alpha_min)*alpha_seed + alpha_min # - alphalimit <= alpha < alphalimit
+
+    return alpha
 
 
 def rand_rail(turbine, N = 1):
@@ -13,10 +29,12 @@ def rand_rail(turbine, N = 1):
     alpha_max = turbine.environment.rail_angle_mean + turbine.environment.rail_angle_limit
     
     # Randomness
+    random.seed(int(time()+int((time()-int(time()))*10000)))
     x,y,alpha = random.rand(3,N)
     
     x = (turbine.environment.x_max - turbine.environment.x_min)*x + turbine.environment.x_min
 
+    
     if alpha_min > 0: #Limits depend on alpha limits
         ymax = (turbine.environment.x_max - x)/tan(alpha_min)
         ymin = (turbine.environment.x_min - x)/tan(alpha_min)
@@ -32,17 +50,9 @@ def rand_rail(turbine, N = 1):
         ymin = turbine.environment.y_min
         
     y = (ymax - ymin)*y + ymin
-    
-    
-    # Get min and max angles for that position (so to fit inside the avaible area)
-    local_limit = [arctan2(turbine.environment.x_max - x, y),
-                   arctan2(turbine.environment.x_min - x, y)]
-    
-    alpha_max = minimum( maximum(local_limit[0],local_limit[1]), alpha_max)
-    alpha_min = maximum( minimum(local_limit[0],local_limit[1]), alpha_min)
-    
-    alpha = (alpha_max - alpha_min)*alpha + alpha_min # - alphalimit <= alpha < alphalimit
-    
+
+    alpha = _rand_angle(turbine, x, y, alpha)
+
     # S/P conversion
     S = y/cos(alpha)
     P = x + S*sin(alpha)
@@ -60,7 +70,7 @@ class RailPlace:
     def __repr__(self):
         return ("p = " + str(self.p*100) + "cm" +
                 "\ns = " + str(self.s*100) + "cm" +
-                "\nalpha = " + str(self.alpha) + "rad ("+ str(round(self.alpha*180/pi,1))+"°)")
+                "\nalpha = " + str(self.alpha) + "rad ("+ str(round(self.alpha*180/pi,1))+"deg)")
                 
     def setPSAlpha(self,(p,s,alpha)):
         self.p, self.s, self.alpha = p, s, alpha
