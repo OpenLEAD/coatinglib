@@ -19,7 +19,13 @@ class ConfigFileError(Exception):
 
 
 class Turbine:
-    
+    """
+    This class provides a configuration file loading for the whole turbine environment,
+    plus manipulation of the active elements of the turbine (robot/rail)
+    and their interactiong (collision)
+    """
+
+    # std names for printing propouses
     std_name = { _PRIMARY_RAIL: "primary rail",
                  _SECONDARY_RAIL: "secondary rail",
                  _BLADE: "blade",
@@ -30,7 +36,7 @@ class Turbine:
     def __init__(self,config_file, viewer = True):
         self._parse_file(config_file)
         
-        
+        # Create OpenRave environment
         self.env = Environment()
         InitOpenRAVELogging()
         self.env.Load(self.environment.load)
@@ -46,7 +52,9 @@ class Turbine:
         
         if not  self.ikmodel.load():
              self.ikmodel.autogenerate()
-            
+
+
+        # Principal turbine elements linked to attributes
         self.bodies = self.env.GetBodies()
         
         try:
@@ -74,6 +82,7 @@ class Turbine:
                 blade_found = False
 
     def _parse_file(self,config_file):
+        # Standard python file parsing
         
         config = ConfigParser.RawConfigParser()
         if config.read(config_file) == []:
@@ -119,6 +128,7 @@ class Turbine:
 
             
     def place_rail(self,rail_place):
+        """ Place both rails in the environment """
         #P - primary rail,
         #S - secondary rail,
         #alpha - angle from the perpendicular to the primary rail
@@ -154,17 +164,20 @@ class Turbine:
         self.secondary.SetTransform(dot(secondary_transform,secondary_offset_transform))
 
     def check_rail_collision(self):
+        """ Check rail <-> blades collision """
         collisions = [self.env.CheckCollision(self.primary,blade)
                       or self.env.CheckCollision(self.secondary,blade)
                       for blade in self.blades]
         return any(collisions)
 
     def place_robot(self,rail_place):
+        """ Place robot on the end of the secondary rail """
         Placement = eye(4)
         Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, self.environment.robot_level_difference]
         R = matrixFromAxisAngle([0, 0, rail_place.alpha])
         self.robot.SetTransform(dot(Placement, R))
 
     def check_robot_collision(self):
+        """ Check robot <-> environment collision """
         collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
         return any(collisions)
