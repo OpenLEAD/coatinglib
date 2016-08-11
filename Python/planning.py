@@ -11,6 +11,28 @@ Keyword arguments:
 places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
+
+def sortTrajectories2(trajectories):
+    """ Arrange the trajectories in a zigzagging way.
+    """
+    sortedTrajectories = []
+    i=1
+    for trajectory in trajectories:
+        if len(trajectory)>1:
+            theta = []
+            for point in trajectory:
+                theta.append(dot(point[0:3], [0,1,0]))
+            theta = array(theta)
+            sortedTrajectory = []
+            sortedTrajectory.extend(trajectory[theta.argsort()])
+           # if i%2:
+           #     sortedTrajectory.reverse()
+            sortedTrajectories.append(sortedTrajectory)
+        elif len(trajectory)==1:
+            sortedTrajectories.append(trajectory)
+        i+=1    
+    return array(sortedTrajectories)
+
   
 def sortTrajectories(x, trajectories):
     """ Arrange the trajectories in a zigzagging way.
@@ -25,15 +47,15 @@ def sortTrajectories(x, trajectories):
             theta = []
             for point in trajectory:
                 theta.append(atan2(-point[2],point[0]))
-            theta=array(theta)
+            theta = array(theta)
             sortedTrajectory = []
             if len(theta[theta>0])>0:    
-                sortedTrajectory.extend([x for (y,x) in sorted(zip(theta[theta>0],trajectory[theta>0]))])
+                sortedTrajectory.extend((trajectory[theta>0])[(theta[theta>0]).argsort()])
             if len(theta[theta<0])>0:
                 if x<0:
-                    sortedTrajectory.extend([x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))])
+                    sortedTrajectory.extend((trajectory[theta<0])[(theta[theta<0]).argsort()])
                 else:
-                    En = [x for (y,x) in sorted(zip(theta[theta<0],trajectory[theta<0]))]
+                    En = (trajectory[theta<0])[(theta[theta<0]).argsort()]
                     En.extend(sortedTrajectory)
                     sortedTrajectory = En
             if i%2:
