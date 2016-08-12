@@ -121,11 +121,8 @@ class RBF:
                 else: d.append(0)
             try:    
                 self._w = solve(K,d)
-                return True
             except:
-                "RBF::make - weights could not be computed"
-                return False
+                raise
         else:
             print "RBF::make - There are no points to make a RBF. Please create points with BladeModeling::sampling."
-            return False
         
