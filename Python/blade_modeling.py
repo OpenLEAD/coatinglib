@@ -35,7 +35,6 @@ class BladeModeling:
             makedirs('./Blade')
         except OSError as exception:
             if exception.errno != errno.EEXIST:
-                print "BladeModeling::init - Problem creating Blade folder"
                 raise
         try:
             self._points = load('Blade/'+self._name+'_points.npz')
@@ -62,10 +61,9 @@ class BladeModeling:
             makedirs('./Blade/Trajectory')
         except OSError as exception:
             if exception.errno != errno.EEXIST:
-                print "BladeModeling::init - Problem creating Blade/Trajectory folder"
                 raise    
         try:
-            self._trajectories = load('Blade/Trajectory/'+self._name+'_trajectories.npz')
+            self._trajectories = load('Blade/Trajectory/'+self._name+'_'+self._model._name+'_trajectories.npz')
             self._trajectories = self._trajectories['array']
             self._trajLoaded = True
             print "BladeModeling::init - Trajectories are loaded."
@@ -75,11 +73,11 @@ class BladeModeling:
             print "BladeModeling::init - Trajectories could not be loaded."
             
 
-    def sampling(self, delta = 0.005):
+    def sampling(self, delta = 0.005, min_distance_between_points=0.05):
         print 'Blade::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
         
         Rminmax = [self.turbine.model.nose_radius-0.01, self.turbine.model.runner_radius+0.01]
-        bladerotation=[self.turbine.environment.blade_angle, 'y']
+        bladerotation=[self.turbine.environment.blade_angle, 'z']
 
         if self._name!='testblade':
             while True:
@@ -105,8 +103,9 @@ class BladeModeling:
                      (e[0],0,0,-1,0,0,0,e[1],0,0,0,e[2]), #x
                      (-e[0],0,0,1,0,0,0,e[1],0,0,0,e[2]), #-x
                      (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0), #z
-                     (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0), #-z
-                     (0,e[1],0,0,-1,0,e[0],0,0,0,0,e[2])  #y
+                    # (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0), #-z
+                     (0,e[1],0,0,-1,0,e[0],0,0,0,0,e[2]), #y
+                     (0,-e[1],0,0,1,0,e[0],0,0,0,0,e[2])  #-y
                      ))
         maxlen = 2*sqrt(sum(e**2))+0.03
         self._points = zeros((0,6))
@@ -128,7 +127,7 @@ class BladeModeling:
         self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))<Rminmax[1]]
         #self._points = self._points[dot(self._points[:,3:6],[0,1,0])<0.8] # Filtering normals close to [0,1,0]
         #self._points[:,0:3] = self._points[:,0:3] + 0.1*self._points[:,3:6] # Shifting points for tree filtering
-        def treeFilter(points, r=0.05):
+        def treeFilter(points, r):
             print "Blade::_treeFilter - Starting filtering points"
             T = KDTree(points[:,0:3])
             rays = []
@@ -145,7 +144,7 @@ class BladeModeling:
                 i+=1
                 if i==len(points):break
             return array(rays)
-        self._points = treeFilter(self._points)
+        self._points = treeFilter(self._points, min_distance_between_points)
         #self._points[:,0:3] = self._points[:,0:3] - 0.1*self._points[:,3:6]
         savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
         print "BladeModeling::samplig - terminates."
@@ -155,26 +154,23 @@ class BladeModeling:
             self.turbine.env.RemoveKinBody(self.turbine.primary)  
             self.turbine.env.RemoveKinBody(self.turbine.secondary)
             plotPoints(self.turbine, self._points, 'sampling', ((1,0,0)))
-
-        return True    
+   
         
     def make_model(self):
         try:
             makedirs('./Blade/'+self._model.model_type)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
-                print "BladeModeling::make_model - Problem creating Blade/mode_type folder"
                 raise
             
         self._model._points = self._points
-        if self._model.make():
-            savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz', array=self._model._w)
-            savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz', array=self._model._points)
-            self._modelLoaded = True
-            print "BladeModeling::make_model - terminates."
-            return True
-        else: return False
-            
+        self._model.make()
+        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz',
+                        array=self._model._w)
+        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz',
+                        array=self._model._points)
+        self._modelLoaded = True
+        print "BladeModeling::make_model - terminates."            
 
     def generate_trajectory(self, iter_surface):
         """ Method generate the coating trajectories. The trajectories are
@@ -193,12 +189,12 @@ class BladeModeling:
             except: None
             
         self._blade.SetTransform(eye(4))
-        self._blade = mathtools.Rotate(self._blade, -self.turbine.environment.blade_angle, 'y')
+        self._blade = mathtools.Rotate(self._blade, -self.turbine.environment.blade_angle, 'z')
         
         if self._modelLoaded: None
         else:
             print "BladeModeling::generate_trajectory - Model is not loaded. Load the model first with make_model method"
-            return False
+            return 
 
         def drawParallel(Y, Pd, iter_surface):
             dt = 3e-3
@@ -222,7 +218,7 @@ class BladeModeling:
                                 Y.append(y)
                                 return Y
                 if self.visualization:
-                    plotPoint(self.turbine, P, 'trajectories', ((0,0,1)))
+                    plotPoint(self.turbine, P, 'trajectories', ((0,0,0)))
 
                 y.append(P)
         if self._trajLoaded:
@@ -234,9 +230,9 @@ class BladeModeling:
             Rn = iter_surface.find_iter(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
             if self.visualization:
-                plotPointsArray(self.turbine, self._trajectories, 'trajectories', ((0,0,1)))
+                plotPointsArray(self.turbine, self._trajectories, 'trajectories', ((0,0,0)))
         else:
-            Pd = self._points[argmin(self._points[:,1])]
+            Pd = self._points[argmin(self._points[:,2])]
             iter_surface.findnextparallel(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
 
@@ -244,16 +240,13 @@ class BladeModeling:
         while iter_surface.criteria():
             self._trajectories = drawParallel(self._trajectories, Pd, iter_surface)
             if counter%30==0:
-                savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)
-                if self._name == 'testblade':
-                    return True
+                savez_compressed('Blade/Trajectory/'+self._name+'_'+self._model._name+'_trajectories.npz', array=self._trajectories)
             p0=self._trajectories[-1][-1]
             iter_surface.update()
             Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])
             counter+=1
         print "BladeModeling::generate_trajectory - terminates."
-        savez_compressed('Blade/Trajectory/'+self._name+'_trajectories.npz', array=self._trajectories)
-        return True
+        savez_compressed('Blade/Trajectory/'+self._name+'_'+self._model._name+'_trajectories.npz', array=self._trajectories)
 
     def RemoveTrajectoriesFromEnv(self):
         removePoints(self.turbine, 'trajectories')
