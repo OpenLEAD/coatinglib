@@ -1,10 +1,12 @@
-import RBF
-import blade
+import rbf
+import blade_modeling
 import math
 import mathtools
 from turbine import Turbine
 import unittest
 import os
+from numpy import array, load, array_equal
+
 
 class TestBladeModeling(unittest.TestCase):
 
@@ -29,19 +31,66 @@ class TestBladeModeling(unittest.TestCase):
             os.remove('Blade/RBF/testblade_r3_w.npz')
         except: None
         
-        rbf = RBF.RBF(name,'r3')
-        cls.turb = Turbine('turbine_std.cfg',False)
-        cls.blade = blade.BladeModeling(name, rbf, TestBladeModeling.turb, False)
+        rbf_model = rbf.RBF(name,'r3')
+        cls.turb = Turbine('../test/dummy.cfg',False)
+        try:
+            TestBladeModeling.turb.env.RemoveKinBody(TestBladeModeling.turb.primary)  
+            TestBladeModeling.turb.env.RemoveKinBody(TestBladeModeling.turb.secondary)
+            TestBladeModeling.turb.env.RemoveKinBody(TestBladeModeling.turb.robot)
+            TestBladeModeling.turb.env.RemoveKinBody(TestBladeModeling.turb.runner_area)
+            TestBladeModeling.turb.env.RemoveKinBody(TestBladeModeling.turb.iris)
+        except: None
+        cls.blade1 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb, False)
+        cls.blade2 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb, False)
+        cls.blade3 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb, False)
 
 
-    def test_modeling(self):
-        self.assertTrue(TestBladeModeling.blade.sampling())
-        self.assertTrue(TestBladeModeling.blade.make_model())
-        sphere = mathtools.sphere(TestBladeModeling.turb.model.runner_radius,
-                                  TestBladeModeling.turb.model.nose_radius,
-                                  TestBladeModeling.turb.coating.parallel_gap
-                                  )
-        self.assertTrue(TestBladeModeling.blade.generate_trajectory(sphere))
+    def test_sampling(self):
+        template_points = load('../test/template_points.npz')
+        template_points = template_points['array']
+        TestBladeModeling.blade1.sampling(delta = 0.005, min_distance_between_points=0.001)
+        self.assertTrue(array_equal(TestBladeModeling.blade1._points,
+                                    template_points))
+
+    def test_make_model(self):
+        template_points = load('../test/template_points.npz')
+        template_points = template_points['array']
+        TestBladeModeling.blade2._points = template_points
+
+        template_rbf_points = load('../test/template_rbf_points.npz')
+        template_rbf_points = template_rbf_points['array']
+        template_w = load('../test/template_w.npz')
+        template_w = template_w['array']
+
+        
+        TestBladeModeling.blade2.make_model()
+        self.assertTrue(array_equal(TestBladeModeling.blade2._model._points,
+                                    template_rbf_points))
+        self.assertTrue(array_equal(TestBladeModeling.blade2._model._w,
+                                    template_w))
+
+    def test_generate_trajectory(self):
+        template_points = load('../test/template_points.npz')
+        template_points = template_points['array']
+        TestBladeModeling.blade3._points = template_points
+        
+        template_rbf_points = load('../test/template_rbf_points.npz')
+        template_rbf_points = template_rbf_points['array']
+        TestBladeModeling.blade3._model._points = template_rbf_points
+        
+        template_w = load('../test/template_w.npz')
+        template_w = template_w['array']
+        TestBladeModeling.blade3._model._w = template_w
+        
+        TestBladeModeling.blade3._modelLoaded = True
+
+        template_trajectories = load('../test/template_trajectories.npz')
+        template_trajectories = template_trajectories['array']
+
+        sphere = mathtools.sphere(1.04, 0.97, 0.003)
+        TestBladeModeling.blade3.generate_trajectory(sphere)
+        self.assertTrue(array_equal(TestBladeModeling.blade3._trajectories,
+                                    template_trajectories))
 
         
 
