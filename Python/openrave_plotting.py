@@ -1,6 +1,6 @@
 from numpy import array
 
-def plotPoints(turbine, points, key, color):
+def plot_points(turbine, points, key, color):
     try:
         turbine.handles
     except AttributeError:
@@ -13,7 +13,7 @@ def plotPoints(turbine, points, key, color):
     else:    
         turbine.handles[key] = [turbine.env.plot3(points=array(points)[:,0:3],pointsize=5,colors=color)]
     
-def plotPoint(turbine, point, key, color):
+def plot_point(turbine, point, key, color):
     try:
         turbine.handles
     except AttributeError:
@@ -26,7 +26,7 @@ def plotPoint(turbine, point, key, color):
     else:
         turbine.handles[key] = [turbine.env.plot3(points=array(point)[0:3],pointsize=5,colors=color)]
 
-def plotPointsArray(turbine, pointsArray, key, color):
+def plot_points_array(turbine, pointsArray, key, color):
     try:
         turbine.handles
     except AttributeError:
@@ -35,7 +35,7 @@ def plotPointsArray(turbine, pointsArray, key, color):
     points = [item for sublist in pointsArray for item in sublist]
     plotPoints(turbine, points, key, color)
 
-def removePoints(turbine, key):
+def remove_points(turbine, key):
     try:
         turbine.handles.pop(key,None)
         turbine.env.UpdatePublishedBodies()
