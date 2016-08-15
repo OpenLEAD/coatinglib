@@ -2,13 +2,17 @@ from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, ti
 from numpy import meshgrid, array, shape, sum, eye, dot, argmin, concatenate, sqrt
 from os import makedirs
 import errno
-from openravepy import RaveCreateCollisionChecker
+from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
 from openravepy.misc import SpaceSamplerExtra
 from scipy.spatial import KDTree
 import mathtools
 from math import atan2, pi
-from openrave_plotting import plotPoints, plotPointsArray, plotPoint, removePoints
+from openrave_plotting import plot_points, plot_points_array, plot_point, remove_points
 import copy
+
+class IterSurfaceError(Exception):    
+    def __init__(self):
+        Exception.__init__(self, "object is not a valid surface.")
 
 class BladeModeling:
     """ BladeModeling class for blade modelling.
@@ -63,7 +67,7 @@ class BladeModeling:
             if exception.errno != errno.EEXIST:
                 raise    
         try:
-            self._trajectories = load('Blade/Trajectory/'+self._name+'_'+self._model._name+'_trajectories.npz')
+            self._trajectories = load('Blade/Trajectory/'+self._model._name+'_trajectories.npz')
             self._trajectories = self._trajectories['array']
             self._trajLoaded = True
             print "BladeModeling::init - Trajectories are loaded."
@@ -74,20 +78,32 @@ class BladeModeling:
             
 
     def sampling(self, delta = 0.005, min_distance_between_points=0.05):
+        """ The sampling method is an algorithm for uniformly sampling objects.
+        It computes the bounding box of the object (object inscribed by cube), uniformly
+        samples the box's faces, and checks rays collision from cube's samples to the object.
+        Rays with collision and its normal vectors are stored as object's samples.
+        Finally, a kdtree is computed from object's samples and neighbooring points are removed  
+        to generate an uniformly sampling on the object (filtering data by distance). 
+
+        Keyword arguments:
+        delta -- uniform distance between the cube's samples.
+        min_distance_between_points -- uniform distance between the object's samples.
+        min_distance_between_points >= delta
+        """
+        
         print 'Blade::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
         
         Rminmax = [self.turbine.model.nose_radius-0.01, self.turbine.model.runner_radius+0.01]
         bladerotation=[self.turbine.environment.blade_angle, 'z']
-
-        if self._name!='testblade':
-            while True:
-                if self._samplingLoaded:
-                    answer = raw_input("You are performing resampling, as the samples were loaded. Are you sure you want to continue? [y or n]")
-                    if answer == 'y':
-                        self._points = []
-                        break
-                    elif answer=='n':return
-                else: break    
+        
+        while True:
+            if self._samplingLoaded:
+                answer = raw_input("You are performing resampling, as the samples were loaded. Are you sure you want to continue? [y or n]")
+                if answer == 'y':
+                    self._points = []
+                    break
+                elif answer=='n':return
+            else: break    
             
         cc = RaveCreateCollisionChecker(self.turbine.env,'ode')
         if cc is not None:
@@ -95,7 +111,9 @@ class BladeModeling:
                 self.turbine.env.SetCollisionChecker(cc)
                 cc = ccold
         self._blade.SetTransform(eye(4))
-        self._blade = mathtools.Rotate(self._blade, -bladerotation[0], bladerotation[1])
+        self._blade.SetTransform(dot(self._blade.GetTransform(),
+                                     matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
+                                 )
         ab = self._blade.ComputeAABB()
         p = ab.pos()
         e = ab.extents()+0.01 # increase since origin of ray should be outside of object
@@ -103,7 +121,7 @@ class BladeModeling:
                      (e[0],0,0,-1,0,0,0,e[1],0,0,0,e[2]), #x
                      (-e[0],0,0,1,0,0,0,e[1],0,0,0,e[2]), #-x
                      (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0), #z
-                    # (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0), #-z
+                     (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0), #-z
                      (0,e[1],0,0,-1,0,e[0],0,0,0,0,e[2]), #y
                      (0,-e[1],0,0,1,0,e[0],0,0,0,0,e[2])  #-y
                      ))
@@ -129,7 +147,7 @@ class BladeModeling:
         #self._points[:,0:3] = self._points[:,0:3] + 0.1*self._points[:,3:6] # Shifting points for tree filtering
         def treeFilter(points, r):
             print "Blade::_treeFilter - Starting filtering points"
-            T = KDTree(points[:,0:3])
+            Tree = KDTree(points[:,0:3])
             rays = []
             N = len(points)
             i=0
@@ -137,7 +155,7 @@ class BladeModeling:
             while True:
                 if I[i]:
                     rays.append(points[i])
-                    idx = T.query_ball_point(points[i,0:3],r)
+                    idx = Tree.query_ball_point(points[i,0:3],r)
                     idx = array(idx)
                     idx = idx[idx>i]
                     for j in idx:I[j]=False
@@ -153,10 +171,14 @@ class BladeModeling:
         if self.visualization:
             self.turbine.env.RemoveKinBody(self.turbine.primary)  
             self.turbine.env.RemoveKinBody(self.turbine.secondary)
-            plotPoints(self.turbine, self._points, 'sampling', ((1,0,0)))
+            plot_points(self.turbine, self._points, 'sampling', ((1,0,0)))
    
         
     def make_model(self):
+        """ The make_model method is an algorithm to generate a mathematical representation
+        of the object (mesh). This method can be called after the sampling method,
+        and never before. The model is generated by the model_type (constructor), e.g. RBF.   
+        """
         try:
             makedirs('./Blade/'+self._model.model_type)
         except OSError as exception:
@@ -179,6 +201,9 @@ class BladeModeling:
         follows the marching method, documentation available in:
         http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
         page 94 intersection surface - surface.
+
+        Keyword arguments:
+        iter_surface -- surface to be iterated, as mathtools.sphere.
         """
         print "BladeModeling::generate_trajectory - Warning: this is a data-intensive computing and might freeze your computer."
 
@@ -189,12 +214,16 @@ class BladeModeling:
             except: None
             
         self._blade.SetTransform(eye(4))
-        self._blade = mathtools.Rotate(self._blade, -self.turbine.environment.blade_angle, 'z')
-        
+        self._blade.SetTransform(dot(self._blade.GetTransform(),
+                                     matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
+                                 )
         if self._modelLoaded: None
         else:
             print "BladeModeling::generate_trajectory - Model is not loaded. Load the model first with make_model method"
-            return 
+            return
+
+        if not issubclass(iter_surface.__class__, mathtools.IterSurface):
+            raise IterSurfaceError()
 
         def drawParallel(Y, Pd, iter_surface):
             dt = 3e-3
@@ -218,7 +247,7 @@ class BladeModeling:
                                 Y.append(y)
                                 return Y
                 if self.visualization:
-                    plotPoint(self.turbine, P, 'trajectories', ((0,0,0)))
+                    plot_point(self.turbine, P, 'trajectories', ((0,0,0)))
 
                 y.append(P)
         if self._trajLoaded:
@@ -230,7 +259,8 @@ class BladeModeling:
             Rn = iter_surface.find_iter(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
             if self.visualization:
-                plotPointsArray(self.turbine, self._trajectories, 'trajectories', ((0,0,0)))
+                plot_points_array(self.turbine, self._trajectories,
+                                  'trajectories', ((0,0,0)))
         else:
             Pd = self._points[argmin(self._points[:,2])]
             iter_surface.findnextparallel(Pd)
@@ -240,16 +270,19 @@ class BladeModeling:
         while iter_surface.criteria():
             self._trajectories = drawParallel(self._trajectories, Pd, iter_surface)
             if counter%30==0:
-                savez_compressed('Blade/Trajectory/'+self._name+'_'+self._model._name+'_trajectories.npz', array=self._trajectories)
+                savez_compressed('Blade/Trajectory/'+self._model._name+'_trajectories.npz',
+                                 array=self._trajectories)
             p0=self._trajectories[-1][-1]
             iter_surface.update()
             Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])
             counter+=1
         print "BladeModeling::generate_trajectory - terminates."
-        savez_compressed('Blade/Trajectory/'+self._name+'_'+self._model._name+'_trajectories.npz', array=self._trajectories)
+        
+        savez_compressed('Blade/Trajectory/'+self._model._name+'_trajectories.npz',
+                         array=self._trajectories)
 
-    def RemoveTrajectoriesFromEnv(self):
-        removePoints(self.turbine, 'trajectories')
+    def remove_trajectories_from_env(self):
+        remove_points(self.turbine, 'trajectories')
 
-    def RemoveSamplingFromEnv(self):
-        removePoints(self.turbine, 'sampling')    
+    def remove_sampling_from_env(self):
+        remove_points(self.turbine, 'sampling')    
