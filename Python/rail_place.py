@@ -48,20 +48,20 @@ def rand_rail(turbine, N = 1):
 
     
     if alpha_min > 0: #Limits of the avaible area depends on alpha limits
-        ymax = (turbine.environment.x_max - x)/tan(alpha_min)
-        ymin = (turbine.environment.x_min - x)/tan(alpha_min)
-        ymax = minimum(ymax,turbine.environment.y_max)
-        ymin = maximum(ymin,turbine.environment.y_min)
+        y_max = (turbine.environment.x_max - x)/tan(alpha_min)
+        y_min = (turbine.environment.x_min - x)/tan(alpha_min)
+        y_max = minimum(y_max,turbine.environment.y_max)
+        y_min = maximum(y_min,turbine.environment.y_min)
     elif alpha_max < 0:
-        ymax = (turbine.environment.x_min - x)/tan(alpha_max)
-        ymin = (turbine.environment.x_max - x)/tan(alpha_max)
-        ymax = minimum(ymax,turbine.environment.y_max)
-        ymin = maximum(ymin,turbine.environment.y_min)
+        y_max = (turbine.environment.x_min - x)/tan(alpha_max)
+        y_min = (turbine.environment.x_max - x)/tan(alpha_max)
+        y_max = minimum(y_max,turbine.environment.y_max)
+        y_min = maximum(y_min,turbine.environment.y_min)
     else:
-        ymax = turbine.environment.y_max
-        ymin = turbine.environment.y_min
+        y_max = turbine.environment.y_max
+        y_min = turbine.environment.y_min
         
-    y = (ymax - ymin)*y + ymin
+    y = (y_max - y_min)*y + y_min
 
     alpha = _rand_angle(turbine, x, y, alpha)
 

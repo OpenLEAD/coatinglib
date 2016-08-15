@@ -1,5 +1,5 @@
 import unittest
-import railplace
+import rail_place
 from numpy import arange,argmax
 
 class TestRailplace(unittest.TestCase):
@@ -7,9 +7,9 @@ class TestRailplace(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestRailplace, cls).setUpClass()
-        cls.turb = railplace.Turbine("turbine_unittest.cfg",False)
+        cls.turb = rail_place.Turbine("turbine_unittest.cfg",False)
         cls.samples =1000000
-        cls.railplaces = railplace.rand_rail(cls.turb, cls.samples)
+        cls.railplaces = rail_place.rand_rail(cls.turb, cls.samples)
 
     def test_railplace_constrains(self):
         total = 0
