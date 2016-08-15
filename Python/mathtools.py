@@ -1,117 +1,11 @@
 from numpy import array, dot, cross, outer, eye
 from math import cos, sin, sqrt, ceil, pi
 from openravepy import IkFilterOptions
+from abc import ABCMeta, abstractmethod
 
-def Rotate(obj, theta, axis):
-    """ Rotate object in x, y, or z axis (world frame)
-
-    Keyword arguments:
-    obj -- object.
-    theta -- angle in rad.
-    axis -- string x, y, or z.
-    """  
-    if axis=='z':
-        return RzM(obj,theta)
-    elif axis=='x':
-        return RxM(obj,theta)
-    elif axis=='y':
-        return RyM(obj,theta)
-    elif axis=='':
-        return obj
-    else:
-        print "mathtools::Rotate wrong axis"
-        return obj
-
-def T(theta, axis):
-    """ Transformation matrix axis
-
-    Keyword arguments:
-    theta -- angle in rad.
-    axis -- string x, y, or z.
-    """   
-    if axis=='z':
-        return Tz(theta)
-    elif axis=='x':
-        return Tx(theta)
-    elif axis=='y':
-        return Ty(theta)
-    elif axis=='':
-        return eye(4)
-    else:
-        print "mathtools::T wrong axis"
-        return eye(4)    
-        
-def Tx(theta):
-    """ Transformation matrix x
-
-    theta -- angle in rad.
-    """
-    T = array([[1, 0, 0, 0],
-                   [0, cos(theta), -sin(theta), 0],
-                   [0, sin(theta), cos(theta), 0],
-                   [0, 0, 0, 1]])
-    return T
-
-def Ty(theta):
-    """ Transformation matrix y
-
-    theta -- angle in rad.
-    """
-    T = array([[cos(theta), 0, sin(theta), 0],
-                   [0, 1, 0, 0],
-                   [-sin(theta), 0, cos(theta), 0],
-                   [0, 0, 0, 1]])
-    return T
-
-def Tz(theta):
-    """ Transformation matrix z
-
-    theta -- angle in rad.
-    """
-    T = array([[cos(theta), -sin(theta), 0, 0],
-                   [sin(theta), cos(theta), 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 0, 0, 1]])
-    return T
-    
-def RzM(obj,theta):
-    """ Rotate object in Z axis (world frame)
-
-    Keyword arguments:
-    obj -- object.
-    theta -- angle in rad.
-    """
-    T = dot(Tz(theta),
-            obj.GetTransform())
-    
-    obj.SetTransform(T)
-    return obj
-
-def RxM(obj,theta):
-    """ Rotate object in X axis (world frame)
-
-    Keyword arguments:
-    obj -- object.
-    theta -- angle in rad.
-    """
-    T = dot(Tx(theta),
-            obj.GetTransform())
-    
-    obj.SetTransform(T)
-    return obj
-
-def RyM(obj,theta):
-    """ Rotate object in Y axis (world frame)
-
-    Keyword arguments:
-    obj -- object.
-    theta -- angle in rad.
-    """
-    T = dot(Ty(theta),
-            obj.GetTransform())
-    
-    obj.SetTransform(T)
-    return obj
+class KinBodyError(Exception):    
+    def __init__(self):
+        Exception.__init__(self, "object is not a KinBody.")
 
 def curvepoint(s1, s2, p0, tol=1e-4):
     """ Find a point near p0 which is in f_1 and f_2 (intersection between surfaces) 
@@ -173,17 +67,22 @@ def Rab(a,b):
 
 def Raxis(a,theta):
     """ Matrix rotation on 'a' axis, angle 'theta' """
+    
     R = eye(3)*cos(theta) + hat(a)*sin(theta) + (1-cos(theta))*outer(a, a)
     return R
 
-class sphere:
-    """ Sphere surface class. An object of this class can be
-    a surface to be iterated and generate the coating trajectories.
+class IterSurface:
+    """ Inheritable class to surfaces that can be iterated and generate the coating
+    trajectories.
 
     Keyword arguments:
-    Rn0 - first radius of the sphere
+    Rn0 -- initial parameter of the iteration
+    stopR -- stop parameter of the iteration
+    coatingstep -- iter step
     """
 
+    __metaclass__ = ABCMeta
+    
     def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
         self._Rn = Rn0
         self.stopR = stopR
@@ -192,6 +91,40 @@ class sphere:
     def update(self):
         self._Rn = self._Rn-self.coatingstep
 
+    @abstractmethod
+    def f(self, p):
+        pass 
+
+    @abstractmethod
+    def df(self, p):
+        pass 
+
+    @abstractmethod
+    def find_iter(self, p0):
+        pass
+
+    @abstractmethod
+    def criteria(self):
+        pass 
+
+    @abstractmethod
+    def findnextparallel(self, p):
+        pass
+
+
+class sphere(IterSurface):
+    """ Sphere surface class. An object of this class can be
+    a surface to be iterated and generate the coating trajectories.
+
+    Keyword arguments:
+    Rn0 -- initial parameter of the sphere
+    stopR -- stop parameter of the iteration
+    coatingstep -- iter step
+    """
+
+    def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
+        IterSurface.__init__(self, Rn0, stopR, coatingstep)
+        
     def f(self, p):
         return p[0]**2+p[1]**2+p[2]**2-self._Rn**2
 
@@ -200,6 +133,7 @@ class sphere:
 
     def find_iter(self, p0):
         self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-self.coatingstep
+        return
 
     def criteria(self):
         return self._Rn>self.stopR
@@ -208,36 +142,38 @@ class sphere:
         d = sqrt(p[0]**2+p[1]**2+p[2]**2)
         n = ceil((d-self.stopR)/self.coatingstep)
         self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
+        return
 
-class plane:
+class plane(IterSurface):
     """ Plane surface class. An object of this class can be
     a surface to be iterated and generate the coating trajectories.
 
     Keyword arguments:
-    z - height of the plane
+    Rn0 -- height of the plane (z)
+    stopR -- stop parameter of the iteration
+    coatingstep -- iter step
     """
 
-    def __init__(self, z0=3.770, stopZ=1.59, coatingstep = 0.003):
-        self._Zn = z0
-        self.stopZ = stopZ
-        self.coatingstep = coatingstep
+    def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
+        IterSurface.__init__(self, Rn0, stopR, coatingstep)
 
     def update(self):
-        self._Zn = self._Zn-self.coatingstep
+        self._Rn = self._Rn-self.coatingstep
 
     def f(self, p):
-        return p[2]-self._Zn
+        return p[2]-self._Rn
 
     def df(self, p):
         return array([0, 0, 1])
 
     def find_iter(self, p0):
-        self._Zn = p0[2]-self.coatingstep
+        self._Rn = p0[2]-self.coatingstep
 
     def criteria(self):
-        return self._Zn>self.stopZ
+        return self._Rn>self.stopR
 
     def findnextparallel(self, p):
         d = p[2]
-        n = ceil((d-self.stopZ)/self.coatingstep)
-        self._Zn = min(self.stopZ+n*self.coatingstep, self._Zn)        
+        n = ceil((d-self.stopR)/self.coatingstep)
+        self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
+        return
