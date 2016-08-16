@@ -7,8 +7,10 @@ import unittest
 import os
 from numpy import array, load, array_equal
 
+tol = 1e-6
 
 class TestBladeModeling(unittest.TestCase):
+
 
     @classmethod
     def setUpClass(cls):
@@ -66,8 +68,10 @@ class TestBladeModeling(unittest.TestCase):
         TestBladeModeling.blade2.make_model()
         self.assertTrue(array_equal(TestBladeModeling.blade2._model._points,
                                     template_rbf_points))
-        self.assertTrue(array_equal(TestBladeModeling.blade2._model._w,
-                                    template_w))
+
+        dif = abs(TestBladeModeling.blade2._model._w - template_w)
+        
+        self.assertTrue((dif<abs(tol*template_w)).all())
 
     def test_generate_trajectory(self):
         template_points = load('test/template_points.npz')
@@ -89,8 +93,11 @@ class TestBladeModeling(unittest.TestCase):
 
         sphere = mathtools.sphere(1.04, 0.97, 0.003)
         TestBladeModeling.blade3.generate_trajectory(sphere)
-        self.assertTrue(array_equal(TestBladeModeling.blade3._trajectories,
-                                    template_trajectories))
+
+        dif = abs(TestBladeModeling.blade3._trajectories - template_trajectories)
+        
+        self.assertTrue((dif<abs(tol*template_trajectories)).all())
+        
 
         
 

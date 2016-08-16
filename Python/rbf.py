@@ -1,5 +1,4 @@
-from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed, sum, zeros, ndarray
-from scipy.linalg import solve
+from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed, sum, zeros, ndarray, linalg
 from os import makedirs
 import errno
 from copy import copy
@@ -161,7 +160,7 @@ class RBF:
                 if i>=N/2:
                     d.append(self._eps)
                 else: d.append(0)   
-            self._w = solve(K,d)
+            self._w = linalg.solve(K,d)
         else:
             print "RBF::make - There are no points to make a RBF. Please create points with BladeModeling::sampling."
         
