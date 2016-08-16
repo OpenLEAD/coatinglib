@@ -6,7 +6,7 @@ class TestTurbine(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestTurbine, cls).setUpClass()
-        cls.turb = turbine.Turbine("turbine_unittest.cfg",False)
+        cls.turb = turbine.Turbine("test/turbine_unittest.cfg",False)
 
     def test_load_wrong(self):
         with self.assertRaises(turbine.ConfigFileError):

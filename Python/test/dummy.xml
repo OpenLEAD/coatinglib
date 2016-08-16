@@ -59,7 +59,7 @@
     </Body>
   </KinBody>
 
-  <Robot file="../motoman/motoman_mh122p.xml" name="mh12">
+  <Robot file="../../motoman/motoman_mh122p.xml" name="mh12">
      <Translation>0 0 6</Translation>
   </Robot>
 
