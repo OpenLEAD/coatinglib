@@ -1,13 +1,13 @@
 import rbf
 import blade_modeling
-import math
-import mathtools
 from turbine import Turbine
+import mathtools
 import unittest
 import os
-from numpy import array, load, array_equal
+from numpy import array, load, array_equal, abs, max, mean, sum, min
 
-tol = 1e-6
+tolmax = 1e-2
+tolmean = 1e-3
 
 class TestBladeModeling(unittest.TestCase):
 
@@ -51,6 +51,7 @@ class TestBladeModeling(unittest.TestCase):
         template_points = load('test/template_points.npz')
         template_points = template_points['array']
         TestBladeModeling.blade1.sampling(delta = 0.005, min_distance_between_points=0.001)
+
         self.assertTrue(array_equal(TestBladeModeling.blade1._points,
                                     template_points))
 
@@ -59,19 +60,18 @@ class TestBladeModeling(unittest.TestCase):
         template_points = template_points['array']
         TestBladeModeling.blade2._points = template_points
 
-        template_rbf_points = load('test/template_rbf_points.npz')
-        template_rbf_points = template_rbf_points['array']
-        template_w = load('test/template_w.npz')
-        template_w = template_w['array']
-
-        
         TestBladeModeling.blade2.make_model()
-        self.assertTrue(array_equal(TestBladeModeling.blade2._model._points,
-                                    template_rbf_points))
 
-        dif = abs(TestBladeModeling.blade2._model._w - template_w)
-        
-        self.assertTrue((dif<abs(tol*template_w)).all())
+        template_points = load('test/template_extra_points.npz')
+        template_points = template_points['array']
+
+        rbf_results = []
+        for point in template_points:
+            rbf_results.append(TestBladeModeling.blade1._model.f(point[0:3]))
+
+        rbf_results = abs(rbf_results)
+
+        self.assertTrue(max(rbf_results)<tolmax and mean(rbf_results)<tolmean)
 
     def test_generate_trajectory(self):
         template_points = load('test/template_points.npz')
@@ -94,9 +94,13 @@ class TestBladeModeling(unittest.TestCase):
         sphere = mathtools.sphere(1.04, 0.97, 0.003)
         TestBladeModeling.blade3.generate_trajectory(sphere)
 
-        dif = abs(TestBladeModeling.blade3._trajectories - template_trajectories)
-        
-        self.assertTrue((dif<abs(tol*template_trajectories)).all())
+        for template_trajectory in template_trajectories:
+            for point in template_trajectory:
+                for trajectory in TestBladeModeling.blade3._trajectories:
+                    dif = trajectory-point
+                    if min(sum(dif*dif,1))<tolmean: break
+                else: self.assertTrue(False)
+        self.assertTrue(True)        
         
 
         
