@@ -8,6 +8,7 @@ from numpy import array, load, array_equal, abs, max, mean, sum, min
 
 tolmax = 1e-2
 tolmean = 1e-3
+toleps = 1e-1
 
 class TestBladeModeling(unittest.TestCase):
 
@@ -68,10 +69,16 @@ class TestBladeModeling(unittest.TestCase):
         rbf_results = []
         for point in template_points:
             rbf_results.append(TestBladeModeling.blade1._model.f(point[0:3]))
-
         rbf_results = abs(rbf_results)
-
         self.assertTrue(max(rbf_results)<tolmax and mean(rbf_results)<tolmean)
+
+        outside_points = TestBladeModeling.blade2._model._pointsaugment(template_points)
+        rbf_outside_results = []
+        for point in outside_points:
+            rbf_outside_results.append(TestBladeModeling.blade2._model.f(point[0:3]))
+        rbf_outside_results = rbf_outside_results
+        self.assertTrue(mean(rbf_outside_results)>TestBladeModeling.blade2._model._eps*(1-toleps),
+                        msg = str(mean(rbf_outside_results)))
 
     def test_generate_trajectory(self):
         template_points = load('test/template_points.npz')
@@ -102,8 +109,5 @@ class TestBladeModeling(unittest.TestCase):
                 else: self.assertTrue(False)
         self.assertTrue(True)        
         
-
-        
-
 if __name__ == '__main__':
     unittest.main()

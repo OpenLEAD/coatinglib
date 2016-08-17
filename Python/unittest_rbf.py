@@ -8,6 +8,7 @@ from numpy import array, load, abs, max, mean, sum, min
 
 tolmax = 1e-2
 tolmean = 1e-3
+toleps = 1e-1
 cosmean = 0.92
 
 class TestRBF(unittest.TestCase):
@@ -45,6 +46,14 @@ class TestRBF(unittest.TestCase):
         self.assertTrue(maxvalue<tolmax and meanvalue<tolmean,
                         msg='max = '+str(maxvalue)+', mean = '+ str(meanvalue))
 
+        outside_points = TestRBF.rbf_r3._pointsaugment(self.template_points)
+        rbf_outside_results = []
+        for point in outside_points:
+            rbf_outside_results.append(TestRBF.rbf_r3.f(point[0:3]))
+        rbf_outside_results = rbf_outside_results
+        self.assertTrue(mean(rbf_outside_results)>TestRBF.rbf_r3._eps*(1-toleps),
+                        msg = str(mean(rbf_outside_results)))
+
         rbf_normal = []
         for point in self.template_points:
             rbf_normal.append(TestRBF.rbf_r3.df(point[0:3]))
@@ -73,6 +82,14 @@ class TestRBF(unittest.TestCase):
         self.assertTrue(maxvalue<tolmax and meanvalue<tolmean,
                         msg='max = '+str(maxvalue)+', mean = '+ str(meanvalue))
 
+        outside_points = TestRBF.rbf_logr._pointsaugment(self.template_points)
+        rbf_outside_results = []
+        for point in outside_points:
+            rbf_outside_results.append(TestRBF.rbf_logr.f(point[0:3]))
+        rbf_outside_results = rbf_outside_results
+        self.assertTrue(mean(rbf_outside_results)>TestRBF.rbf_logr._eps*(1-toleps),
+                        msg = str(mean(rbf_outside_results)))
+
         rbf_normal = []
         for point in self.template_points:
             rbf_normal.append(TestRBF.rbf_logr.df(point[0:3]))
@@ -99,6 +116,14 @@ class TestRBF(unittest.TestCase):
 
         self.assertTrue(maxvalue<tolmax and meanvalue<tolmean,
                         msg='max = '+str(maxvalue)+', mean = '+ str(meanvalue))
+
+        outside_points = TestRBF.rbf_gaussr._pointsaugment(self.template_points)
+        rbf_outside_results = []
+        for point in outside_points:
+            rbf_outside_results.append(TestRBF.rbf_gaussr.f(point[0:3]))
+        rbf_outside_results = rbf_outside_results
+        self.assertTrue(mean(rbf_outside_results)>TestRBF.rbf_gaussr._eps*(1-toleps),
+                        msg = str(mean(rbf_outside_results)))
 
         rbf_normal = []
         for point in self.template_points:

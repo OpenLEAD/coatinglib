@@ -29,8 +29,8 @@ class RBF:
             else: raise ValueError('points is not a list or numpy.ndarray')
         
         self._kernel = kernel
-        self._phi_dict = {'r3':self._r3,'logr':self._logr,'gaussr':self._gaussr,'iqr':self._iqr}
-        self._dphi_dict = {'r3':self._dr3,'logr':self._dlogr,'gaussr':self._dgaussr,'iqr':self._diqr}
+        self._phi_dict = {'r3':self._r3,'logr':self._logr,'gaussr':self._gaussr}
+        self._dphi_dict = {'r3':self._dr3,'logr':self._dlogr,'gaussr':self._dgaussr}
         self._name = name+'_'+kernel
         self._eps = eps
         self._w = []
@@ -120,11 +120,10 @@ class RBF:
         c = array(c[0:3])
         return self._dphi(c, self._points[:,0:3])
 
-    def _pointsaugment(self):
-        b = copy(self._points)
-        b[:,0:3]=b[:,0:3]+b[:,3:6]*self._eps
-        self._points = vstack((self._points,b))   
-        return    
+    def _pointsaugment(self, points):
+        b = copy(points)
+        b[:,0:3]=b[:,0:3]+b[:,3:6]*self._eps   
+        return b   
 
     def make(self):
         """
@@ -132,12 +131,13 @@ class RBF:
         """
         print 'RBF::make -  Warning: this is a data-intensive computing and might freeze your computer.'
         if len(self._points)>0:
-            self._pointsaugment()
+            self._points = vstack((self._points,
+                                   self._pointsaugment(self._points)))
             N = len(self._points)
             K = zeros((N, N))
             d = []
             for i in range(0,N):
-                K[i,:] = self._phi(self._points[i,0:3],self._points[:,0:3])
+                K[i,:] = self._phi(self._points[i,0:3], self._points[:,0:3])
                 if i>=N/2:
                     d.append(self._eps)
                 else: d.append(0)   
