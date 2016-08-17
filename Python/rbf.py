@@ -12,7 +12,7 @@ class RBF:
 
     Keyword arguments: 
     name -- of the object (string), e.g. jiraublade.
-    kernel -- radial basis functions: r3, logr, gaussr or iqr. (r = abs(ci-cj))
+    kernel -- radial basis functions: r3, logr, gaussr. (r = abs(ci-cj))
     points -- of the object to be modeled.
     """
 
@@ -76,11 +76,11 @@ class RBF:
 
     def _gaussr(self, ci, cj):
         c = -(cj-ci)
-        e = 0.1
+        e = 1e2
         return exp(-e*e*sum(c*c,1))
 
     def _dgaussr(self, ci, cj):
-        e = 0.1; e2 = e*e 
+        e = 1e2; e2 = e*e 
         k = -2*e2
         c = -(cj-ci)
         expc2 = exp(-e2*sum(c*c,1))
@@ -89,25 +89,6 @@ class RBF:
         b[:,0] = (expc2*c[:,0]*k)*self._w
         b[:,1] = (expc2*c[:,1]*k)*self._w
         b[:,2] = (expc2*c[:,2]*k)*self._w
-        return sum(b,0)
-
-    def _iqr(self, ci, cj):
-        c = -(cj-ci)
-        e = 0.001
-        c2 = e*e*sum(c*c,1)
-        return 1/(1+c2)
-
-    def _diqr(self, ci,cj):
-        e = 0.001 
-        k = -2*e*e
-        c = -(cj-ci)
-        c2 = e*e*sum(c*c,1)+1
-        c2 = 1/(c2*c2)
-
-        b = zeros((len(c),3))
-        b[:,0] = (c2*c[:,0]*k)*self._w
-        b[:,1] = (c2*c[:,1]*k)*self._w
-        b[:,2] = (c2*c[:,2]*k)*self._w
         return sum(b,0)
 
     def _phi(self, ci, cj):
