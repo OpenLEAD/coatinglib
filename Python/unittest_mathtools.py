@@ -9,44 +9,6 @@ class Testmathtools(unittest.TestCase):
     def setUp(self):
         self.turb = Turbine('turbine_std.cfg',False)
     
-    def test_T(self):
-        theta = pi/2
-
-        Tx = array([[1, 0, 0, 0],
-                   [0, cos(theta), -sin(theta), 0],
-                   [0, sin(theta), cos(theta), 0],
-                   [0, 0, 0, 1]])
-
-        Ty = array([[cos(theta), 0, sin(theta), 0],
-                   [0, 1, 0, 0],
-                   [-sin(theta), 0, cos(theta), 0],
-                   [0, 0, 0, 1]])
-
-        Tz = array([[cos(theta), -sin(theta), 0, 0],
-                   [sin(theta), cos(theta), 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 0, 0, 1]])
-        
-        Te = eye(4)
-        
-        self.assertTrue(array_equal(mathtools.T(theta, 'x'), Tx))
-        self.assertTrue(array_equal(mathtools.T(theta, 'y'), Ty))
-        self.assertTrue(array_equal(mathtools.T(theta, 'z'), Tz))
-        self.assertTrue(array_equal(mathtools.T(theta, ''), Te))
-
-    def test_Rotate(self):
-        obj = self.turb.blades[0]
-        obj.SetTransform(eye(4))
-        theta = pi/2
-
-        Te = eye(4)
-
-        obj = mathtools.Rotate(obj, -theta, 'z')
-        obj = mathtools.Rotate(obj, theta, 'y')
-        obj = mathtools.Rotate(obj, theta, 'z')
-        obj = mathtools.Rotate(obj, theta, 'x')
-        self.assertTrue(array_equal(obj.GetTransform(), Te))
-
     def test_hat(self):
         v = [1, 2, 3]
         M = array([[0, -3, 2],
