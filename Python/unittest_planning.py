@@ -1,6 +1,6 @@
 import planning
 import unittest
-from numpy import linspace, cos, sin, arange, zeros, ones, random, array, array_equal, dstack
+from numpy import linspace, cos, sin, arange, zeros, ones, random, array, array_equal, dstack, concatenate
 from math import pi
 from copy import deepcopy
 
@@ -11,11 +11,12 @@ class TestPlanning(unittest.TestCase):
 
     def setUp(self):
         global a
-        r = 1.43
+        cylinder_radius = 1.43
         self.B = array([2.43, 0, -1])
-        theta = linspace(-10,10,15)*pi/180
-        x = cos(theta)*1.43
-        y = sin(theta)*1.43
+        theta = linspace(-10,-5,10)*pi/180
+        theta = concatenate((theta, linspace(5,10,10)*pi/180))
+        x = cos(theta)*cylinder_radius
+        y = sin(theta)*cylinder_radius
         xy = dstack((x,y))
         nxny = dstack((-y,x))
         z = arange(-0.05, 0.05, 0.003)

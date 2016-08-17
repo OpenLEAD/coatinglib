@@ -12,6 +12,13 @@ places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
 
+def sort_trajectories(trajectories):
+    """ Arrange the trajectories in a zigzagging way.
+    """
+    sorted_trajectories = []
+    for trajectory in trajectories:
+        sorted_trajectory = []
+
 def sortTrajectories2(trajectories):
     """ Arrange the trajectories in a zigzagging way.
     """
