@@ -9,6 +9,7 @@ _SECONDARY_RAIL = "secondary_rail"
 _BLADE = "pa"
 _RUNNER_AREA = "arocamara"
 _IRIS = "iris"
+_ROTOR = "rotor"
 
 
 class XMLStructError(Exception):    
@@ -30,7 +31,8 @@ class Turbine:
                  _SECONDARY_RAIL: "secondary rail",
                  _BLADE: "blade",
                  _RUNNER_AREA: "runner area",
-                 _IRIS: "iris"
+                 _IRIS: "iris",
+                 _ROTOR: "rotor"
                  }
 
     def __init__(self,config_file, viewer = True):
@@ -56,6 +58,21 @@ class Turbine:
 
         # Principal turbine elements linked to attributes
         self.bodies = self.env.GetBodies()
+        
+        try:
+            self.rotor = next(body for body in self.bodies if body.GetName()==_ROTOR)
+        except StopIteration:
+            raise XMLStructError(_ROTOR)
+        
+        try:
+            self.iris = next(body for body in self.bodies if body.GetName()==_IRIS)
+        except StopIteration:
+            raise XMLStructError(_IRIS)
+        
+        try:
+            self.runner_area = next(body for body in self.bodies if body.GetName()==_RUNNER_AREA)
+        except StopIteration:
+            raise XMLStructError(_RUNNER_AREA)
         
         try:
             self.primary = next(body for body in self.bodies if body.GetName()==_PRIMARY_RAIL)
