@@ -1,5 +1,6 @@
 from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, tile
 from numpy import meshgrid, array, shape, sum, eye, dot, argmin, concatenate, sqrt
+from numpy import argmax
 from os import makedirs
 import errno
 from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
@@ -53,7 +54,23 @@ class BladeModeling:
             makedirs('./Blade/Trajectory')
         except OSError as exception:
             if exception.errno != errno.EEXIST:
-                raise    
+                raise
+
+    def save_samples(self):
+        savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
+        return
+
+    def save_model(self):
+        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz',
+                        array=self._model._w)
+        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz',
+                        array=self._model._points)
+        return
+
+    def save_trajectories(self):
+        savez_compressed('Blade/Trajectory/'+self._model._name+'_trajectories.npz',
+                                 array=self._trajectories)
+        return
 
     def load_samples(self):
         try:
@@ -100,9 +117,30 @@ class BladeModeling:
         """
         
         print 'Blade::sampling - Warning: this is a data-intensive computing and might freeze your computer.'
+
+        if self.visualization:
+            try:
+                self.turbine.env.RemoveKinBody(self.turbine.primary)
+            except: None
+            try:
+                self.turbine.env.RemoveKinBody(self.turbine.secondary)
+            except: None
+            try:
+                self.turbine.env.RemoveKinBody(self.turbine.iris)
+            except: None
+            try:
+                self.turbine.env.RemoveKinBody(self.turbine.runner_area)
+            except: None
+            try:
+                self.turbine.env.RemoveKinBody(self.turbine.robot)
+            except: None
+            try:
+                for i in range(1,len(self.turbine.blades)):
+                    self.turbine.env.RemoveKinBody(self.turbine.blades[i])
+            except: None
+            
         
         Rminmax = [self.turbine.model.nose_radius-0.01, self.turbine.model.runner_radius+0.01]
-        bladerotation=[self.turbine.environment.blade_angle, 'z']
      
         cc = RaveCreateCollisionChecker(self.turbine.env,'ode')
         if cc is not None:
@@ -140,36 +178,35 @@ class BladeModeling:
             if len(newinfo) > 0:
                   newinfo[sum(rays[collision,3:6]*newinfo[:,3:6],1)>0,3:6] *= -1
                   self._points = r_[self._points,newinfo]
-        self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))>Rminmax[0]]
-        self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))<Rminmax[1]]
-        #self._points = self._points[dot(self._points[:,3:6],[0,1,0])<0.8] # Filtering normals close to [0,1,0]
+        #self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))>Rminmax[0]]
+        #self._points = self._points[sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))<Rminmax[1]]
         #self._points[:,0:3] = self._points[:,0:3] + 0.1*self._points[:,3:6] # Shifting points for tree filtering
-        def treeFilter(points, r):
-            print "Blade::_treeFilter - Starting filtering points"
-            Tree = KDTree(points[:,0:3])
-            rays = []
-            N = len(points)
-            i=0
-            I = ones((len(points), 1), dtype=bool)
-            while True:
-                if I[i]:
-                    rays.append(points[i])
-                    idx = Tree.query_ball_point(points[i,0:3],r)
-                    idx = array(idx)
-                    idx = idx[idx>i]
-                    for j in idx:I[j]=False
-                i+=1
-                if i==len(points):break
-            return array(rays)
-        self._points = treeFilter(self._points, min_distance_between_points)
+
+        self._points = self.filter_by_distance(self._points, min_distance_between_points)
         #self._points[:,0:3] = self._points[:,0:3] - 0.1*self._points[:,3:6]
-        savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
+        self.save_samples()
 
         if self.visualization:
-            self.turbine.env.RemoveKinBody(self.turbine.primary)  
-            self.turbine.env.RemoveKinBody(self.turbine.secondary)
             plot_points(self.turbine, self._points, 'sampling', ((1,0,0)))
+
+        return             
    
+    def filter_by_distance(self, points, r):
+        Tree = KDTree(points[:,0:3])
+        rays = []
+        N = len(points)
+        i=0
+        I = ones((len(points), 1), dtype=bool)
+        while True:
+            if I[i]:
+                rays.append(points[i])
+                idx = Tree.query_ball_point(points[i,0:3],r)
+                idx = array(idx)
+                idx = idx[idx>i]
+                for j in idx:I[j]=False
+            i+=1
+            if i==len(points):break
+        return array(rays)
         
     def make_model(self):
         """
@@ -180,10 +217,8 @@ class BladeModeling:
         print "BladeModeling::make_model - Warning: this is a data-intensive computing and might freeze your computer."
         self._model._points = self._points
         self._model.make()
-        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz',
-                        array=self._model._w)
-        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz',
-                        array=self._model._points)       
+        self.save_model()
+        return
 
     def generate_trajectory(self, iter_surface):
         """
@@ -254,7 +289,8 @@ class BladeModeling:
                 plot_points_array(self.turbine, self._trajectories,
                                   'trajectories', ((0,0,0)))
         else:
-            Pd = self._points[argmin(self._points[:,2])]
+            Rs = sqrt(sum(self._points[:,0:3]*self._points[:,0:3],1))
+            Pd = self._points[argmax(Rs)]
             iter_surface.findnextparallel(Pd)
             Pd = mathtools.curvepoint(self._model, iter_surface, [Pd[0],Pd[1],Pd[2]])
 
@@ -262,15 +298,14 @@ class BladeModeling:
         while iter_surface.criteria():
             self._trajectories = drawParallel(self._trajectories, Pd, iter_surface)
             if counter%30==0:
-                savez_compressed('Blade/Trajectory/'+self._model._name+'_trajectories.npz',
-                                 array=self._trajectories)
+                self.save_trajectories()
             p0=self._trajectories[-1][-1]
             iter_surface.update()
             Pd = mathtools.curvepoint(self._model, iter_surface, [p0[0],p0[1],p0[2]])
             counter+=1
         
-        savez_compressed('Blade/Trajectory/'+self._model._name+'_trajectories.npz',
-                         array=self._trajectories)
+        self.save_trajectories()
+        return
 
     def remove_trajectories_from_env(self):
         remove_points(self.turbine, 'trajectories')
