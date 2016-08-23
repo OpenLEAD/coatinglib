@@ -1,5 +1,5 @@
-from numpy import array, dot, cross, outer, eye
-from math import cos, sin, sqrt, ceil, pi
+from numpy import array, dot, cross, outer, eye, array_equal
+from math import cos, sin, sqrt, ceil, pi, isnan
 from openravepy import IkFilterOptions
 from abc import ABCMeta, abstractmethod
 
@@ -19,6 +19,13 @@ def curvepoint(s1, s2, p0, tol=1e-4):
     while True:
         df1 = s1.df(p0); f1 = s1.f(p0)
         df2 = s2.df(p0); f2 = s2.f(p0)
+
+        crossdf = cross(df1,df2)
+        if isnan(crossdf[0]) or isnan(crossdf[1]) or isnan(crossdf[2]):
+            raise ValueError('Outside model')
+        if array_equal(crossdf,array([0,0,0])):
+            raise ValueError('Gradients are colinear')
+        
         df1df2 = dot(df1,df2); df1df1 = dot(df1,df1); df2df2 = dot(df2,df2)
         beta = (-f1*df1df2+f2*df1df1)/(df1df2**2-df1df1*df2df2)
         alpha = (-f1*df2df2+f2*df1df2)/(df1df1*df2df2-df1df2*df1df2)
