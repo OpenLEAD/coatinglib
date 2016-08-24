@@ -1,4 +1,4 @@
-from numpy import array, dot, cross, outer, eye, array_equal
+from numpy import array, dot, cross, outer, eye, array_equal, sum
 from math import cos, sin, sqrt, ceil, pi, isnan
 from openravepy import IkFilterOptions
 from abc import ABCMeta, abstractmethod
@@ -104,6 +104,10 @@ class IterSurface:
 
     @abstractmethod
     def df(self, p):
+        pass
+
+    @abstractmethod
+    def f_array(self, p):
         pass 
 
     @abstractmethod
@@ -138,6 +142,10 @@ class sphere(IterSurface):
     def df(self, p):
         return array([2*p[0], 2*p[1], 2*p[2]])
 
+    def f_array(self, p):
+        p = array(p)
+        return sum(p*p,1)-self._Rn**2
+        
     def find_iter(self, p0):
         self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-self.coatingstep
         return
@@ -172,6 +180,10 @@ class plane(IterSurface):
 
     def df(self, p):
         return array([0, 0, 1])
+
+    def f_array(self, p):
+        p = array(p)
+        return p[:,2]-self._Rn
 
     def find_iter(self, p0):
         self._Rn = p0[2]-self.coatingstep
