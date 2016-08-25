@@ -1,4 +1,3 @@
-from mathtools import hat, Rab, Raxis
 from numpy import sqrt, dot, concatenate, arange, array
 from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2

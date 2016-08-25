@@ -1,4 +1,3 @@
-from turbine import Turbine
 from numpy import array, sin, cos, pi, maximum, minimum, random, tan
 from numpy import arctan2, sign, abs, mean, argmax, argmin
 from time import time

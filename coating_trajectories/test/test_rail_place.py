@@ -1,13 +1,14 @@
-import unittest
-import rail_place
+from . import TestCase
 from numpy import arange,argmax
 
-class TestRailplace(unittest.TestCase):
+from .. import rail_place
+from ..turbine import Turbine
 
+class TestRailPlace(TestCase):
     @classmethod
     def setUpClass(cls):
-        super(TestRailplace, cls).setUpClass()
-        cls.turb = rail_place.Turbine("turbine_unittest.cfg",False)
+        super(TestRailPlace, cls).setUpClass()
+        cls.turb = Turbine(cls.test_dir + "/turbine_unittest.cfg",False)
         cls.samples =1000000
         cls.railplaces = rail_place.rand_rail(cls.turb, cls.samples)
 

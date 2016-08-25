@@ -1,8 +1,9 @@
-import planning
 import unittest
 from numpy import linspace, cos, sin, arange, zeros, ones, random, array, array_equal, dstack, concatenate
 from math import pi
 from copy import deepcopy
+
+from .. import planning
 
 a = []
 b = []

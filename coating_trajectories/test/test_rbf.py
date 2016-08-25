@@ -1,35 +1,31 @@
-import rbf
-import blade_modeling
-from turbine import Turbine
-import mathtools
-import unittest
 import os
 from numpy import array, load, abs, max, mean, sum, min
+
+from . import TestCase
+from .. import rbf
 
 tolmax = 1e-2
 tolmean = 1e-3
 toleps = 1e-1
 cosmean = 0.92
 
-class TestRBF(unittest.TestCase):
-
-    def setUp(self):
-
-        self.template_points = load('test/template_extra_points.npz')
-        self.template_points = self.template_points['array']
-        self.template_normal = self.template_points[:,3:6]
-
-
+class TestRBF(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestRBF, cls).setUpClass()
-        name = "test"
-        template_points = load('test/template_points.npz')
+        template_points = load(cls.test_dir + '/template_points.npz')
         template_points = template_points['array']
      
+        name = "test"
         cls.rbf_r3 = rbf.RBF(name, 'r3', template_points)
         cls.rbf_logr = rbf.RBF(name, 'logr', template_points)
         cls.rbf_gaussr = rbf.RBF(name, 'gaussr', template_points)
+
+    def setUp(self):
+        super
+        self.template_points = load(self.test_dir + '/template_extra_points.npz')
+        self.template_points = self.template_points['array']
+        self.template_normal = self.template_points[:,3:6]
 
     def test_r3(self):
         TestRBF.rbf_r3.make()

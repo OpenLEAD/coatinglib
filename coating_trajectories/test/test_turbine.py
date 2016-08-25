@@ -1,16 +1,16 @@
-import unittest
-import turbine
+from . import TestCase
+from ..turbine import Turbine
 
-class TestTurbine(unittest.TestCase):
+class TestTurbine(TestCase):
 
     @classmethod
     def setUpClass(cls):
         super(TestTurbine, cls).setUpClass()
-        cls.turb = turbine.Turbine("test/turbine_unittest.cfg",False)
+        cls.turb = Turbine(cls.test_dir + "/turbine_unittest.cfg",False)
 
     def test_load_wrong(self):
         with self.assertRaises(turbine.ConfigFileError):
-            turbwrong = turbine.Turbine("wrong",False)
+            turbwrong = Turbine("wrong",False)
         
     # environment
     def test_parsed_load(self):

@@ -1,14 +1,10 @@
-import mathtools
-from turbine import Turbine
 import unittest
 from numpy import array, array_equal, eye, pi, around, sqrt
 from math import cos, sin
 
-class Testmathtools(unittest.TestCase):
+from .. import mathtools
 
-    def setUp(self):
-        self.turb = Turbine('turbine_std.cfg',False)
-    
+class Testmathtools(unittest.TestCase):
     def test_hat(self):
         v = [1, 2, 3]
         M = array([[0, -3, 2],
