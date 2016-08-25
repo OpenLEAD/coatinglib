@@ -240,31 +240,47 @@ class BladeModeling:
 
 
     def split_blade_points(self, points, iter_surface):
-        R0 = iter_surface._Rn
-        step = iter_surface.coatingstep
-        R_old = iter_surface._Rn
-        iter_surface.update()
-        final_points = []
-        old_points = []
-        N = len(points)*1.0/(ceil(len(points)*1.0/6000))
-
+        #r0 = iter_surface._Rn
+        #r_old = iter_surface._Rn
+        #final_points = []
+        #old_points = []
+        number_of_parts = ceil(len(points)*1.0/4000)
+        number_of_points_per_part = len(points)*1.0/number_of_parts
+        #counter = 1
+        points_distance = iter_surface.f_array(points)
+        points = [x for (y,x) in sorted(zip(points_distance, points))]
+        points = array(points)
+        
         while iter_surface.criteria():
-            new_points = points[(iter_surface.f_array(points)>iter_surface._Rn)&(iter_surface.f_array(points)<=R_old)]
-            print 'len(new_points) =', len(new_points)
-            if len(new_points)<N:
-                old_points = deepcopy(new_points)
+            r_new = iter_surface._Rn
+            positive_values = iter_surface.f_array(points)>=0
+            iter_surface._Rn = r_old
+            negative_values = iter_surface.f_array(points)<=0
+            iter_surface._Rn = r_new
+            new_points = points[positive_values & negative_values]
+
+            if counter!=number_of_parts:
+                if len(new_points)<number_of_points_per_part:
+                    old_points = deepcopy(new_points)
+                else:
+                    if len(old_points)==0:
+                        raise ValueError('It is not possible to split the cloud with this surface/step.')
+                    else:
+                        print 'iter_surface._Rn = ', iter_surface._Rn
+                        print 'r_old =', r_old
+                        final_points.append(old_points)
+                        old_points = []
+                        r_old = iter_surface._Rn
+                        counter += 1
             else:
-                if len(old_points)==0:
-                    raise ValueError('The point cloud is too big and is impossible to split it.')
-                else: 
-                    final_points.append(old_points)
-                    old_points = []
-                    R_old = iter_surface._Rn
+                old_points = deepcopy(new_points)
+                
             iter_surface.update()
+
         if len(old_points)!=0:
             final_points.append(old_points)
 
-        iter_surface._Rn = R0    
+        iter_surface._Rn = r0    
         return final_points    
     
     
