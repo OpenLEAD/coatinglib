@@ -11,3 +11,5 @@
 /plots
 !/Python/test/*
 *~
+.*.sw?
+
