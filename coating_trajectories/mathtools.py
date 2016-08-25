@@ -1,5 +1,5 @@
-from numpy import array, dot, cross, outer, eye, array_equal, sum
-from math import cos, sin, sqrt, ceil, pi, isnan
+from numpy import array, dot, cross, outer, eye, array_equal, sum, sqrt
+from math import cos, sin, ceil, pi, isnan
 from openravepy import IkFilterOptions
 from abc import ABCMeta, abstractmethod
 
@@ -122,6 +122,10 @@ class IterSurface:
     def findnextparallel(self, p):
         pass
 
+    @abstractmethod
+    def name(self, p):
+        pass
+
 
 class sphere(IterSurface):
     """ Sphere surface class. An object of this class can be
@@ -144,7 +148,7 @@ class sphere(IterSurface):
 
     def f_array(self, p):
         p = array(p)
-        return sum(p*p,1)-self._Rn**2
+        return sum(p[:,0:3]*p[:,0:3],1)-self._Rn**2
         
     def find_iter(self, p0):
         self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-self.coatingstep
@@ -158,6 +162,9 @@ class sphere(IterSurface):
         n = ceil((d-self.stopR)/self.coatingstep)
         self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
         return
+
+    def name(self):
+        return 'sphere'
 
 class plane(IterSurface):
     """ Plane surface class. An object of this class can be
@@ -196,3 +203,6 @@ class plane(IterSurface):
         n = ceil((d-self.stopR)/self.coatingstep)
         self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
         return
+
+    def name(self):
+        return 'plane'
