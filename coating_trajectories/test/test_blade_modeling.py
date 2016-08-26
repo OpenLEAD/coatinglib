@@ -1,7 +1,7 @@
-import os
 from numpy import array, load, array_equal, abs, max, mean, sum, min
 
 import unittest
+from . import TestCase
 from .. import rbf
 from .. turbine import Turbine
 
@@ -9,32 +9,19 @@ tolmax = 1e-2
 tolmean = 1e-3
 toleps = 1e-1
 
-class TestBladeModeling(unittest.TestCase):
+class TestBladeModeling(TestCase):
+    
     @classmethod
+    def setUpClass(cls):
+        super(TestBladeModeling, cls).setUpClass()
+        cls.turb = Turbine("/dummy.cfg", cls.test_dir, False)
+        
     def setUp(self):
         name = "testblade"
-        
-        try:
-            os.remove('Blade/testblade_points.npz')
-        except: None
-
-        try:
-            os.remove('Blade/Trajectory/testblade_r3_trajectories.npz')
-        except: None
-
-        try:
-            os.remove('Blade/RBF/testblade_r3_points.npz')
-        except: None
-
-        try:
-            os.remove('Blade/RBF/testblade_r3_w.npz')
-        except: None
-        
         rbf_model = rbf.RBF(name,'r3')
-        self.turb = Turbine('/test/dummy.cfg',False)
-        self.blade1 = blade_modeling.BladeModeling(name, rbf_model, self.turb)
-        self.blade2 = blade_modeling.BladeModeling(name, rbf_model, self.turb)
-        self.blade3 = blade_modeling.BladeModeling(name, rbf_model, self.turb)
+        self.blade1 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
+        self.blade2 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
+        self.blade3 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
 
 
     def test_sampling(self):
