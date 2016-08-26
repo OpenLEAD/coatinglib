@@ -1,6 +1,4 @@
 *.npz
-!/Python/blade_sampling/blade_crop_fast.npz
-!/Python/blade_sampling_full/blade_crop_ufast.npz
 *.csv
 *.pyc
 /Turbine/
@@ -9,7 +7,7 @@
 *.xml
 /trajectory
 /plots
-!/Python/test/*
+!/coating_trajectories/test/template/*
 *~
 .*.sw?
 
