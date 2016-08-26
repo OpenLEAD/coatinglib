@@ -261,7 +261,8 @@ class BladeModeling:
                     if max(dP[0:3])<=step:counter+=1
                 else:
                     if max(dP[0:3])<=step:
-                        if max(abs(y[0,0:3]-y[1,0:3]))<=step and max(abs(y[0,0:3]-y[2,0:3]))>=step: 
+                        if max(abs(y[0,0:3]-y[1,0:3]))<=step and max(abs(y[0,0:3]-y[2,0:3]))>=step:
+                            y.append(next_point_on_surfaces)
                             return y
                         else: raise ValueError('Step is too big and the function terminated soon.')
                 y.append(next_point_on_surfaces)
