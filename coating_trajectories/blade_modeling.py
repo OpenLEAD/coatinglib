@@ -25,6 +25,14 @@ class BladeModeling:
     blade -- body blade object.
     """
 
+    turbine = None
+    _name = None
+    _model = None
+    _blade = None
+    _trajectories = None
+    _points = None
+    _trajectories = None
+    
     def __init__(self, name, model_type, turbine):
         self.turbine = turbine
         self._name = name
@@ -73,7 +81,7 @@ class BladeModeling:
             self._points = self._points['array']
             self._samplingLoaded = True
         except IOError:
-            raise('Samples could not be loaded. Call method BladeModeling::sampling')
+            raise IOError('Samples could not be loaded. Call method BladeModeling::sampling')
         return
 
     def load_model(self):
@@ -84,7 +92,7 @@ class BladeModeling:
             self._model._points = self._model._points['array']
             self._modelLoaded = True
         except IOError:
-            raise("Model could not be loaded.")
+            raise IOError("Model could not be loaded.")
         return
     
     def load_trajectories(self):
@@ -93,7 +101,7 @@ class BladeModeling:
             self._trajectories = self._trajectories['array']
             self._trajectories = self._trajectories.tolist()
         except IOError:
-            raise("Trajectories could not be loaded.")
+            raise IOError("Trajectories could not be loaded.")
         return
 
     def sampling(self, delta = 0.005, min_distance_between_points=0.05):
@@ -200,7 +208,7 @@ class BladeModeling:
             self.save_model()
         return   
 
-    def generate_trajectory(self, iter_surface, step = 3e-3):
+    def generate_trajectory(self, iter_surface, step = 1e-3):
         """
         Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
@@ -213,7 +221,7 @@ class BladeModeling:
 
         Keyword arguments:
         iter_surface -- surface to be iterated, as mathtools.sphere.
-        step -- it must be small, e.g. 3e-3. Otherwise the method will fail.
+        step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
         """
 
         if len(self._model._w)==0:
@@ -230,7 +238,7 @@ class BladeModeling:
         if len(self._trajectories)>0:
             last_computed_point = self._trajectories[-1][-1]
             iter_surface.find_iter(last_computed_point)
-            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, last_computed_point[0:3]])
+            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, last_computed_point[0:3])
         else: point_on_surfaces = self._compute_initial_point(iter_surface)
 
         try: 
@@ -238,34 +246,38 @@ class BladeModeling:
                 self._trajectories.append(self._draw_parallel(point_on_surfaces, iter_surface, step))
                 p0=self._trajectories[-1][-1]
                 iter_surface.update()
-                point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, p0[0:3]])
+                point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, p0[0:3])
         except KeyboardInterrupt:  
             self.save_trajectories()
             raise
+        self.save_trajectories()
         return
 
     def _compute_initial_point(self, iter_surface):
         initial_point = self._points[argmax(iter_surface.f_array(self._points))]
         iter_surface.findnextparallel(initial_point)
-        return mathtools.curvepoint(self._model, iter_surface, initial_point[0:3]])
+        return mathtools.curvepoint(self._model, iter_surface, initial_point[0:3])
 
     def _draw_parallel(self, point_on_surfaces, iter_surface, step):
             initial_point = copy(point_on_surfaces)
             counter = 0
-            y = [point_on_surfaces]
+            trajectory = [point_on_surfaces]
             while True:
-                tan = mathtools.surfaces_tangent(y[-1], iter_surface)
-                next_point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, y[-1][0:3]-tan*dt)
-                dP = abs(next_point_on_surfaces-initial_point)
+                tan = mathtools.surfaces_tangent(trajectory[-1], iter_surface)
+                next_point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, trajectory[-1][0:3]-tan*step)
+                dP = abs(next_point_on_surfaces[0:3]-initial_point[0:3])
                 if counter==0:
-                    if max(dP[0:3])<=step:counter+=1
+                    if max(dP)<=step:counter+=1
                 else:
-                    if max(dP[0:3])<=step:
-                        if max(abs(y[0,0:3]-y[1,0:3]))<=step and max(abs(y[0,0:3]-y[2,0:3]))>=step:
-                            y.append(next_point_on_surfaces)
-                            return y
-                        else: raise ValueError('Step is too big and the function terminated soon.')
-                y.append(next_point_on_surfaces)
+                    if max(dP)<=step:
+                        try:
+                            p0 = trajectory[0][0:3]; p1 = trajectory[1][0:3]; p2 = trajectory[2][0:3]
+                            if (max(abs(p0-p1))<=step) and (max(abs(p0-p2))>=step):
+                                trajectory.append(next_point_on_surfaces)
+                                return trajectory
+                        except IndexError:
+                            raise IndexError('Step is too big and the function terminated soon.')
+                trajectory.append(next_point_on_surfaces)
 
     def remove_trajectories_from_env(self):
         remove_points(self.turbine, 'trajectories')
