@@ -128,8 +128,9 @@ class RBF:
     def make(self):
         """
         Make the implicit reconstruction with RBF.
+
+        This is a data-intensive computing and might freeze your computer.
         """
-        print 'RBF::make -  Warning: this is a data-intensive computing and might freeze your computer.'
         if len(self._points)>0:
             self._points = vstack((self._points,
                                    self._pointsaugment(self._points)))
@@ -143,5 +144,5 @@ class RBF:
                 else: d.append(0)   
             self._w = linalg.solve(K,d)
         else:
-            print "RBF::make - There are no points to make a RBF. Please create points with BladeModeling::sampling."
+            raise ValueError("There are no points to make a RBF.")
         
