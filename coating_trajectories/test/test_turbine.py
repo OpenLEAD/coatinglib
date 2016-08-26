@@ -1,3 +1,4 @@
+import unittest
 from . import TestCase
 from ..turbine import Turbine
 
@@ -6,7 +7,7 @@ class TestTurbine(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestTurbine, cls).setUpClass()
-        cls.turb = Turbine(cls.test_dir + "/turbine_unittest.cfg",False)
+        cls.turb = Turbine("/turbine_unittest.cfg",cls.test_dir,False)
 
     def test_load_wrong(self):
         with self.assertRaises(turbine.ConfigFileError):
@@ -14,7 +15,7 @@ class TestTurbine(TestCase):
         
     # environment
     def test_parsed_load(self):
-        self.assertEqual(TestTurbine.turb.environment.load,"../Turbina/env_mh12_0_16.xml")
+        self.assertEqual(TestTurbine.turb.environment.load,"/Turbina/env_mh12_0_16.xml")
 
     def test_parsed_z_floor_level(self):
         self.assertEqual(TestTurbine.turb.environment.z_floor_level,-3.22)
