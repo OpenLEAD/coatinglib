@@ -8,7 +8,7 @@ class KinBodyError(Exception):
         Exception.__init__(self, "object is not a KinBody.")
 
 def curvepoint(s1, s2, p0, tol=1e-4):
-    """ Find a point near p0 which is in f_1 and f_2 (intersection between surfaces) 
+    """ Find a point on f_1 and f_2 (intersection between surfaces) near p0  
 
     Keyword arguments:
     s1 -- surface 1.
@@ -31,7 +31,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
         alpha = (-f1*df2df2+f2*df1df2)/(df1df1*df2df2-df1df2*df1df2)
         dk = alpha*df1+beta*df2
         p1 = p0+dk
-        if sqrt(dot(dk,dk))<tol:
+        if dot(dk,dk)<tol**2:
             norm = s1.df([p1[0],p1[1],p1[2]])
             norm /= sqrt(dot(norm,norm))
             p1 = array([p1[0],p1[1],p1[2],norm[0],norm[1],norm[2]])
@@ -127,7 +127,7 @@ class IterSurface:
         pass
 
 
-class sphere(IterSurface):
+class Sphere(IterSurface):
     """ Sphere surface class. An object of this class can be
     a surface to be iterated and generate the coating trajectories.
 
@@ -152,7 +152,6 @@ class sphere(IterSurface):
         
     def find_iter(self, p0):
         self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-self.coatingstep
-        return
 
     def criteria(self):
         return self._Rn>self.stopR
@@ -166,7 +165,7 @@ class sphere(IterSurface):
     def name(self):
         return 'sphere'
 
-class plane(IterSurface):
+class Plane(IterSurface):
     """ Plane surface class. An object of this class can be
     a surface to be iterated and generate the coating trajectories.
 
