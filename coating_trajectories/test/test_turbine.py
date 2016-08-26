@@ -1,6 +1,6 @@
 import unittest
 from . import TestCase
-from ..turbine import Turbine
+from ..turbine import Turbine, ConfigFileError
 
 class TestTurbine(TestCase):
 
@@ -10,8 +10,8 @@ class TestTurbine(TestCase):
         cls.turb = Turbine("/turbine_unittest.cfg",cls.test_dir,False)
 
     def test_load_wrong(self):
-        with self.assertRaises(turbine.ConfigFileError):
-            turbwrong = Turbine("wrong",False)
+        with self.assertRaises(ConfigFileError):
+            turbwrong = Turbine("wrong",viewer = False)
         
     # environment
     def test_parsed_load(self):
