@@ -1,13 +1,12 @@
 from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, tile
-from numpy import meshgrid, array, shape, sum, eye, dot, argmin, concatenate, sqrt
-from numpy import argmax
+from numpy import meshgrid, array, shape, sum, eye, dot, argsort, concatenate, sqrt
+from numpy import argmax, argmin
 from os import makedirs
 import errno
 from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
-from openravepy.misc import SpaceSamplerExtra
 from scipy.spatial import KDTree
 import mathtools
-from math import atan2, pi, ceil
+from math import pi, ceil
 from openrave_plotting import plot_points, plot_points_array, plot_point, remove_points
 from copy import copy, deepcopy
 
@@ -119,6 +118,7 @@ class BladeModeling:
         min_distance_between_points -- uniform distance between the object's samples.
         min_distance_between_points >= delta
         """
+        
         cc = RaveCreateCollisionChecker(self.turbine.env,'ode')
         if cc is not None:
                 ccold = self.turbine.env.GetCollisionChecker()
@@ -161,6 +161,16 @@ class BladeModeling:
         return             
    
     def filter_by_distance(self, points, r):
+        """
+        The filter_by_distance method is an algorithm to delete the nearest neighbors
+        points, inside a distance threshold. 
+
+        Keyword arguments:
+        points -- points to be filtered array(array).
+        r - distance threshold..
+        """
+
+        points = points[argsort(points[:,0])]
         Tree = KDTree(points[:,0:3])
         rays = []
         N = len(points)
@@ -234,12 +244,7 @@ class BladeModeling:
         self._blade.SetTransform(dot(self._blade.GetTransform(),
                                      matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
                                  )
-                
-        if len(self._trajectories)>0:
-            last_computed_point = self._trajectories[-1][-1]
-            iter_surface.find_iter(last_computed_point)
-            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, last_computed_point[0:3])
-        else: point_on_surfaces = self._compute_initial_point(iter_surface)
+        point_on_surfaces = self.compute_initial_point(iter_surface)
 
         try: 
             while iter_surface.criteria():
@@ -253,31 +258,54 @@ class BladeModeling:
         self.save_trajectories()
         return
 
-    def _compute_initial_point(self, iter_surface):
-        initial_point = self._points[argmax(iter_surface.f_array(self._points))]
-        iter_surface.findnextparallel(initial_point)
-        return mathtools.curvepoint(self._model, iter_surface, initial_point[0:3])
+    def compute_initial_point(self, iter_surface):
+        if len(self._trajectories)>0:
+            last_computed_point = self._trajectories[-1][-1]
+            iter_surface.find_iter(last_computed_point)
+            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, last_computed_point[0:3])
+        else:    
+            initial_point = self._points[argmax(iter_surface.f_array(self._points))]
+            iter_surface.findnextparallel(initial_point)
+            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, initial_point[0:3])
+        return point_on_surfaces
 
     def _draw_parallel(self, point_on_surfaces, iter_surface, step):
-            initial_point = copy(point_on_surfaces)
-            counter = 0
-            trajectory = [point_on_surfaces]
-            while True:
-                tan = mathtools.surfaces_tangent(trajectory[-1], iter_surface)
-                next_point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, trajectory[-1][0:3]-tan*step)
-                dP = abs(next_point_on_surfaces[0:3]-initial_point[0:3])
-                if counter==0:
-                    if max(dP)<=step:counter+=1
-                else:
-                    if max(dP)<=step:
-                        try:
-                            p0 = trajectory[0][0:3]; p1 = trajectory[1][0:3]; p2 = trajectory[2][0:3]
-                            if (max(abs(p0-p1))<=step) and (max(abs(p0-p2))>=step):
-                                trajectory.append(next_point_on_surfaces)
-                                return trajectory
-                        except IndexError:
-                            raise IndexError('Step is too big and the function terminated soon.')
-                trajectory.append(next_point_on_surfaces)
+        """
+        The _draw_parallel generates one coating trajectory. The trajectory is
+        the intersection between two surfaces: the blade model, and the surface
+        to be iterated, e.g. spheres. The algorithm
+        follows the marching method, documentation available in:
+        http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
+        page 94 intersection surface - surface.
+
+        This is a data-intensive computing and might freeze your computer.
+
+        Keyword arguments:
+        point_on_surfaces -- initial point on both surfaces.
+        iter_surface -- surface to be iterated, as mathtools.sphere.
+        step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
+        """
+        initial_point = copy(point_on_surfaces)
+        counter = 0
+        trajectory = [point_on_surfaces]
+        while True:
+            tan = mathtools.surfaces_tangent(trajectory[-1], iter_surface)
+            next_point_on_surfaces = mathtools.curvepoint(self._model,
+                                                          iter_surface, trajectory[-1][0:3]-tan*step)
+            dP = abs(next_point_on_surfaces[0:3]-initial_point[0:3])
+            if counter==0:
+                if max(dP)<=step:counter+=1
+            else:
+                if max(dP)<=step:
+                    try:
+                        p0 = trajectory[0][0:3]; p1 = trajectory[1][0:3]; p2 = trajectory[2][0:3]
+                        if (max(abs(p0-p1))<=step) and (max(abs(p0-p2))>=step):
+                            trajectory.append(next_point_on_surfaces)
+                            return trajectory
+                    except IndexError:
+                        raise IndexError('Step is too big and the function terminated soon.')
+            trajectory.append(next_point_on_surfaces)
+        return    
 
     def remove_trajectories_from_env(self):
         remove_points(self.turbine, 'trajectories')
