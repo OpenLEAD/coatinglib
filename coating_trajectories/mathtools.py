@@ -8,7 +8,13 @@ class KinBodyError(Exception):
         Exception.__init__(self, "object is not a KinBody.")
 
 def curvepoint(s1, s2, p0, tol=1e-4):
-    """ Find a point on f_1 and f_2 (intersection between surfaces) near p0  
+    """
+    Find a point on s1 and s2 (intersection between surfaces) near p0.
+    The algorithm is described in the paper:
+    'Tracing surface intersections - C.L. Bajaj, C.M. Hoffmann, R.E. Lynch,
+    and J.E.H. Hopcroft.'
+    Available at:
+    https://www.cs.purdue.edu/homes/cmh/distribution/papers/Geometry/geo6.pdf
 
     Keyword arguments:
     s1 -- surface 1.
