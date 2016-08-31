@@ -39,7 +39,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
         p1 = p0+dk
         if dot(dk,dk)<tol**2:
             norm = s1.df([p1[0],p1[1],p1[2]])
-            norm /= sqrt(dot(norm,norm))
+            norm = norm/sqrt(dot(norm,norm))
             p1 = array([p1[0],p1[1],p1[2],norm[0],norm[1],norm[2]])
             return p1
         else: p0=p1
@@ -153,11 +153,12 @@ class Sphere(IterSurface):
         return array([2*p[0], 2*p[1], 2*p[2]])
 
     def f_array(self, p):
+        if len(p)==1: return self.f(p[0])
         p = array(p)
         return sum(p[:,0:3]*p[:,0:3],1)-self._Rn**2
         
     def find_iter(self, p0):
-        self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)-self.coatingstep
+        self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)
 
     def criteria(self):
         return self._Rn>self.stopR
@@ -181,11 +182,8 @@ class Plane(IterSurface):
     coatingstep -- iter step
     """
 
-    def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
+    def __init__(self, Rn0=1, stopR=-4, coatingstep = 0.003):
         IterSurface.__init__(self, Rn0, stopR, coatingstep)
-
-    def update(self):
-        self._Rn = self._Rn-self.coatingstep
 
     def f(self, p):
         return p[2]-self._Rn
@@ -194,11 +192,12 @@ class Plane(IterSurface):
         return array([0, 0, 1])
 
     def f_array(self, p):
+        if len(p)==1: return self.f(p[0])
         p = array(p)
         return p[:,2]-self._Rn
 
     def find_iter(self, p0):
-        self._Rn = p0[2]-self.coatingstep
+        self._Rn = p0[2]
 
     def criteria(self):
         return self._Rn>self.stopR
