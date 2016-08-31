@@ -1,4 +1,5 @@
-from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed, sum, zeros, ndarray, linalg
+from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed
+from numpy import sum, zeros, ndarray, linalg
 from os import makedirs
 import errno
 from copy import copy
@@ -16,7 +17,7 @@ class RBF:
     points -- of the object to be modeled.
     """
 
-    def __init__(self, name, kernel, points=[], eps=1e-3):
+    def __init__(self, name, kernel, points=[], eps=1e-3, gausse = 1e-1):
 
         if not isinstance(name, basestring):
             raise ValueError('name is not a string')
@@ -36,6 +37,7 @@ class RBF:
         self._w = []
         self._points = points
         self.model_type = 'RBF'
+        self.gausse = 1e-1
        
         try:
             self._phi_dict[self._kernel]
@@ -76,11 +78,11 @@ class RBF:
 
     def _gaussr(self, ci, cj):
         c = -(cj-ci)
-        e = 1e2
+        e = self.gausse
         return exp(-e*e*sum(c*c,1))
 
     def _dgaussr(self, ci, cj):
-        e = 1e2; e2 = e*e 
+        e = self.gausse; e2 = e*e 
         k = -2*e2
         c = -(cj-ci)
         expc2 = exp(-e2*sum(c*c,1))

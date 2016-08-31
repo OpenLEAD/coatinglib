@@ -19,7 +19,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
     Keyword arguments:
     s1 -- surface 1.
     s2 -- surface 2.
-    p0 -- initial point.
+    p0 -- initial point (3D - without normal vector).
     tol -- tolerance, stop criteria.
     """
     while True:
