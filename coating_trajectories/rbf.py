@@ -16,7 +16,7 @@ class RBF:
     points -- of the object to be modeled.
     """
 
-    def __init__(self, name, kernel, points=[], eps=0.001):
+    def __init__(self, name, kernel, points=[], eps=1e-3):
 
         if not isinstance(name, basestring):
             raise ValueError('name is not a string')
