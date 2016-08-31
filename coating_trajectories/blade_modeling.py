@@ -167,10 +167,13 @@ class BladeModeling:
 
         Keyword arguments:
         points -- points to be filtered array(array).
-        r - distance threshold..
+        r -- distance threshold. If r is None, points are sorted w.r.t. x axis.
         """
 
         points = points[argsort(points[:,0])]
+        if r is None:
+            return points
+        
         Tree = KDTree(points[:,0:3])
         rays = []
         N = len(points)
@@ -197,15 +200,16 @@ class BladeModeling:
 
         Keyword arguments:
         iter_surface -- This is the surface to be iterated, as mathtools.sphere.
-        If the model has more than 7000 points, this argument is needed.
+        If the model has more than 9000 points, this argument is needed.
 
         """
         
-        if len(self._points)>7000:
+        if len(self._points)>9000:
             if iter_surface is None:
-                raise ValueError("""The number of points is bigger than 7000. It is not safe
-                                 to make an unique model that big. Create an iterate surface
-                                 to partitionate the model (check mathtools.IterSurface).""")
+                raise ValueError("The number of points is "+str(len(self._points))+""", which is
+                                bigger than 9000. It is not safe to make an unique model this big.
+                                Create an iterate surface to partitionate the model
+                                (check mathtools.IterSurface).""")
             else:
                 if not issubclass(iter_surface.__class__, mathtools.IterSurface):
                     raise IterSurfaceError()
@@ -216,52 +220,22 @@ class BladeModeling:
             self._model._points = self._points
             self._model.make()
             self.save_model()
-        return   
-
-    def generate_trajectory(self, iter_surface, step = 1e-3):
-        """
-        Method generate the coating trajectories. The trajectories are
-        the intersection between two surfaces: the blade model, and the surface
-        to be iterated, e.g. spheres. The algorithm
-        follows the marching method, documentation available in:
-        http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
-        page 94 intersection surface - surface.
-
-        This is a data-intensive computing and might freeze your computer.
-
-        Keyword arguments:
-        iter_surface -- surface to be iterated, as mathtools.sphere.
-        step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
-        """
-
-        if len(self._model._w)==0:
-            raise ValueError('Model is not loaded. Load the model first with make_model method')
-       
-        if not issubclass(iter_surface.__class__, mathtools.IterSurface):
-            raise IterSurfaceError()
-
-        self._blade.SetTransform(eye(4))
-        self._blade.SetTransform(dot(self._blade.GetTransform(),
-                                     matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
-                                 )
-        point_on_surfaces = self.compute_initial_point(iter_surface)
-
-        try: 
-            while iter_surface.criteria():
-                self._trajectories.append(self._draw_parallel(point_on_surfaces, iter_surface, step))
-                p0=self._trajectories[-1][-1]
-                iter_surface.update()
-                point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, p0[0:3])
-        except KeyboardInterrupt:  
-            self.save_trajectories()
-            raise
-        self.save_trajectories()
         return
 
     def compute_initial_point(self, iter_surface):
+        """
+        The compute_initial_point computes the initial point to start the generating trajectories
+        algorithm. If trajectories were loaded, the initial point is the last computed point projected
+        Keyword arguments:
+        point_on_surfaces -- initial point on both surfaces.
+        iter_surface -- surface to be iterated, as mathtools.sphere.
+        step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
+        """
+                
         if len(self._trajectories)>0:
             last_computed_point = self._trajectories[-1][-1]
             iter_surface.find_iter(last_computed_point)
+            iter_surface.update()
             point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, last_computed_point[0:3])
         else:    
             initial_point = self._points[argmax(iter_surface.f_array(self._points))]
@@ -269,14 +243,16 @@ class BladeModeling:
             point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, initial_point[0:3])
         return point_on_surfaces
 
-    def _draw_parallel(self, point_on_surfaces, iter_surface, step):
+    def draw_parallel(self, point_on_surfaces, iter_surface, step):
         """
-        The _draw_parallel generates one coating trajectory. The trajectory is
+        The draw_parallel generates one coating trajectory. The trajectory is
         the intersection between two surfaces: the blade model, and the surface
         to be iterated, e.g. spheres. The algorithm
         follows the marching method, documentation available in:
         http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
         page 94 intersection surface - surface.
+        The function stops when a closed curve is found, i.e., when it is found a
+        point near the initial point (<step distance).
 
         This is a data-intensive computing and might freeze your computer.
 
@@ -305,7 +281,50 @@ class BladeModeling:
                     except IndexError:
                         raise IndexError('Step is too big and the function terminated soon.')
             trajectory.append(next_point_on_surfaces)
-        return    
+        return   
+
+    def generate_trajectories(self, iter_surface, step = 1e-3):
+        """
+        Method generate the coating trajectories. The trajectories are
+        the intersection between two surfaces: the blade model, and the surface
+        to be iterated, e.g. spheres. The algorithm
+        follows the marching method, documentation available in:
+        http://www.mathematik.tu-darmstadt.de/~ehartmann/cdgen0104.pdf
+        page 94 intersection surface - surface.
+
+        This is a data-intensive computing and might freeze your computer.
+
+        Keyword arguments:
+        iter_surface -- surface to be iterated, as mathtools.sphere.
+        step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
+        """
+
+        if self._model is None:
+            raise ValueError('Model is not loaded. Load the model first with make_model method')
+
+        if len(self._points) == 0:
+            raise ValueError('Model is not loaded. Load the model first with make_model method')
+        
+        if not issubclass(iter_surface.__class__, mathtools.IterSurface):
+            raise IterSurfaceError()
+
+        self._blade.SetTransform(eye(4))
+        self._blade.SetTransform(dot(self._blade.GetTransform(),
+                                     matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
+                                 )
+        point_on_surfaces = self.compute_initial_point(iter_surface)
+
+        try: 
+            while iter_surface.criteria():
+                self._trajectories.append(self.draw_parallel(point_on_surfaces, iter_surface, step))
+                p0=self._trajectories[-1][-1]
+                iter_surface.update()
+                point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, p0[0:3])
+        except KeyboardInterrupt:  
+            self.save_trajectories()
+            raise
+        self.save_trajectories()
+        return 
 
     def remove_trajectories_from_env(self):
         remove_points(self.turbine, 'trajectories')
