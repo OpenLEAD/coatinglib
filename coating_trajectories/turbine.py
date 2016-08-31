@@ -1,4 +1,3 @@
-import ConfigParser
 from numpy import array, dot, eye, concatenate, zeros
 from openravepy import transformLookat, matrixFromAxisAngle, Environment, databases, IkParameterization
 from openravepy.misc import InitOpenRAVELogging
@@ -15,8 +14,7 @@ _ROTOR = "rotor"
 class XMLStructError(Exception):    
     def __init__(self, value):
         Exception.__init__(self,"No body named " + value + " found.")
-class ConfigFileError(Exception):
-    pass
+
 
 
 class Turbine:
@@ -25,6 +23,9 @@ class Turbine:
     plus manipulation of the active elements of the turbine (robot/rail)
     and their interactiong (collision)
     """
+
+    env = None
+    config = None
 
     # std names for printing propouses
     std_name = { _PRIMARY_RAIL: "primary rail",
@@ -35,14 +36,13 @@ class Turbine:
                  _ROTOR: "rotor"
                  }
 
-    def __init__(self,config_file, path ="", viewer = True):
-        self.path = path
-        self._parse_file(path+config_file)
+    def __init__(self,config, viewer = True):
+        self.config = config
         
         # Create OpenRave environment
         self.env = Environment()
         InitOpenRAVELogging()
-        self.env.Load(path+self.environment.load)
+        self.env.Load(config.path+config.environment.load)
         if viewer:
             self.env.SetViewer('qtcoin')
         self.robot = self.env.GetRobots()[0]
@@ -98,51 +98,6 @@ class Turbine:
                 self.blades.append(next(body for body in self.bodies if body.GetName()==_BLADE+str(blade_number)))
             except StopIteration:
                 blade_found = False
-
-    def _parse_file(self,config_file):
-        # Standard python file parsing
-        
-        config = ConfigParser.RawConfigParser()
-        if config.read(config_file) == []:
-            raise ConfigFileError("No file named "+config_file+".")
-
-        class struct:
-            pass
-        
-        self.environment = struct()
-        self.coating = struct()
-        self.model = struct()
-        
-        try: 
-            # environment Section
-            self.environment.load = config.get("environment","load")
-            self.environment.z_floor_level = config.getfloat("environment","z_floor_level")
-            self.environment.primary_safe_margin = config.getfloat("environment","primary_safe_margin")
-            self.environment.secondary_safe_margin = config.getfloat("environment","secondary_safe_margin")
-            self.environment.robot_level_difference = config.getfloat("environment","robot_level_difference")
-            self.environment.blade_angle = config.getfloat("environment","blade_angle")
-            self.environment.rotor_angle = config.getfloat("environment","rotor_angle")
-            self.environment.x_max = config.getfloat("environment","x_max")
-            self.environment.x_min = config.getfloat("environment","x_min")
-            self.environment.y_max = config.getfloat("environment","y_max")
-            self.environment.y_min = config.getfloat("environment","y_min")
-            self.environment.rail_angle_mean = config.getfloat("environment","rail_angle_mean")
-            self.environment.rail_angle_limit = config.getfloat("environment","rail_angle_limit")
-
-            # coating Section
-            self.coating.min_distance = config.getfloat("coating","min_distance")
-            self.coating.ideal_distance = config.getfloat("coating","ideal_distance")
-            self.coating.max_distance = config.getfloat("coating","max_distance")
-            self.coating.angle_tolerance = config.getfloat("coating","angle_tolerance")
-            self.coating.coating_speed = config.getfloat("coating","coating_speed")
-            self.coating.parallel_gap = config.getfloat("coating","parallel_gap")
-
-            # model Section
-            self.model.nose_radius = config.getfloat("model","nose_radius")
-            self.model.runner_radius = config.getfloat("model","runner_radius")
-            
-        except ConfigParser.NoOptionError as error:
-            raise ConfigFileError("Missing "+error.option+" on section "+error.section+".")
 
             
     def place_rail(self,rail_place):
