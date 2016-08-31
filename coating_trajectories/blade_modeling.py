@@ -267,7 +267,8 @@ class BladeModeling:
         while True:
             tan = mathtools.surfaces_tangent(trajectory[-1], iter_surface)
             next_point_on_surfaces = mathtools.curvepoint(self._model,
-                                                          iter_surface, trajectory[-1][0:3]-tan*step)
+                                                          iter_surface,
+                                                          trajectory[-1][0:3]-tan*step)
             dP = abs(next_point_on_surfaces[0:3]-initial_point[0:3])
             if counter==0:
                 if max(dP)<=step:counter+=1
