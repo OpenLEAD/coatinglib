@@ -25,23 +25,15 @@ class BladeModeling:
     """
 
     turbine = None
-    _name = None
-    _model = None
-    _blade = None
-    _trajectories = None
-    _points = None
-    _trajectories = None
+    name = None
+    blade = None
+    _trajectories = []
+    _points = []
     
-    def __init__(self, name, model_type, turbine):
+    def __init__(self, name, turbine, blade):
         self.turbine = turbine
         self._name = name
-        self._model = model_type
-        self._blade = turbine.blades[0]
-        self._trajectories = []
-        self._points = []
-        self._model._w = []
-        self._trajectories = []
-        self._model._points = self._points        
+        self._blade = blade    
 
     def save_samples(self):
         try:
@@ -52,25 +44,25 @@ class BladeModeling:
         savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
         return
 
-    def save_model(self):
+    def save_model(self, model):
         try:
-            makedirs('./Blade/'+self._model.model_type)
+            makedirs('./Blade/'+model.model_type)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise  
-        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz',
-                        array=self._model._w)
-        savez_compressed('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz',
-                        array=self._model._points)
+        savez_compressed('Blade/'+model.model_type+'/'+model._name+'_w.npz',
+                        array=model._w)
+        savez_compressed('Blade/'+model.model_type+'/'+model._name+'_points.npz',
+                        array=model._points)
         return
 
-    def save_trajectories(self):
+    def save_trajectories(self, model):
         try:
             makedirs('./Blade/Trajectory')
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-        savez_compressed('Blade/Trajectory/'+self._model._name+'_trajectories.npz',
+        savez_compressed('Blade/Trajectory/'+model._name+'_trajectories.npz',
                                  array=self._trajectories)
         return
 
@@ -78,25 +70,23 @@ class BladeModeling:
         try:
             self._points = load('Blade/'+self._name+'_points.npz')
             self._points = self._points['array']
-            self._samplingLoaded = True
         except IOError:
             raise IOError('Samples could not be loaded. Call method BladeModeling::sampling')
         return
 
-    def load_model(self):
+    def load_model(self, model):
         try:
-            self._model._w = load('Blade/'+self._model.model_type+'/'+self._model._name+'_w.npz')
-            self._model._w = self._model._w['array']
-            self._model._points = load('Blade/'+self._model.model_type+'/'+self._model._name+'_points.npz')
-            self._model._points = self._model._points['array']
-            self._modelLoaded = True
+            model._w = load('Blade/'+model.model_type+'/'+model._name+'_w.npz')
+            model._w = model._w['array']
+            model._points = load('Blade/'+model.model_type+'/'+model._name+'_points.npz')
+            model._points = model._points['array']
         except IOError:
             raise IOError("Model could not be loaded.")
         return
     
-    def load_trajectories(self):
+    def load_trajectories(self, model):
         try:
-            self._trajectories = load('Blade/Trajectory/'+self._model._name+'_trajectories.npz')
+            self._trajectories = load('Blade/Trajectory/'+model._name+'_trajectories.npz')
             self._trajectories = self._trajectories['array']
             self._trajectories = self._trajectories.tolist()
         except IOError:
@@ -124,10 +114,12 @@ class BladeModeling:
                 ccold = self.turbine.env.GetCollisionChecker()
                 self.turbine.env.SetCollisionChecker(cc)
                 cc = ccold
+ 
         self._blade.SetTransform(eye(4))
         self._blade.SetTransform(dot(self._blade.GetTransform(),
                                      matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
                                  )
+        
         ab = self._blade.ComputeAABB()
         p = ab.pos()
         e = ab.extents()+0.01 # increase since origin of ray should be outside of object
@@ -157,6 +149,7 @@ class BladeModeling:
                   self._points = r_[self._points,newinfo]
 
         self._points = self.filter_by_distance(self._points, min_distance_between_points)
+        print self._points
         self.save_samples()
         return             
    
@@ -190,7 +183,7 @@ class BladeModeling:
             if i==len(points):break
         return array(rays)
         
-    def make_model(self, iter_surface=None):
+    def make_model(self, model, iter_surface=None):
         """
         The make_model method is an algorithm to generate a mathematical representation
         of the object (mesh). This method can be called after the sampling method,
@@ -201,7 +194,6 @@ class BladeModeling:
         Keyword arguments:
         iter_surface -- This is the surface to be iterated, as mathtools.sphere.
         If the model has more than 9000 points, this argument is needed.
-
         """
         
         if len(self._points)>9000:
@@ -210,19 +202,19 @@ class BladeModeling:
                                 bigger than 9000. It is not safe to make an unique model this big.
                                 Create an iterate surface to partitionate the model
                                 (check mathtools.IterSurface).""")
-            else:
-                if not issubclass(iter_surface.__class__, mathtools.IterSurface):
+            elif not issubclass(iter_surface.__class__, mathtools.IterSurface):
                     raise IterSurfaceError()
-                else:
-                    points = self.split_blade_points(self._points, iter_surface)
+            else:
+                raise ValueError("Data is too big")
+                #points = self.split_blade_points(self._points, iter_surface)
                     
         else:
-            self._model._points = self._points
-            self._model.make()
-            self.save_model()
+            model._points = self._points
+            model.make()
+            self.save_model(model)
         return
 
-    def compute_initial_point(self, iter_surface):
+    def compute_initial_point(self, model, iter_surface):
         """
         The compute_initial_point computes the initial point to start the generating trajectories
         algorithm. If trajectories were loaded, the initial point is the last computed point projected
@@ -236,14 +228,14 @@ class BladeModeling:
             last_computed_point = self._trajectories[-1][-1]
             iter_surface.find_iter(last_computed_point)
             iter_surface.update()
-            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, last_computed_point[0:3])
+            point_on_surfaces = mathtools.curvepoint(model, iter_surface, last_computed_point[0:3])
         else:    
             initial_point = self._points[argmax(iter_surface.f_array(self._points))]
             iter_surface.findnextparallel(initial_point)
-            point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, initial_point[0:3])
+            point_on_surfaces = mathtools.curvepoint(model, iter_surface, initial_point[0:3])
         return point_on_surfaces
 
-    def draw_parallel(self, point_on_surfaces, iter_surface, step):
+    def draw_parallel(self, point_on_surfaces, model, iter_surface, step):
         """
         The draw_parallel generates one coating trajectory. The trajectory is
         the intersection between two surfaces: the blade model, and the surface
@@ -261,12 +253,13 @@ class BladeModeling:
         iter_surface -- surface to be iterated, as mathtools.sphere.
         step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
         """
+        
         initial_point = copy(point_on_surfaces)
         counter = 0
         trajectory = [point_on_surfaces]
         while True:
             tan = mathtools.surfaces_tangent(trajectory[-1], iter_surface)
-            next_point_on_surfaces = mathtools.curvepoint(self._model,
+            next_point_on_surfaces = mathtools.curvepoint(model,
                                                           iter_surface,
                                                           trajectory[-1][0:3]-tan*step)
             dP = abs(next_point_on_surfaces[0:3]-initial_point[0:3])
@@ -284,7 +277,7 @@ class BladeModeling:
             trajectory.append(next_point_on_surfaces)
         return   
 
-    def generate_trajectories(self, iter_surface, step = 1e-3):
+    def generate_trajectories(self, model, iter_surface, step = 1e-3):
         """
         Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
@@ -300,12 +293,6 @@ class BladeModeling:
         step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
         """
 
-        if self._model is None:
-            raise ValueError('Model is not loaded. Load the model first with make_model method')
-
-        if len(self._points) == 0:
-            raise ValueError('Model is not loaded. Load the model first with make_model method')
-        
         if not issubclass(iter_surface.__class__, mathtools.IterSurface):
             raise IterSurfaceError()
 
@@ -313,18 +300,18 @@ class BladeModeling:
         self._blade.SetTransform(dot(self._blade.GetTransform(),
                                      matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
                                  )
-        point_on_surfaces = self.compute_initial_point(iter_surface)
+        point_on_surfaces = self.compute_initial_point(model, iter_surface)
 
         try: 
             while iter_surface.criteria():
-                self._trajectories.append(self.draw_parallel(point_on_surfaces, iter_surface, step))
+                self._trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
                 p0=self._trajectories[-1][-1]
                 iter_surface.update()
-                point_on_surfaces = mathtools.curvepoint(self._model, iter_surface, p0[0:3])
+                point_on_surfaces = mathtools.curvepoint(model, iter_surface, p0[0:3])
         except KeyboardInterrupt:  
-            self.save_trajectories()
+            self.save_trajectories(model)
             raise
-        self.save_trajectories()
+        self.save_trajectories(model)
         return 
 
     def remove_trajectories_from_env(self):

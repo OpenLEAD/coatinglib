@@ -21,13 +21,14 @@ class TestBladeModeling(TestCase):
         
     def setUp(self):
         name = "testblade"
-        rbf_model = rbf.RBF(name,'r3')
-        self.blade1 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
-        self.blade2 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
-        self.blade3 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
-        self.blade4 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
-        self.blade5 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
-        self.blade6 = blade_modeling.BladeModeling(name, rbf_model, TestBladeModeling.turb)
+        blade = TestBladeModeling.turb.blades[0]
+        self.blade1 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
+        self.blade2 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
+        self.blade3 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
+        self.blade4 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
+        self.blade5 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
+        self.blade6 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
+        self.blade1 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
 
 
     def test_sampling(self):
@@ -67,7 +68,7 @@ class TestBladeModeling(TestCase):
                 normal[argmax(abs(point[0:3]))] = 1*sign(point[argmax(abs(point[0:3]))])
                 cos_theta = dot(normal, point[3:6])
                 if abs(cos_theta-1)>=1e-3:
-                    self.assertTrue(False, msg = 'point ='+str(point)+' has wrong normal vector')              
+                    self.assertTrue(False, msg = 'point ='+str(point)+' has wrong normal vector')           
 
     def test_filter_by_distance(self):
         """
@@ -92,28 +93,30 @@ class TestBladeModeling(TestCase):
         The test verifies if the interpolation is right, using extra points of the cube (test object).
         Also, the it verifies outside points, and the normal vectors.
         """
+
+        model = rbf.RBF('test','r3')
         delta = 0.008
         self.blade2.sampling(delta, None)
         template_points = self.blade2._points
         
         delta = 0.005
         self.blade2.sampling(delta, None)
-        self.blade2.make_model()
+        self.blade2.make_model(model)
 
         # Verifying if interpolation is right with the extra points of the cube 
         rbf_results = []
         for point in template_points:
-            rbf_results.append(self.blade1._model.f(point[0:3]))
+            rbf_results.append(model.f(point[0:3]))
         rbf_results = abs(rbf_results)
         self.assertTrue(max(rbf_results)<tolmax and mean(rbf_results)<tolmean)
 
         # Verifying if the outside points have its mean approximately eps 
-        outside_points = self.blade2._model._pointsaugment(template_points)
+        outside_points = model._pointsaugment(template_points)
         rbf_outside_results = []
         for point in outside_points:
-            rbf_outside_results.append(self.blade2._model.f(point[0:3]))
+            rbf_outside_results.append(model.f(point[0:3]))
         rbf_outside_results = array(rbf_outside_results)
-        self.assertTrue(abs(mean(rbf_outside_results)-self.blade2._model._eps)<=toleps,
+        self.assertTrue(abs(mean(rbf_outside_results)-model._eps)<=toleps,
                         msg = "The outside points mean equals "+str(mean(rbf_outside_results)))
 
         # Verifying if the normal vectors of extra points are right
@@ -139,6 +142,7 @@ class TestBladeModeling(TestCase):
         Finally, the test verifies if, for a loaded trajectory with initial point [sqrt(3),0,-1], the
         next point is [sqrt(0.75), 0, -0.5] (the step of the sphere is 1 and the new plane is z=-0.5).
         """
+
         s = mathtools.Sphere(2, 0, 1)
         data = random.rand(100,6)
         for point in data:
@@ -159,8 +163,7 @@ class TestBladeModeling(TestCase):
         zp = ZPlane()
         
         self.blade3._points = data
-        self.blade3._model = zp
-        initial_point = self.blade3.compute_initial_point(s)
+        initial_point = self.blade3.compute_initial_point(zp, s)
 
         # Verify if the initial point is right
         dif = abs(initial_point - right_initial_point)<=1e-5
@@ -169,8 +172,7 @@ class TestBladeModeling(TestCase):
         # Verify if load trajectories and find next initial point is right
         self.blade3._trajectories = array([[right_initial_point]])
         zp = ZPlane(-0.5)
-        self.blade3._model = zp
-        initial_point = self.blade3.compute_initial_point(s)
+        initial_point = self.blade3.compute_initial_point(zp, s)
         right_initial_point = array([sqrt(0.75), 0, -0.5, 0, 0, 1])
         dif = abs(initial_point - right_initial_point)<=1e-5
         self.assertTrue(dif.all(), msg = 'point ='+str(initial_point)+' is not the right initial point')
@@ -194,8 +196,7 @@ class TestBladeModeling(TestCase):
                 return array([0, 0, 1])
         zp = ZPlane()
         
-        self.blade4._model = zp
-        trajectory = self.blade4.draw_parallel(initial_point, s, 0.001)
+        trajectory = self.blade4.draw_parallel(initial_point, zp, s, 0.001)
         trajectory = array(trajectory)
 
         # Verify if all points are on circle
@@ -236,8 +237,7 @@ class TestBladeModeling(TestCase):
         zp = ZPlane(s)
 
         self.blade5._points = [initial_point]
-        self.blade5._model = zp
-        self.blade5.generate_trajectories(s, 0.001)
+        self.blade5.generate_trajectories(zp, s, 0.001)
 
         # Verify if all points are on circle 1
         trajectory = array(self.blade5._trajectories[0])
