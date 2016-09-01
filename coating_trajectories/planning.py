@@ -10,21 +10,27 @@ Keyword arguments:
 places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
+_filter_options = {'mh12': mh12_filter}
 
-def filter_trajectories(turbine, trajectories):
-    if turbine.robot.GetName() != 'mh12':
-        raise  # TODO
-    
+def _std_robot_filter(turbine, trajectories):
+    raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
+
+def mh12_filter(turbine, trajectories):
+    def distance_robot(point,turbine):
+        pass # TODO
     filtered_trajectories = []
     for jectory in trajectories:
         
         filtered_jectory = []
         for point in jectory:
             
-            if distance_robot(point[0:3],turbine)
+            if distance_robot(point[0:3],turbine):
+                pass #TODO
+    
 
-def distance_robot(point,turbine):
-    pass # TODO
+def filter_trajectories(turbine, trajectories):
+    name = turbine.robot.GetName()
+    _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
 def sort_trajectories(trajectories):
     """ Arrange the trajectories in a zigzagging way.
