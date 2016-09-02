@@ -32,73 +32,14 @@ def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
-def sort_trajectories(trajectories):
-    """ Arrange the trajectories in a zigzagging way.
+def compute_robot_joints(place, turbine):
     """
-    sorted_trajectories = []
-    for trajectory in trajectories:
-        sorted_trajectory = []
-
-def sortTrajectories2(trajectories):
-    """ Arrange the trajectories in a zigzagging way.
-    """
-    sortedTrajectories = []
-    i=1
-    for trajectory in trajectories:
-        if len(trajectory)>1:
-            theta = []
-            for point in trajectory:
-                theta.append(dot(point[0:3], [0,1,0]))
-            theta = array(theta)
-            sortedTrajectory = []
-            sortedTrajectory.extend(trajectory[theta.argsort()])
-           # if i%2:
-           #     sortedTrajectory.reverse()
-            sortedTrajectories.append(sortedTrajectory)
-        elif len(trajectory)==1:
-            sortedTrajectories.append(trajectory)
-        i+=1    
-    return array(sortedTrajectories)
-
-  
-def sortTrajectories(x, trajectories):
-    """ Arrange the trajectories in a zigzagging way.
-
-    Keyword arguments:
-    x - x position of the robot
-    """
-    sortedTrajectories = []
-    i=1
-    for trajectory in trajectories:
-        if len(trajectory)>1:
-            theta = []
-            for point in trajectory:
-                theta.append(atan2(-point[2],point[0]))
-            theta = array(theta)
-            sortedTrajectory = []
-            if len(theta[theta>0])>0:    
-                sortedTrajectory.extend((trajectory[theta>0])[(theta[theta>0]).argsort()])
-            if len(theta[theta<0])>0:
-                if x<0:
-                    sortedTrajectory.extend((trajectory[theta<0])[(theta[theta<0]).argsort()])
-                else:
-                    En = (trajectory[theta<0])[(theta[theta<0]).argsort()]
-                    En.extend(sortedTrajectory)
-                    sortedTrajectory = En
-            if i%2:
-                sortedTrajectory.reverse()
-            sortedTrajectories.append(sortedTrajectory)
-        elif len(trajectory)==1:
-            sortedTrajectories.append(trajectory)
-        i+=1    
-    return sortedTrajectories
-
-def doPath(place, turbine):
-    """ Iterates points of the trajectories, computing optimal robot's joints
+    Iterates points of the trajectories, computing optimal robot's joints
     (minimizing orientation error).
 
     Keyword arguments:
-    x - x position of the robot
+    place -- robot position
+    turbine -- tubine object
     """
 
     turbine.robot.GetLink('Flame').Enable(False)
@@ -169,7 +110,8 @@ def Qvector_backtrack(y, Q):
     return list(reversed(Q))
 
 def InverseKinematic(T, turbine, point):
-    """ Pose the robot and solve inverse kinematics given point (IKFast).
+    """
+    Pose the robot and solve inverse kinematics given point (IKFast).
     """
     
     facevector = [1,0,0] # robot end-effector direction 
