@@ -1,7 +1,8 @@
-from numpy import sqrt, dot, concatenate, arange, array
+from numpy import sqrt, dot, concatenate, arange, array, zeros
 from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize
+import mathtools
 
 """ Main package for robot joints' positions and velocities planning,
 robot base calculation, torque and manipulability analysis.
@@ -10,7 +11,7 @@ Keyword arguments:
 places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
-_filter_options = {'mh12': mh12_filter}
+
 
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
@@ -27,7 +28,7 @@ def mh12_filter(turbine, trajectories):
             if distance_robot(point[0:3],turbine):
                 pass #TODO
     
-
+_filter_options = {'mh12': mh12_filter}
 def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
@@ -109,62 +110,74 @@ def Qvector_backtrack(y, Q):
             print 'Qvector_backtrack error'
     return list(reversed(Q))
 
-def InverseKinematic(T, turbine, point):
+def inverse_kinematics(T, turbine, point):
     """
     Pose the robot and solve inverse kinematics given point (IKFast).
+
+    Keyword arguments:
+    T -- robot position
+    turbine -- turbine object
+    point -- point to be coated
     """
     
     facevector = [1,0,0] # robot end-effector direction 
     turbine.robot.SetTransform(T)
-    coating_tolerance = turbine.coating.max_distance-turbine.coating.ideal_distance
+    coating_tolerance_max = turbine.config.coating.max_distance
+    coating_tolerance_min = turbine.config.coating.min_distance
 
-    iksol = IKFast(turbine.ikmodel, facevector, point)
-    if len(iksol)>0:
-        return iksol, True
- 
-    if coating_tolerance!=0:
-        iksol = IKFast(turbine.ikmodel,
+    iksol = ikfast(turbine.ikmodel, facevector, point)
+    if len(iksol)>0:return iksol, True
+
+    # Compute solution with distance tolerance from blade
+    if coating_tolerance_max!=0:
+        iksol = ikfast(turbine.ikmodel,
                        facevector,
-                       concatenate((point[0:3]+coating_tolerance*point[3:6],
-                                    point[3:6]))
-                       )
-        if len(iksol)>0:
-            return iksol, True
-        
-    if turbune.coating.angle_tolerance>0:
-        angles = arange(0, turbune.coating.angle_tolerance, 0.001)
+                       concatenate((point[0:3]+coating_tolerance_max*point[3:6],
+                                    point[3:6])))
+        if len(iksol)>0:return iksol, True
+    if coating_tolerance_min!=0:
+        iksol = ikfast(turbine.ikmodel,
+                       facevector,
+                       concatenate((point[0:3]+coating_tolerance_min*point[3:6],
+                                    point[3:6])))
+        if len(iksol)>0:return iksol, True
+
+    # Compute solution with angle tolerance from blade
+    if turbine.config.coating.angle_tolerance>0:
+        angles = arange(0, turbine.config.coating.angle_tolerance, 0.001)
         numberofangles = 10
         for angle in angles:
             angle=1.0*pi*angle/180
-            Rv3tol = Raxis([0,0,1],angle)
-            p = dot(facevector,transpose(Rv3tol))
+            Rv3tol = Raxis([0,0,1], angle)
+            p = dot(facevector, transpose(Rv3tol))
             k = 2*pi/numberofangles
-            for i in range(0,numberofangles):
+            for i in range(0, numberofangles):
                 alfa = k*i
-                Rv1alfa = coating.Raxis(facevector,alfa)
-                iksol = IKFast(turbine.ikmodel,
+                Rv1alfa = mathtools.Raxis(facevector,alfa)
+                iksol = ikfast(turbine.ikmodel,
                                facevector,
-                               dot(p,
-                                   transpose(Rv1alfa))
-                               )
-                if len(iksol)>0:
-                    return iksol, True
+                               dot(p, transpose(Rv1alfa)))
+                if len(iksol)>0:return iksol, True
             else: continue
             break     
-        else: 
-            return [], False
+        else: return [], False
             
-def IKFast(ikmodel, facevector, point):
-    """ Call openrave IKFast.
+def ikfast(ikmodel, facevector, point):
+    """
+    Call openrave IKFast. It computes the inverse kinematic for the point.
+    It returns all solutions.
+
+    keyword arguments:
+    ikmodel -- kinematic model of the robot. Turbine class computes the ikmodel.
+    facevector -- end-effector direction. 3D vector
+    point -- point to coat
     """
 
     T = zeros((4,4))
-    T[0:3,0:3] = Rab(facevector, point[3:6])
+    T[0:3,0:3] = mathtools.Rab(facevector, point[3:6])
     T[0:3,3] = point[0:3]
     T[3,0:4] = [0,0,0,1]
-    iksol = ikmodel.manip.FindIKSolutions(T, IkFilterOptions.CheckEnvCollisions)
-        
-    return iksol
+    return ikmodel.manip.FindIKSolutions(T, IkFilterOptions.CheckEnvCollisions)
 
 def CheckDOFLimits(robot, Q):
     Joints = robot.GetJoints()
