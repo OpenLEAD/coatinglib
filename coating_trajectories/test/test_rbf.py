@@ -17,7 +17,7 @@ class TestRBF(TestCase):
         Making a sphere with random points for the RBFs.
         """
         number_of_model_data = 4000
-        model_data = random.rand(number_of_model_data,6)
+        model_data = random.uniform(-1,1, size=(number_of_model_data,6))
         model_data[:,0:3] = model_data[:,0:3]*(1.0/(sqrt(sum(model_data[:,0:3]*model_data[:,0:3],1)))).reshape(number_of_model_data,1)
         model_data[:,3] = model_data[:,0]*2
         model_data[:,4] = model_data[:,1]*2
@@ -25,7 +25,7 @@ class TestRBF(TestCase):
         self.model_data = model_data
 
         number_of_validate_data = 100
-        validate_data = random.rand(number_of_validate_data,6)
+        validate_data = random.uniform(-1,1, size=(number_of_validate_data,6))
         validate_data[:,0:3] = validate_data[:,0:3]*(1.0/(sqrt(sum(validate_data[:,0:3]*validate_data[:,0:3],1)))).reshape(number_of_validate_data,1)
         validate_data[:,3] = validate_data[:,0]*2
         validate_data[:,4] = validate_data[:,1]*2

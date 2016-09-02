@@ -5,6 +5,7 @@ import unittest
 from . import TestCase
 from .. import rbf
 from .. turbine import Turbine
+from .. turbine_config import TurbineConfig, ConfigFileError
 from .. import blade_modeling
 from .. import mathtools
 
@@ -17,7 +18,8 @@ class TestBladeModeling(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestBladeModeling, cls).setUpClass()
-        cls.turb = Turbine("/dummy.cfg", cls.test_dir, False)
+        turbconf = TurbineConfig.load("/dummy.cfg", cls.test_dir)
+        cls.turb = Turbine(turbconf, False)
         
     def setUp(self):
         name = "testblade"
@@ -39,8 +41,7 @@ class TestBladeModeling(TestCase):
         cube_edge = 0.05
         delta = 0.005
         self.blade1.sampling(delta, None)
-        center = array([0, 0, -1])
-        points_origin = self.blade1._points[:,0:3]-center
+        points_origin = self.blade1._points[:,0:3]
 
         # Checking if points are on the cube
         infinity_norm = abs(max(points_origin)-cube_edge)<=1e-4
@@ -75,7 +76,7 @@ class TestBladeModeling(TestCase):
         The test verifies if the distance between points are greater or equal a threshold.
         """
         threshold = 1
-        points = random.rand(100,6)
+        points = random.uniform(-1,1,size=(100,6))
         self.blade6._points = points
         points = self.blade6.filter_by_distance(self.blade6._points, threshold)
         
@@ -120,8 +121,7 @@ class TestBladeModeling(TestCase):
                         msg = "The outside points mean equals "+str(mean(rbf_outside_results)))
 
         # Verifying if the normal vectors of extra points are right
-        center = array([0, 0, -1])
-        template_points[:,0:3] = template_points[:,0:3]-center
+        template_points[:,0:3] = template_points[:,0:3]
         for point in template_points:
             abs_point = abs(point[0:3])
             if len(abs_point[abs(abs_point-max(abs_point))<=1e-5])>1:continue # Vertexes are exceptions
@@ -144,10 +144,9 @@ class TestBladeModeling(TestCase):
         """
 
         s = mathtools.Sphere(2, 0, 1)
-        data = random.rand(100,6)
-        for point in data:
-            point[3:6] = point[3:6]/sqrt(dot(point[3:6],point[3:6]))
-            point[0:3] = point[0:3]/sqrt(dot(point[0:3],point[0:3]))
+        data = random.uniform(-1,1,size=(100,6))
+        data[:,0:3] =  data[:,0:3]*(1.0/(sqrt(sum(data[:,0:3]*data[:,0:3],1)))).reshape(100,1)
+        data[:,3:6] =  data[:,3:6]*(1.0/(sqrt(sum(data[:,3:6]*data[:,3:6],1)))).reshape(100,1)
         data[:,2]-=1
         right_initial_point = array([sqrt(3), 0, -1, 0, 0, 1])
         disturbance = array([float(random.rand(1)*1e-3), 0, 0, 0, 0, 0] )
