@@ -7,7 +7,6 @@ from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
 from scipy.spatial import KDTree
 import mathtools
 from math import pi, ceil
-from openrave_plotting import plot_points, plot_points_array, plot_point, remove_points
 from copy import copy, deepcopy
 
 class IterSurfaceError(Exception):    
@@ -117,7 +116,7 @@ class BladeModeling:
  
         self._blade.SetTransform(eye(4))
         self._blade.SetTransform(dot(self._blade.GetTransform(),
-                                     matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
+                                     matrixFromAxisAngle([0, -self.turbine.config.environment.blade_angle, 0]))
                                  )
         
         ab = self._blade.ComputeAABB()
@@ -149,7 +148,6 @@ class BladeModeling:
                   self._points = r_[self._points,newinfo]
 
         self._points = self.filter_by_distance(self._points, min_distance_between_points)
-        print self._points
         self.save_samples()
         return             
    
@@ -298,7 +296,7 @@ class BladeModeling:
 
         self._blade.SetTransform(eye(4))
         self._blade.SetTransform(dot(self._blade.GetTransform(),
-                                     matrixFromAxisAngle([0, -self.turbine.environment.blade_angle, 0]))
+                                     matrixFromAxisAngle([0, -self.turbine.config.environment.blade_angle, 0]))
                                  )
         point_on_surfaces = self.compute_initial_point(model, iter_surface)
 
@@ -313,9 +311,3 @@ class BladeModeling:
             raise
         self.save_trajectories(model)
         return 
-
-    def remove_trajectories_from_env(self):
-        remove_points(self.turbine, 'trajectories')
-
-    def remove_sampling_from_env(self):
-        remove_points(self.turbine, 'sampling')    
