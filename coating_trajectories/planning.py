@@ -177,7 +177,7 @@ def ikfast(ikmodel, facevector, point):
     T[0:3,0:3] = mathtools.Rab(facevector, point[3:6])
     T[0:3,3] = point[0:3]
     T[3,0:4] = [0,0,0,1]
-    return ikmodel.manip.FindIKSolutions(T, IkFilterOptions.CheckEnvCollisions)
+    return ikmodel.manip.FindIKSolutions(T, IkFilterOptions.CheckEnvCollisions & ~IkFilterOptions.IgnoreJointLimits)
 
 def CheckDOFLimits(robot, Q):
     Joints = robot.GetJoints()
