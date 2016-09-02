@@ -226,12 +226,11 @@ class BladeModeling:
             last_computed_point = self._trajectories[-1][-1]
             iter_surface.find_iter(last_computed_point)
             iter_surface.update()
-            point_on_surfaces = mathtools.curvepoint(model, iter_surface, last_computed_point[0:3])
+            return mathtools.curvepoint(model, iter_surface, last_computed_point[0:3])
         else:    
             initial_point = self._points[argmax(iter_surface.f_array(self._points))]
             iter_surface.findnextparallel(initial_point)
-            point_on_surfaces = mathtools.curvepoint(model, iter_surface, initial_point[0:3])
-        return point_on_surfaces
+            return mathtools.curvepoint(model, iter_surface, initial_point[0:3])
 
     def draw_parallel(self, point_on_surfaces, model, iter_surface, step):
         """
