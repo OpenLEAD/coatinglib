@@ -36,15 +36,13 @@ class Turbine:
                  _ROTOR: "rotor"
                  }
 
-    def __init__(self,config, viewer = True):
+    def __init__(self,config):
         self.config = config
         
         # Create OpenRave environment
         self.env = Environment()
         InitOpenRAVELogging()
         self.env.Load(config.path+config.environment.load)
-        if viewer:
-            self.env.SetViewer('qtcoin')
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
         

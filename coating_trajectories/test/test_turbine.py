@@ -7,7 +7,7 @@ class TestTurbine(TestCase):
 
     def test_creation(self):
         turbconf = TurbineConfig.load("/turbine_unittest.cfg",TestTurbine.test_dir)
-        turb = Turbine(turbconf,False)
+        turb = Turbine(turbconf)
         
 
 if __name__ == '__main__':
