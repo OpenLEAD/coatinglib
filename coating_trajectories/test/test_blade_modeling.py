@@ -18,7 +18,7 @@ class TestBladeModeling(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestBladeModeling, cls).setUpClass()
-        turbconf = TurbineConfig.load("/dummy.cfg", cls.test_dir)
+        turbconf = TurbineConfig.load("dummy.cfg", cls.test_dir)
         cls.turb = Turbine(turbconf)
         
     def setUp(self):
