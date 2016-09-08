@@ -19,29 +19,23 @@ class TestBladeModeling(TestCase):
     def setUpClass(cls):
         super(TestBladeModeling, cls).setUpClass()
         turbconf = TurbineConfig.load("/dummy.cfg", cls.test_dir)
-        cls.turb = Turbine(turbconf, False)
+        cls.turb = Turbine(turbconf)
         
     def setUp(self):
-        name = "testblade"
-        blade = TestBladeModeling.turb.blades[0]
-        self.blade1 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-        self.blade2 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-        self.blade3 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-        self.blade4 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-        self.blade5 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-        self.blade6 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-        self.blade1 = blade_modeling.BladeModeling(name, TestBladeModeling.turb, blade)
-
+        self.name = "testblade"
+        self.blade = TestBladeModeling.turb.blades[0]
 
     def test_sampling(self):
         """
         The sampling test uses the BladeModeling::sampling method to sample a cube with 100mm
         side length, which center is at (0,0,-1).
         """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         cube_edge = 0.05
         delta = 0.005
-        self.blade1.sampling(delta, None)
-        points_origin = self.blade1._points[:,0:3]
+        blade.sampling(delta, None)
+        points_origin = blade._points[:,0:3]
 
         # Checking if points are on the cube
         infinity_norm = abs(max(points_origin)-cube_edge)<=1e-4
@@ -60,7 +54,7 @@ class TestBladeModeling(TestCase):
         # Checking if normal vectors are right
         points_origin_and_normals = zeros((len(points_origin),6))
         points_origin_and_normals[:,0:3] = points_origin
-        points_origin_and_normals[:,3:6] = self.blade1._points[:,3:6]
+        points_origin_and_normals[:,3:6] = blade._points[:,3:6]
         for point in points_origin_and_normals:
             abs_point = abs(point[0:3])
             if len(abs_point[abs(abs_point-max(abs_point))<=1e-5])>1:continue # Vertexes are exceptions
@@ -75,10 +69,12 @@ class TestBladeModeling(TestCase):
         """
         The test verifies if the distance between points are greater or equal a threshold.
         """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         threshold = 1
         points = random.uniform(-1,1,size=(100,6))
-        self.blade6._points = points
-        points = self.blade6.filter_by_distance(self.blade6._points, threshold)
+        blade._points = points
+        points = blade.filter_by_distance(blade._points, threshold)
         
         for point in points:
             dif = points[:,0:3]-point[0:3]
@@ -95,14 +91,15 @@ class TestBladeModeling(TestCase):
         Also, the it verifies outside points, and the normal vectors.
         """
 
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         model = rbf.RBF('test','r3')
         delta = 0.008
-        self.blade2.sampling(delta, None)
-        template_points = self.blade2._points
+        blade.sampling(delta, None)
+        template_points = blade._points
         
         delta = 0.005
-        self.blade2.sampling(delta, None)
-        self.blade2.make_model(model)
+        blade.sampling(delta, None)
+        blade.make_model(model)
 
         # Verifying if interpolation is right with the extra points of the cube 
         rbf_results = []
@@ -143,6 +140,7 @@ class TestBladeModeling(TestCase):
         next point is [sqrt(0.75), 0, -0.5] (the step of the sphere is 1 and the new plane is z=-0.5).
         """
 
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         s = mathtools.Sphere(2, 0, 1)
         data = random.uniform(-1,1,size=(100,6))
         data[:,0:3] =  data[:,0:3]*(1.0/(sqrt(sum(data[:,0:3]*data[:,0:3],1)))).reshape(100,1)
@@ -161,17 +159,17 @@ class TestBladeModeling(TestCase):
                 return array([0, 0, 1])
         zp = ZPlane()
         
-        self.blade3._points = data
-        initial_point = self.blade3.compute_initial_point(zp, s)
+        blade._points = data
+        initial_point = blade.compute_initial_point(zp, s)
 
         # Verify if the initial point is right
         dif = abs(initial_point - right_initial_point)<=1e-5
         self.assertTrue(dif.all(), msg = 'point ='+str(initial_point)+' is not the right initial point')
 
         # Verify if load trajectories and find next initial point is right
-        self.blade3._trajectories = array([[right_initial_point]])
+        blade._trajectories = array([[right_initial_point]])
         zp = ZPlane(-0.5)
-        initial_point = self.blade3.compute_initial_point(zp, s)
+        initial_point = blade.compute_initial_point(zp, s)
         right_initial_point = array([sqrt(0.75), 0, -0.5, 0, 0, 1])
         dif = abs(initial_point - right_initial_point)<=1e-5
         self.assertTrue(dif.all(), msg = 'point ='+str(initial_point)+' is not the right initial point')
@@ -183,6 +181,8 @@ class TestBladeModeling(TestCase):
         is the known circle with radius = sqrt(3). Therefore, all generated points should be on the
         implicit circle x^2+y^2 = 3, z = -1.
         """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         s = mathtools.Sphere(2, 0, 1)
         initial_point = array([sqrt(3), 0, -1, 0, 0, 1])
         
@@ -195,7 +195,7 @@ class TestBladeModeling(TestCase):
                 return array([0, 0, 1])
         zp = ZPlane()
         
-        trajectory = self.blade4.draw_parallel(initial_point, zp, s, 0.001)
+        trajectory = blade.draw_parallel(initial_point, zp, s, 0.001)
         trajectory = array(trajectory)
 
         # Verify if all points are on circle
@@ -213,6 +213,8 @@ class TestBladeModeling(TestCase):
         - sphere: radius = 1.5, model: z = -0.75, intersection: x^2+y^2 = 1.6875
         - sphere: radius = 1.0, model: z = -0.5, intersection: x^2+y^2 = 0.75
         """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         s = mathtools.Sphere(2, 0.9, 0.5)
         initial_point = array([sqrt(3), 0, -1, 0, 0, 1])
         
@@ -235,25 +237,25 @@ class TestBladeModeling(TestCase):
                 self.z = z
         zp = ZPlane(s)
 
-        self.blade5._points = [initial_point]
-        self.blade5.generate_trajectories(zp, s, 0.001)
+        blade._points = [initial_point]
+        blade.generate_trajectories(zp, s, 0.001)
 
         # Verify if all points are on circle 1
-        trajectory = array(self.blade5._trajectories[0])
+        trajectory = array(blade._trajectories[0])
         test_xy = abs(sum(trajectory[:,0:2]*trajectory[:,0:2],1)-3)<=1e-5 # verify x^2+y^2
         test_z = abs(trajectory[:,2]+1)<=1e-5 # verify z
         test_circle = test_xy & test_z
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Verify if all points are on circle 2
-        trajectory = array(self.blade5._trajectories[1])
+        trajectory = array(blade._trajectories[1])
         test_xy = abs(sum(trajectory[:,0:2]*trajectory[:,0:2],1)-1.6875)<=1e-5 # verify x^2+y^2
         test_z = abs(trajectory[:,2]+0.75)<=1e-5 # verify z
         test_circle = test_xy & test_z
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Verify if all points are on circle 3
-        trajectory = array(self.blade5._trajectories[2])
+        trajectory = array(blade._trajectories[2])
         test_xy = abs(sum(trajectory[:,0:2]*trajectory[:,0:2],1)-0.75)<=1e-5 # verify x^2+y^2
         test_z = abs(trajectory[:,2]+0.5)<=1e-5 # verify z
         test_circle = test_xy & test_z
