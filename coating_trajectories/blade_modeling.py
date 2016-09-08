@@ -34,65 +34,65 @@ class BladeModeling:
         self._name = name
         self._blade = blade    
 
-    def save_samples(self):
+    def save_samples(self, directory_to_save):
         try:
-            makedirs('./Blade')
+            makedirs('./'+directory_to_save)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise   
-        savez_compressed('Blade/'+self._name+'_points.npz', array=self._points)
+        savez_compressed(directory_to_save+self._name+'_points.npz', array=self._points)
         return
 
-    def save_model(self, model):
+    def save_model(self, model, directory_to_save):
         try:
-            makedirs('./Blade/'+model.model_type)
+            makedirs('./'+directory_to_save+model.model_type)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise  
-        savez_compressed('Blade/'+model.model_type+'/'+model._name+'_w.npz',
+        savez_compressed(directory_to_save+model.model_type+'/'+model._name+'_w.npz',
                         array=model._w)
-        savez_compressed('Blade/'+model.model_type+'/'+model._name+'_points.npz',
+        savez_compressed(directory_to_save+model.model_type+'/'+model._name+'_points.npz',
                         array=model._points)
         return
 
-    def save_trajectories(self, model):
+    def save_trajectories(self, model, directory_to_save):
         try:
-            makedirs('./Blade/Trajectory')
+            makedirs('./'+directory_to_save)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-        savez_compressed('Blade/Trajectory/'+model._name+'_trajectories.npz',
+        savez_compressed(directory_to_save+model._name+'_trajectories.npz',
                                  array=self._trajectories)
         return
 
-    def load_samples(self):
+    def load_samples(self, directory_to_load = 'Blade/'):
         try:
-            self._points = load('Blade/'+self._name+'_points.npz')
+            self._points = load(directory_to_load+self._name+'_points.npz')
             self._points = self._points['array']
         except IOError:
             raise IOError('Samples could not be loaded. Call method BladeModeling::sampling')
         return
 
-    def load_model(self, model):
+    def load_model(self, model, directory_to_load = 'Blade/'):
         try:
-            model._w = load('Blade/'+model.model_type+'/'+model._name+'_w.npz')
+            model._w = load(directory_to_load+model.model_type+'/'+model._name+'_w.npz')
             model._w = model._w['array']
-            model._points = load('Blade/'+model.model_type+'/'+model._name+'_points.npz')
+            model._points = load(directory_to_load+model.model_type+'/'+model._name+'_points.npz')
             model._points = model._points['array']
         except IOError:
             raise IOError("Model could not be loaded.")
         return
     
-    def load_trajectories(self, model):
+    def load_trajectories(self, model, directory_to_load = 'Blade/Trajectory/'):
         try:
-            self._trajectories = load('Blade/Trajectory/'+model._name+'_trajectories.npz')
+            self._trajectories = load(directory_to_load+model._name+'_trajectories.npz')
             self._trajectories = self._trajectories['array']
             self._trajectories = self._trajectories.tolist()
         except IOError:
             raise IOError("Trajectories could not be loaded.")
         return
 
-    def sampling(self, delta = 0.005, min_distance_between_points=0.05):
+    def sampling(self, delta = 0.005, min_distance_between_points=0.05, directory_to_save ='Blade'):
         """ The sampling method is an algorithm for uniformly sampling objects.
         It computes the bounding box of the object (object inscribed by cube), uniformly
         samples the box's faces, and checks rays collision from cube's samples to the object.
@@ -106,6 +106,7 @@ class BladeModeling:
         delta -- uniform distance between the cube's samples.
         min_distance_between_points -- uniform distance between the object's samples.
         min_distance_between_points >= delta
+        directory_to_save -- directory to save samples (default is './Blade')
         """
         
         cc = RaveCreateCollisionChecker(self.turbine.env,'ode')
@@ -148,7 +149,7 @@ class BladeModeling:
                   self._points = r_[self._points,newinfo]
 
         self._points = self.filter_by_distance(self._points, min_distance_between_points)
-        self.save_samples()
+        self.save_samples(directory_to_save)
         return             
    
     def filter_by_distance(self, points, r):
@@ -181,7 +182,7 @@ class BladeModeling:
             if i==len(points):break
         return array(rays)
         
-    def make_model(self, model, iter_surface=None):
+    def make_model(self, model, iter_surface=None, directory_to_save='Blade/'):
         """
         The make_model method is an algorithm to generate a mathematical representation
         of the object (mesh). This method can be called after the sampling method,
@@ -192,6 +193,7 @@ class BladeModeling:
         Keyword arguments:
         iter_surface -- This is the surface to be iterated, as mathtools.sphere.
         If the model has more than 9000 points, this argument is needed.
+        directory_to_save -- directory to save the model (default is './Blade')
         """
         
         if len(self._points)>9000:
@@ -209,7 +211,7 @@ class BladeModeling:
         else:
             model._points = self._points
             model.make()
-            self.save_model(model)
+            self.save_model(model, directory_to_save)
         return
 
     def compute_initial_point(self, model, iter_surface):
@@ -274,7 +276,7 @@ class BladeModeling:
             trajectory.append(next_point_on_surfaces)
         return   
 
-    def generate_trajectories(self, model, iter_surface, step = 1e-3):
+    def generate_trajectories(self, model, iter_surface, step = 1e-3, directory_to_save = 'Blade/Trajectory'):
         """
         Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
@@ -288,6 +290,7 @@ class BladeModeling:
         Keyword arguments:
         iter_surface -- surface to be iterated, as mathtools.sphere.
         step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
+        directory_to_save -- directory to save the trajectories (default is './Blade/Trajectory')
         """
 
         if not issubclass(iter_surface.__class__, mathtools.IterSurface):
@@ -298,15 +301,12 @@ class BladeModeling:
                                      matrixFromAxisAngle([0, -self.turbine.config.environment.blade_angle, 0]))
                                  )
         point_on_surfaces = self.compute_initial_point(model, iter_surface)
+ 
+        while iter_surface.criteria():
+            self._trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
+            p0=self._trajectories[-1][-1]
+            iter_surface.update()
+            point_on_surfaces = mathtools.curvepoint(model, iter_surface, p0[0:3])
 
-        try: 
-            while iter_surface.criteria():
-                self._trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
-                p0=self._trajectories[-1][-1]
-                iter_surface.update()
-                point_on_surfaces = mathtools.curvepoint(model, iter_surface, p0[0:3])
-        except KeyboardInterrupt:  
-            self.save_trajectories(model)
-            raise
-        self.save_trajectories(model)
+        self.save_trajectories(model, directory_to_save)
         return 
