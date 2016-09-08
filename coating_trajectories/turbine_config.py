@@ -1,11 +1,12 @@
 import ConfigParser
+from os import path
 
 class ConfigFileError(Exception):
     pass
 
 class TurbineConfig:
     path = None
-    file = None
+    source = None
     
     class Environment:
         load = None
@@ -40,17 +41,17 @@ class TurbineConfig:
         self.model = TurbineConfig.Model()
         
     @classmethod
-    def load(cls, config_file, path = ""):
+    def load(cls, config_file, dir_path = ""):
         # Standard python file parsing
         
         parser = ConfigParser.RawConfigParser()
-        if parser.read(path+config_file) == []:
-            raise ConfigFileError("No file named "+path+config_file+".")
+        if parser.read(path.join(dir_path,config_file)) == []:
+            raise ConfigFileError("No file named "+path.join(dir_path,config_file)+".")
         
         config = cls()
 
-        config.path = path
-        config.file = config_file
+        config.dir_path = dir_path
+        config.source = config_file
         
         try: 
             # environment Section

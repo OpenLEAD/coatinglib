@@ -1,6 +1,7 @@
 from numpy import array, dot, eye, concatenate, zeros
 from openravepy import transformLookat, matrixFromAxisAngle, Environment, databases, IkParameterization
 from openravepy.misc import InitOpenRAVELogging
+from os import path
 
 
 _PRIMARY_RAIL = "primary_rail"
@@ -42,7 +43,7 @@ class Turbine:
         # Create OpenRave environment
         self.env = Environment()
         InitOpenRAVELogging()
-        self.env.Load(config.path+config.environment.load)
+        self.env.Load(path.join(config.dir_path,config.environment.load))
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
         
@@ -136,9 +137,10 @@ class Turbine:
 
     def check_rail_collision(self):
         """ Check rail <-> blades collision """
-        collisions = [self.env.CheckCollision(self.primary,blade)
-                      or self.env.CheckCollision(self.secondary,blade)
-                      for blade in self.blades]
+        with self.env:
+            collisions = [self.env.CheckCollision(self.primary,blade)
+                          or self.env.CheckCollision(self.secondary,blade)
+                          for blade in self.blades]
         return any(collisions)
 
     def place_robot(self,rail_place):
@@ -150,5 +152,6 @@ class Turbine:
 
     def check_robot_collision(self):
         """ Check robot <-> environment collision """
-        collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
+        with self.env:
+            collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
         return any(collisions)

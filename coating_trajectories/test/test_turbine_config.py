@@ -7,7 +7,7 @@ class TestTurbineConfig(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestTurbineConfig, cls).setUpClass()
-        cls.turb = TurbineConfig.load("/turbine_unittest.cfg",cls.test_dir)
+        cls.turb = TurbineConfig.load("turbine_unittest.cfg",cls.test_dir)
 
     def test_load_wrong(self):
         with self.assertRaises(ConfigFileError):
@@ -15,7 +15,7 @@ class TestTurbineConfig(TestCase):
         
     # environment
     def test_parsed_load(self):
-        self.assertEqual(TestTurbineConfig.turb.environment.load,"/Turbina/env_mh12_0_16.xml")
+        self.assertEqual(TestTurbineConfig.turb.environment.load,"Turbina/env_mh12_0_16.xml")
 
     def test_parsed_z_floor_level(self):
         self.assertEqual(TestTurbineConfig.turb.environment.z_floor_level,-3.22)
