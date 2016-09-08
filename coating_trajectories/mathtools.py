@@ -22,6 +22,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
     p0 -- initial point (3D - without normal vector).
     tol -- tolerance, stop criteria.
     """
+    tol2 = tol**2
     while True:
         df1 = s1.df(p0); f1 = s1.f(p0)
         df2 = s2.df(p0); f2 = s2.f(p0)
@@ -29,7 +30,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
         crossdf = cross(df1,df2)
         if isnan(crossdf[0]) or isnan(crossdf[1]) or isnan(crossdf[2]):
             raise ValueError('Outside model')
-        if array_equal(crossdf,array([0,0,0])):
+        if (abs(crossdf - array([0,0,0]))<=1e-5).all():
             raise ValueError('Gradients are colinear')
         
         df1df2 = dot(df1,df2); df1df1 = dot(df1,df1); df2df2 = dot(df2,df2)
@@ -37,10 +38,11 @@ def curvepoint(s1, s2, p0, tol=1e-4):
         alpha = (-f1*df2df2+f2*df1df2)/(df1df1*df2df2-df1df2*df1df2)
         dk = alpha*df1+beta*df2
         p1 = p0+dk
-        if dot(dk,dk)<tol**2:
-            norm = s1.df([p1[0],p1[1],p1[2]])
-            norm = norm/sqrt(dot(norm,norm))
-            p1 = array([p1[0],p1[1],p1[2],norm[0],norm[1],norm[2]])
+        if dot(dk,dk)<tol2:
+            grad = s1.df(p1)
+            grad = grad/sqrt(dot(grad,grad))
+            p1 = array([p1[0],p1[1],p1[2],
+                        grad[0],grad[1],grad[2]])
             return p1
         else: p0=p1
 
