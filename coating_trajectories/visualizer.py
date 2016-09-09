@@ -1,4 +1,4 @@
-from numpy import array
+from numpy import array, random
 
 class Visualizer:
     """
@@ -10,7 +10,7 @@ class Visualizer:
         self.env.SetViewer('qtcoin')
         self.handles = {}
 
-    def plot(self, points, key, color, pointsize = 5):
+    def plot(self, points, key='point_'+str(random.uniform(1,10)), color=(0,0,0), pointsize = 5):
         """
         Method to plot points, array(points), array(array(points))
 
