@@ -1,7 +1,8 @@
-from numpy import array, dot, cross, outer, eye, array_equal, sum, sqrt
+from numpy import array, dot, cross, outer, eye, sum, sqrt, random, transpose
 from math import cos, sin, ceil, pi, isnan
 from openravepy import IkFilterOptions
 from abc import ABCMeta, abstractmethod
+from copy import copy
 
 class KinBodyError(Exception):    
     def __init__(self):
@@ -72,12 +73,10 @@ def Rab(a,b):
     vhat = hat(v)
     cosab = dot(a,b)
 
-    if sinab == 0 and cosab == 1:
-        R = eye(3)
-    elif sinab == 0 and cosab == -1:
-        R = -eye(3)
+    if cosab == -1:
+        return Raxis(compute_perpendicular_vector(a), pi)
     else:    
-        R = eye(3)+vhat+dot(vhat,vhat)*(1-cosab)/(sinab**2)
+        R = eye(3)+vhat+dot(vhat,vhat)*1.0/(1+cosab)
     return R
 
 def Raxis(a,theta):
@@ -85,6 +84,20 @@ def Raxis(a,theta):
     
     R = eye(3)*cos(theta) + hat(a)*sin(theta) + (1-cos(theta))*outer(a, a)
     return R
+
+def compute_perpendicular_vector(vector_1):
+    """
+    Compute a perpendicular vector of a given vector.
+
+    Keyword arguments:
+    vector_1 -- given vector.
+    """
+    vector_1 = vector_1/sqrt(dot(vector_1,vector_1))
+    vector_2 = copy(vector_1)
+    while abs(dot(vector_1,vector_2)-1)<=1e-6:
+        vector_2 = vector_1+random.uniform(1,-1,3)
+        vector_2 = vector_2/sqrt(dot(vector_2,vector_2))                  
+    return cross(vector_1,vector_2)
 
 class IterSurface:
     """ Inheritable class to surfaces that can be iterated and generate the coating
