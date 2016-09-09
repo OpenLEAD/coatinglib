@@ -1,5 +1,5 @@
 import unittest
-from numpy import array, array_equal, eye, pi, around, sqrt, random
+from numpy import array, array_equal, eye, pi, around, sqrt, random, dot
 from math import cos, sin
 from .. import mathtools
 from . import TestCase
@@ -14,11 +14,46 @@ class Testmathtools(TestCase):
         self.assertTrue(array_equal(M, mathtools.hat(v)))
 
     def test_Rab(self):
+        """
+        Test the method for two random vectors, for known vectors and for the
+        exception.
+        """
+
+        # Random vector test
+        vector_1 = random.uniform(-1,1,3)
+        vector_1 = vector_1/sqrt(dot(vector_1,vector_1))
+        vector_2 = random.uniform(-1,1,3)
+        vector_2 = vector_2/sqrt(dot(vector_2,vector_2))
+
+        R = mathtools.Rab(vector_1, vector_2)
+        v = dot(vector_2, R)
+        self.assertTrue(max(abs(v-vector_1))<=1e-5)
+
+        # Known vector test
         R = array([[0, -1, 0],
                    [1, 0, 0],
                    [0, 0, 1]])
         self.assertTrue(array_equal(mathtools.Rab(array([1, 0, 0]), array([0, 1, 0])), R))
 
+        # Exception test
+        vector_1 = [1,0,0]
+        vector_2 = [-1,0,0]
+        R = mathtools.Rab(vector_1, vector_2)
+        v = dot(vector_2, R)
+        self.assertTrue(max(abs(v-vector_1))<=1e-5)
+        
+
+    def test_compute_perpendicular_vector(self):
+        """
+        The test generates a random unit vector and verifies if a perpendicular
+        vector is found with dot product.
+        """
+        vector_1  = random.uniform(-1,1,3)
+        vector_1 = vector_1/sqrt(dot(vector_1,vector_1))
+        perpendicular_vector = mathtools.compute_perpendicular_vector(vector_1)
+        self.assertTrue(abs(dot(perpendicular_vector,vector_1))<=1e-6,
+                        msg='vector_1:'+str(vector_1)+', perpendicular vector:'+str(perpendicular_vector))
+    
     def test_Raxis(self):
         M = array([[1, 0, 0],
                    [0, 0, -1],
