@@ -1,9 +1,10 @@
-from numpy import sqrt, dot, concatenate, arange, array, zeros, transpose
+from numpy import sqrt, dot, concatenate, arange, array, zeros, transpose, linalg
 from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize
 from copy import copy
 import mathtools
+import time
 
 """ Main package for robot joints' positions and velocities planning,
 robot base calculation, torque and manipulability analysis.
@@ -46,21 +47,30 @@ def compute_robot_joints(turbine, trajectory):
 
     robot = turbine.robot
     q0, _ = inverse_kinematics(turbine, trajectory[0])
-    try:
-        q0 = q0[0]
-    except IndexError:
-        raise IndexError('There is no solution for the given trajectory.')
+    biggest_manipulability = 0
+    temp_q = []
+    for q in q0:
+        try: 
+            manipulability, _, _ = compute_manipulability_det(robot, q)
+            if manipulability>biggest_manipulability:
+                biggest_manipulability = manipulability
+                temp_q = q
+        except IndexError:
+            raise IndexError('There is no solution for the given trajectory.')
     
-    robot.SetDOFValues(q0)
+    robot.SetDOFValues(temp_q)
     joint_solutions = []
     
-    for point in trajectory:
-        res = orientation_error_optimization(turbine, point)
-        if not res.success: return joint_solutions 
+    for index in range(0,len(trajectory)):
+        res = orientation_error_optimization(turbine, trajectory[index])
+        if not res.success:
+            print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))
+            return joint_solutions, False 
         else:
             joint_solutions.append(res.x)
             robot.SetDOFValues(res.x)
-    return joint_solutions
+            time.sleep(0.01)
+    return joint_solutions, True
 
 def orientation_error_optimization(turbine, point):
     """ Minimizes the orientation error, given an initial configuration of the robot
@@ -79,6 +89,9 @@ def orientation_error_optimization(turbine, point):
     q0 = robot.GetDOFValues()
     manip = robot.GetActiveManipulator()
     lower_limits, upper_limits = robot.GetActiveDOFLimits()
+    lower_limits = lower_limits+0.05
+    upper_limits = upper_limits-0.05
+    
     with robot:
         def func(q):
             robot.SetDOFValues(q, manip.GetArmIndices())
@@ -196,4 +209,24 @@ def check_dof_limits(robot, q):
         u = u[0]
         if not q[i]>=l+0.01 or not q[i]<=u-0.01:
             return False
-    return True    
+    return True
+
+
+def compute_manipulability_det(robot, joint_configuration):
+    """
+    Compute robot manipulability as described in:
+    Yoshikawa, 'Manipulability of robotic mechanisms',
+    International Journal of Robotics Research, vol. 4
+    no. 2, pp. 3-9, 1985.
+    
+    keyword arguments:
+    robot -- the robot. 
+    joint_configuration -- q Nx1, joint configuration.
+    """
+    manip = robot.GetActiveManipulator()
+    with robot:
+        robot.SetDOFValues(joint_configuration)
+        Jpos = manip.CalculateJacobian()
+        Jori = manip.CalculateAngularVelocityJacobian()
+        J = concatenate((Jpos,Jori))
+    return sqrt(linalg.det(dot(transpose(J),J))), sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
