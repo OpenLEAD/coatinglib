@@ -1,4 +1,4 @@
-from numpy import array, random
+from numpy import array, random, reshape, c_
 
 class Visualizer:
     """
@@ -19,6 +19,7 @@ class Visualizer:
         key -- string, key dictionary, name of the points.
         color -- tuple (R,G,B) 
         """
+        
         points = array(points)
         if len(points.shape)==1:
             points = points[0:3]
@@ -36,6 +37,36 @@ class Visualizer:
             self.handles[key] = [self.env.plot3(points=points, pointsize=pointsize, colors=color)]
         return            
 
+    def plot_normal(self, points, key='normal_'+str(random.uniform(1,10)), color=(1,0,0), linewidth = 4):
+        """
+        Method to plot points, array(points), array(array(points))
+
+        Keyword arguments:
+        points -- points to be plotted.
+        key -- string, key dictionary, name of the points.
+        color -- tuple (R,G,B) 
+        """
+        points = array(points)
+        if len(points.shape)==1:
+            points = points.reshape(len(points),1)
+        if len(points.shape)==3:
+            points = [item for sublist in points for item in sublist]
+            points = array(points)[:,0:6]
+        
+        if key in self.handles:
+            temp = self.handles[key]
+            temp.append(self.env.drawlinelist(points=reshape(c_[points[:,0:3], points[:,0:3]+0.005*points[:,3:6]],
+                                                             (2*len(points),3)),
+                                              linewidth=linewidth,
+                                              colors=color))
+            self.handles[key] = temp
+        else:
+            self.handles[key] = [self.env.drawlinelist(points=reshape(c_[points[:,0:3], points[:,0:3]+0.005*points[:,3:6]],
+                                                             (2*len(points),3)),
+                                              linewidth=linewidth,
+                                              colors=color)]
+        return   
+
     def remove_points(self, key):
         """
         Method to remove points
@@ -43,6 +74,7 @@ class Visualizer:
         Keyword arguments:
         key -- string, key dictionary, name of the points.
         """
+        
         try:
             self.handles.pop(key,None)
             self.update()
