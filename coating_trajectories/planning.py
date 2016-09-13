@@ -14,23 +14,31 @@ places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
 
+_filter_options = {'mh12': mh12_filter}
 
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
 
 def mh12_filter(turbine, trajectories):
-    def distance_robot(point,turbine):
-        pass # TODO
-    filtered_trajectories = []
-    for jectory in trajectories:
-        
-        filtered_jectory = []
-        for point in jectory:
-            
-            if distance_robot(point[0:3],turbine):
-                pass #TODO
+    _working_radius_squared = 1.285**2
+    def distance_robot_squared(point,turbine):
+        delta = (tubine.robot.GetJoints[1].GetAnchor()-point)
+        return dot(delta,delta)
     
-_filter_options = {'mh12': mh12_filter}
+    filtered_trajectories = []
+    for trajectory in trajectories:
+        
+        filtered_trajectory = []
+        for point in trajectory:
+            
+            if distance_robot_squared(point[0:3],turbine) < _working_radius_squared:
+                filtered_trajectory += [point]
+        if not filtered_trajectory:
+            filtered_trajectories += [filtered_trajectory]
+
+    return filtered_trajectories
+    
+
 def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
