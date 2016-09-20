@@ -88,7 +88,7 @@ class TestBladeModeling(TestCase):
     def test_make_model(self):
         """
         The test verifies if the interpolation is right, using extra points of the cube (test object).
-        Also, the it verifies outside points, and the normal vectors.
+        Also, it verifies outside points, and the normal vectors.
         """
 
         blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
@@ -99,7 +99,7 @@ class TestBladeModeling(TestCase):
         
         delta = 0.005
         blade.sampling(delta, None)
-        blade.make_model(model)
+        models, model_index = blade.make_model(model)
 
         # Verifying if interpolation is right with the extra points of the cube 
         rbf_results = []
@@ -127,6 +127,92 @@ class TestBladeModeling(TestCase):
                 normal[argmax(abs(point[0:3]))] = 1*sign(point[argmax(abs(point[0:3]))])
                 cos_theta = dot(normal, point[3:6])
                 self.assertTrue(abs(cos_theta-1)<=1e-3, msg = 'point ='+str(point)+' has wrong normal vector')
+
+        # Test save_model
+        blade.save_model(models, directory_to_save = 'test_make_model/')
+        
+
+    def test_divide_model_points(self):
+        """
+        The test generates random data and call method for division.
+        """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        number_of_data = 15000
+        intersection_between_divisions = 0.15
+        data = random.uniform(-10,10,size=(number_of_data,6))
+        s = mathtools.Sphere(18, 0, 1)
+        
+        # Check output when number_of_points_per_part equals number of points
+        model_points, model_index = blade.divide_model_points(data, s, number_of_data)
+        self.assertTrue(len(model_points)==1 and len(model_points[0])==len(data),
+                        msg="Check fails when number_of_points_per_part equals number_of_data")
+
+        # Check output when number_of_points_per_part is 1/3 of the number of points
+        model_points, model_index = blade.divide_model_points(data, s, number_of_data/3,
+                                                 intersection_between_divisions)
+
+        self.assertTrue(len(model_points)==4,
+                        msg="""Check fails when number_of_points_per_part is 1/3 of number_of_data
+                            len(model_points) is not 4.    
+                            """)
+        check_model_points = True
+        for i in range(0,len(model_points)):
+            if i != len(model_points)-1:
+                check_model_points = check_model_points and (len(model_points[i])==number_of_data/3)
+        self.assertTrue(check_model_points,
+                        msg="""Check fails when number_of_points_per_part is 1/3 of number_of_data
+                            len(model_points[i]) is not number_of_data/3.    
+                            """)
+        
+
+    def test_make_model_multiple_RBF(self):
+        """
+        The test verifies if the interpolation is right, using extra points of the cube (test object)
+        and multiple RBFs. Also, it verifies outside points, and the normal vectors.
+        """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        model = rbf.RBF('test','r3')
+        s = mathtools.Sphere(0, 0, 1)
+        
+        number_of_model_data = 15000
+        model_data = random.uniform(-1,1, size=(number_of_model_data,6))
+        model_data[:,0:3] = model_data[:,0:3]*(1.0/(sqrt(sum(model_data[:,0:3]*model_data[:,0:3],1)))).reshape(number_of_model_data,1)
+        model_data[:,2] = model_data[:,2]-1
+        model_data[:,3] = model_data[:,0]*2
+        model_data[:,4] = model_data[:,1]*2
+        model_data[:,5] = model_data[:,2]*2
+        blade._points = model_data
+
+        number_of_validate_data = 100
+        validate_data = random.uniform(-1,1, size=(number_of_validate_data,6))
+        validate_data[:,0:3] = validate_data[:,0:3]*(1.0/(sqrt(sum(validate_data[:,0:3]*validate_data[:,0:3],1)))).reshape(number_of_validate_data,1)
+        validate_data[:,2] = validate_data[:,2]-1
+        validate_data[:,3] = validate_data[:,0]*2
+        validate_data[:,4] = validate_data[:,1]*2
+        validate_data[:,5] = validate_data[:,2]*2
+
+        number_of_points_per_part = number_of_model_data/3
+        intersection_between_divisions = 0.15
+        blade._points = model_data
+        
+        models, model_index = blade.make_model(model, s)
+
+        # Verifying if interpolation is right with extra points
+        rbf_results = []
+        for point in validate_data:
+            for ri in range(0,len(model_index)):
+                if s.f(point)<model_index[ri]:
+                    rbf_results.append(models[ri].f(point[0:3]))
+                    break
+        rbf_results = abs(rbf_results)
+        self.assertTrue(max(rbf_results)<tolmax and mean(rbf_results)<tolmean)
+
+        # Test save_model
+        blade.save_model(models, 'test_make_model_multiple_RBF/', s, model_index)
+
+
 
     def test_compute_initial_point(self):
         """
@@ -160,16 +246,16 @@ class TestBladeModeling(TestCase):
         zp = ZPlane()
         
         blade._points = data
-        initial_point = blade.compute_initial_point(zp, s)
+        initial_point = blade.compute_initial_point(zp, s, [])
 
         # Verify if the initial point is right
         dif = abs(initial_point - right_initial_point)<=1e-5
         self.assertTrue(dif.all(), msg = 'point ='+str(initial_point)+' is not the right initial point')
 
         # Verify if load trajectories and find next initial point is right
-        blade._trajectories = array([[right_initial_point]])
+        trajectories = array([[right_initial_point]])
         zp = ZPlane(-0.5)
-        initial_point = blade.compute_initial_point(zp, s)
+        initial_point = blade.compute_initial_point(zp, s, trajectories)
         right_initial_point = array([sqrt(0.75), 0, -0.5, 0, 0, 1])
         dif = abs(initial_point - right_initial_point)<=1e-5
         self.assertTrue(dif.all(), msg = 'point ='+str(initial_point)+' is not the right initial point')
@@ -238,28 +324,31 @@ class TestBladeModeling(TestCase):
         zp = ZPlane(s)
 
         blade._points = [initial_point]
-        blade.generate_trajectories(zp, s, 0.001)
+        trajectories = blade.generate_trajectories(zp, s, 0.001)
 
         # Verify if all points are on circle 1
-        trajectory = array(blade._trajectories[0])
+        trajectory = array(trajectories[0])
         test_xy = abs(sum(trajectory[:,0:2]*trajectory[:,0:2],1)-3)<=1e-5 # verify x^2+y^2
         test_z = abs(trajectory[:,2]+1)<=1e-5 # verify z
         test_circle = test_xy & test_z
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Verify if all points are on circle 2
-        trajectory = array(blade._trajectories[1])
+        trajectory = array(trajectories[1])
         test_xy = abs(sum(trajectory[:,0:2]*trajectory[:,0:2],1)-1.6875)<=1e-5 # verify x^2+y^2
         test_z = abs(trajectory[:,2]+0.75)<=1e-5 # verify z
         test_circle = test_xy & test_z
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Verify if all points are on circle 3
-        trajectory = array(blade._trajectories[2])
+        trajectory = array(trajectories[2])
         test_xy = abs(sum(trajectory[:,0:2]*trajectory[:,0:2],1)-0.75)<=1e-5 # verify x^2+y^2
         test_z = abs(trajectory[:,2]+0.5)<=1e-5 # verify z
         test_circle = test_xy & test_z
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
+
+        # Test save_trajectory
+        blade.save_trajectory(trajectories, 'test/test.xml', s, 0.001, 'test/' )
         
 if __name__ == '__main__':
     unittest.main()
