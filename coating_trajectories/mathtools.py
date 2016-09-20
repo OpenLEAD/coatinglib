@@ -185,7 +185,7 @@ class Sphere(IterSurface):
         return
 
     def name(self):
-        return 'sphere'
+        return 'Sphere'
 
 class Plane(IterSurface):
     """ Plane surface class. An object of this class can be
@@ -224,4 +224,4 @@ class Plane(IterSurface):
         return
 
     def name(self):
-        return 'plane'
+        return 'Plane'
