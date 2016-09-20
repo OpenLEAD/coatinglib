@@ -8,6 +8,7 @@ from scipy.spatial import KDTree
 import mathtools
 from math import pi, ceil
 from copy import copy, deepcopy
+from lxml import etree as ET
 
 class IterSurfaceError(Exception):    
     def __init__(self):
@@ -26,7 +27,6 @@ class BladeModeling:
     turbine = None
     name = None
     blade = None
-    _trajectories = []
     _points = []
     
     def __init__(self, name, turbine, blade):
@@ -35,34 +35,96 @@ class BladeModeling:
         self._blade = blade    
 
     def save_samples(self, directory_to_save):
+        
         try:
-            makedirs('./'+directory_to_save)
+            makedirs(directory_to_save)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise   
-        savez_compressed(directory_to_save+self._name+'_points.npz', array=self._points)
+        savez_compressed(directory_to_save + self._name + '_points.npz', array=self._points)
         return
 
-    def save_model(self, model, directory_to_save):
-        try:
-            makedirs('./'+directory_to_save+model.model_type)
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise  
-        savez_compressed(directory_to_save+model.model_type+'/'+model._name+'_w.npz',
-                        array=model._w)
-        savez_compressed(directory_to_save+model.model_type+'/'+model._name+'_points.npz',
-                        array=model._points)
-        return
+    def save_model(self, models, directory_to_save, iter_surface=None, model_index=[]):
 
-    def save_trajectories(self, model, directory_to_save):
+        """ A method to save model and model info
+
+        Keyword arguments:
+        models -- the computed models.
+        model_index -- when to switch between models .
+        iter_surface -- the iter surface used to compute the trajectories.
+        directory_to_save -- where to save the files.
+        """
+
         try:
-            makedirs('./'+directory_to_save)
+            makedirs(directory_to_save)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
-        savez_compressed(directory_to_save+model._name+'_trajectories.npz',
-                                 array=self._trajectories)
+
+        model = ET.Element("model")
+        ET.SubElement(model, "name").text = self._name
+
+        if iter_surface is not None:
+            surface = ET.SubElement(model, "iter_surface")
+            ET.SubElement(surface, "type").text = iter_surface.name()
+            ET.SubElement(surface, "Rn").text = str(iter_surface._Rn)
+
+        ET.SubElement(model, "index").text = str(model_index)
+
+        for i in range(0,len(models)):
+            doc = ET.SubElement(model, "interpolation")
+            ET.SubElement(doc, "type").text = models[i].model_type
+            ET.SubElement(doc, "w").text = directory_to_save + 'w_' + str(i)
+            ET.SubElement(doc, "points").text = directory_to_save + 'points_' + str(i)
+            if model_index:
+                ET.SubElement(doc, "index").text = str(model_index[i])
+            savez_compressed(directory_to_save + 'w_' + str(i) + '.npz', array=models[i]._w)
+            savez_compressed(directory_to_save + 'points_' + str(i) + '.npz', array=models[i]._points)
+            if models[i].model_type == 'RBF':
+                ET.SubElement(doc, "kernel").text = models[i]._kernel
+                if models[i]._kernel=='gaussr':
+                    parameters = ET.SubElement(model_type, "paremeters")
+                    ET.SubElement(paremeters, "gauss_parameter").text = str(models[i].gausse)
+                ET.SubElement(doc, "eps").text = str(models[i]._eps)
+  
+        tree = ET.ElementTree(model)
+        tree.write(directory_to_save + "model.xml", pretty_print=True)
+        return
+
+    def save_trajectory(self, trajectories, xml_model, iter_surface,
+                        tangent_step, directory_to_save):
+        """ A method to save trajectory and trajectory info
+
+        Keyword arguments:
+        trajectories -- the computed trajectories.
+        xml_model -- path to xml model file.
+        iter_surface -- the iter surface used to compute the trajectories.
+        tangent_step -- the tangent step used.
+        directory_to_save -- where to save the files.
+        """
+
+        try:
+            makedirs(directory_to_save)
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+
+        trajectory = ET.Element("trajectory")
+        ET.SubElement(trajectory, "name").text = self._name
+        ET.SubElement(trajectory, "tangent_step").text = str(tangent_step)
+        
+        ET.SubElement(trajectory, "xml_model").text = xml_model
+        
+        surface = ET.SubElement(trajectory, "iter_surface")
+        ET.SubElement(surface, "type").text = iter_surface.name()
+        ET.SubElement(surface, "Rn").text = str(iter_surface._Rn)
+        ET.SubElement(surface, "stopR").text = str(iter_surface.stopR)
+        ET.SubElement(surface, "coatingstep").text = str(iter_surface.coatingstep)
+
+        savez_compressed(directory_to_save + 'trajectory.npz', array=trajectories)
+        
+        tree = ET.ElementTree(trajectory)
+        tree.write(directory_to_save + "trajectory.xml", pretty_print=True)
         return
 
     def load_samples(self, directory_to_load = 'Blade/'):
@@ -73,7 +135,9 @@ class BladeModeling:
             raise IOError('Samples could not be loaded. Call method BladeModeling::sampling')
         return
 
-    def load_model(self, model, directory_to_load = 'Blade/'):
+    def load_model(self, xml_model):
+
+        root = ET.parse(open(xml_model)).getroot()
         try:
             model._w = load(directory_to_load+model.model_type+'/'+model._name+'_w.npz')
             model._w = model._w['array']
@@ -92,7 +156,7 @@ class BladeModeling:
             raise IOError("Trajectories could not be loaded.")
         return
 
-    def sampling(self, delta = 0.005, min_distance_between_points=0.05, directory_to_save ='Blade'):
+    def sampling(self, delta = 0.005, min_distance_between_points=0.05):
         """ The sampling method is an algorithm for uniformly sampling objects.
         It computes the bounding box of the object (object inscribed by cube), uniformly
         samples the box's faces, and checks rays collision from cube's samples to the object.
@@ -149,7 +213,6 @@ class BladeModeling:
                   self._points = r_[self._points,newinfo]
 
         self._points = self.filter_by_distance(self._points, min_distance_between_points)
-        self.save_samples(directory_to_save)
         return             
    
     def filter_by_distance(self, points, r):
@@ -182,7 +245,8 @@ class BladeModeling:
             if i==len(points):break
         return array(rays)
         
-    def make_model(self, model, iter_surface=None, directory_to_save='Blade/'):
+    def make_model(self, model, iter_surface=None, number_of_points_per_part = 5000,
+                   intersection_between_divisions = 0.15):
         """
         The make_model method is an algorithm to generate a mathematical representation
         of the object (mesh). This method can be called after the sampling method,
@@ -191,10 +255,14 @@ class BladeModeling:
         This is a data-intensive computing and might freeze your computer.
 
         Keyword arguments:
+        model -- model type for the implicit computation, e.g. the RBF model (rbf.py).
         iter_surface -- This is the surface to be iterated, as mathtools.sphere.
         If the model has more than 9000 points, this argument is needed.
-        directory_to_save -- directory to save the model (default is './Blade')
+        directory_to_save -- directory to save the model (default is 'Blade/')
         """
+
+        model_points = [self._points]
+        model_index = []
         
         if len(self._points)>9000:
             if iter_surface is None:
@@ -205,16 +273,58 @@ class BladeModeling:
             elif not issubclass(iter_surface.__class__, mathtools.IterSurface):
                     raise IterSurfaceError()
             else:
-                raise ValueError("Data is too big")
-                #points = self.split_blade_points(self._points, iter_surface)
-                    
-        else:
-            model._points = self._points
-            model.make()
-            self.save_model(model, directory_to_save)
-        return
+                model_points, model_index = self.divide_model_points(self._points, iter_surface,
+                                                                     number_of_points_per_part,
+                                                                     intersection_between_divisions)                
 
-    def compute_initial_point(self, model, iter_surface):
+        models = []
+        for i in range(0,len(model_points)):
+            model._points = model_points[i]
+            model.make()
+            models.append(model)
+        return models, model_index
+
+    def divide_model_points(self, points, iter_surface,
+                            number_of_points_per_part = 5000,
+                            intersection_between_divisions = 0.15):
+        """
+        This method divides the points for multiple model generation, e.g. multiple RBFs.
+        It is required for objects with heavy sampling density, as the computation
+        of large RBFs is not possible due to the computer memory capacity.
+
+        Keyword arguments:
+        points -- samples to be divided. Each division will produce a model.
+        iter_surface -- This is the surface to be iterated, as mathtools.sphere.
+        number_of_points_per_part -- number of samples per division (5000 default)
+        intersection_between_divisions -- coeficient that multiplies the number_of_points_per_part.
+        The result is the samples which belong to two RBFs simultaneously. 
+        """
+
+        if number_of_points_per_part >= len(points):
+            return [points], []
+
+        model_points = []
+        points_distance = iter_surface.f_array(points)
+        points = [x for (y,x) in sorted(zip(points_distance, points))]
+        points = array(points)
+        number_of_points = len(points)
+        model_points.append(points[0:number_of_points_per_part])
+        model_index = [iter_surface.f(points[number_of_points_per_part-1])]
+        counter = 1
+        while True:
+            k = (1-intersection_between_divisions)*number_of_points_per_part*counter
+            if int(k+number_of_points_per_part) >= number_of_points:
+                model_points.append(points[int(k):])
+                model_index.append(iter_surface.f(points[-1]))
+                return model_points, model_index    
+            else:
+                model_points.append(points[int(k):int(k+number_of_points_per_part)])
+                model_index.append(iter_surface.f(points[int(k+number_of_points_per_part)-1]))
+            counter += 1
+                            
+        
+
+    def compute_initial_point(self, model, iter_surface, trajectories):
         """
         The compute_initial_point computes the initial point to start the generating trajectories
         algorithm. If trajectories were loaded, the initial point is the last computed point projected
@@ -224,8 +334,8 @@ class BladeModeling:
         step -- it must be small, e.g. 1e-3. Otherwise the method will fail.
         """
                 
-        if len(self._trajectories)>0:
-            last_computed_point = self._trajectories[-1][-1]
+        if len(trajectories)>0:
+            last_computed_point = trajectories[-1][-1]
             iter_surface.find_iter(last_computed_point)
             iter_surface.update()
             return mathtools.curvepoint(model, iter_surface, last_computed_point[0:3])
@@ -273,10 +383,9 @@ class BladeModeling:
                             return trajectory
                     except IndexError:
                         raise IndexError('Step is too big and the function terminated soon.')
-            trajectory.append(next_point_on_surfaces)
-        return   
+            trajectory.append(next_point_on_surfaces)  
 
-    def generate_trajectories(self, model, iter_surface, step = 1e-3, directory_to_save = 'Blade/Trajectory'):
+    def generate_trajectories(self, model, iter_surface, step = 1e-3):
         """
         Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
@@ -293,6 +402,7 @@ class BladeModeling:
         directory_to_save -- directory to save the trajectories (default is './Blade/Trajectory')
         """
 
+        trajectories = []
         if not issubclass(iter_surface.__class__, mathtools.IterSurface):
             raise IterSurfaceError()
 
@@ -300,13 +410,11 @@ class BladeModeling:
         self._blade.SetTransform(dot(self._blade.GetTransform(),
                                      matrixFromAxisAngle([0, -self.turbine.config.environment.blade_angle, 0]))
                                  )
-        point_on_surfaces = self.compute_initial_point(model, iter_surface)
+        point_on_surfaces = self.compute_initial_point(model, iter_surface, trajectories)
  
         while iter_surface.criteria():
-            self._trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
-            p0=self._trajectories[-1][-1]
+            trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
+            p0=trajectories[-1][-1]
             iter_surface.update()
             point_on_surfaces = mathtools.curvepoint(model, iter_surface, p0[0:3])
-
-        self.save_trajectories(model, directory_to_save)
-        return 
+        return trajectories
