@@ -112,6 +112,7 @@ class IterSurface:
     __metaclass__ = ABCMeta
     
     def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
+        self._Rn0 = Rn0
         self._Rn = Rn0
         self.stopR = stopR
         self.coatingstep = coatingstep
