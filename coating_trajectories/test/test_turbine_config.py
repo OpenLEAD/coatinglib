@@ -84,5 +84,17 @@ class TestTurbineConfig(TestCase):
     def test_parsed_trajectory_step(self):
         self.assertEqual(TestTurbineConfig.turb.model.trajectory_step,0.001)
 
+    def test_parsed_samples_delta(self):
+        self.assertEqual(TestTurbineConfig.turb.model.samples_delta,0.005)
+
+    def test_parsed_min_distance_between_points(self):
+        self.assertEqual(TestTurbineConfig.turb.model.min_distance_between_points,-1)
+
+    def test_parsed_number_of_points_per_model(self):
+        self.assertEqual(TestTurbineConfig.turb.model.number_of_points_per_model,5000)
+
+    def test_parsed_intersection_between_divisions(self):
+        self.assertEqual(TestTurbineConfig.turb.model.intersection_between_divisions,0.15)
+
 if __name__ == '__main__':
     unittest.main()

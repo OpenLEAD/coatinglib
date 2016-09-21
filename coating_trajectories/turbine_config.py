@@ -35,6 +35,10 @@ class TurbineConfig:
         nose_radius = None
         runner_radius = None
         trajectory_step = None
+        samples_delta = None
+        min_distance_between_points = None
+        number_of_points_per_model = None
+        intersection_between_divisions = None
 
     def __init__(self):
         self.environment = TurbineConfig.Environment()
@@ -82,6 +86,10 @@ class TurbineConfig:
             config.model.nose_radius = parser.getfloat("model","nose_radius")
             config.model.runner_radius = parser.getfloat("model","runner_radius")
             config.model.trajectory_step = parser.getfloat("model","trajectory_step")
+            config.model.samples_delta = parser.getfloat("model","samples_delta")
+            config.model.min_distance_between_points = parser.getfloat("model","min_distance_between_points")
+            config.model.number_of_points_per_model = parser.getint("model","number_of_points_per_model")
+            config.model.intersection_between_divisions = parser.getfloat("model","intersection_between_divisions")
             
         except ConfigParser.NoOptionError as error:
             raise ConfigFileError("Missing "+error.option+" on section "+error.section+".")
