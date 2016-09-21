@@ -66,7 +66,7 @@ class TestTurbineConfig(TestCase):
         self.assertEqual(TestTurbineConfig.turb.coating.max_distance,0.24)
 
     def test_parsed_angle_tolerance(self):
-        self.assertEqual(TestTurbineConfig.turb.coating.angle_tolerance,30)
+        self.assertEqual(TestTurbineConfig.turb.coating.angle_tolerance,0.523598776)
 
     def test_parsed_coating_speed(self):
         self.assertEqual(TestTurbineConfig.turb.coating.coating_speed,0.667)
@@ -80,6 +80,9 @@ class TestTurbineConfig(TestCase):
 
     def test_parsed_runner_radius(self):
         self.assertEqual(TestTurbineConfig.turb.model.runner_radius,3.75)
+
+    def test_parsed_trajectory_step(self):
+        self.assertEqual(TestTurbineConfig.turb.model.trajectory_step,0.001)
 
 if __name__ == '__main__':
     unittest.main()

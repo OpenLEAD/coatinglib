@@ -34,6 +34,7 @@ class TurbineConfig:
     class Model:
         nose_radius = None
         runner_radius = None
+        trajectory_step = None
 
     def __init__(self):
         self.environment = TurbineConfig.Environment()
@@ -80,6 +81,7 @@ class TurbineConfig:
             # model Section
             config.model.nose_radius = parser.getfloat("model","nose_radius")
             config.model.runner_radius = parser.getfloat("model","runner_radius")
+            config.model.trajectory_step = parser.getfloat("model","trajectory_step")
             
         except ConfigParser.NoOptionError as error:
             raise ConfigFileError("Missing "+error.option+" on section "+error.section+".")

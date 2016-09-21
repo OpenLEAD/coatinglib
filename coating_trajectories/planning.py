@@ -43,6 +43,24 @@ def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
+def workspace_limit(turbine,trajectory, trajectory_index, old_joints):
+
+    # 'j' for joints, so it doesnt clumpsy the equations
+    j = old_joints[:]
+    for i in range(1,3)
+        j = [joints(j[-1],trajectory_index+i)] + j
+
+    h = turbine.config.model.trajectory_step
+    
+    # Joints velocity - Central Difference (h**6 order error)
+    w = ( (j[3]-j[-3]) + 9*(j[-2]-j[2]) + 45*(j[1]-j[1]) )/(60.0*h)
+
+    # Joints acceleration - Central Difference (h**6 order error)
+    alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
+
+    # INVERSE DYNAMICS ComputeInverseDynamics
+    
+
 def compute_robot_joints(turbine, trajectory):
     """
     Iterates points of the trajectories, computing optimal robot's joints
