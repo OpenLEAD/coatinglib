@@ -35,7 +35,7 @@ class TestBladeModeling(TestCase):
         cube_edge = 0.05
         delta = 0.005
         blade.sampling(delta, None)
-        points_origin = blade._points[:,0:3]
+        points_origin = blade.points[:,0:3]
 
         # Checking if points are on the cube
         infinity_norm = abs(max(points_origin)-cube_edge)<=1e-4
@@ -54,7 +54,7 @@ class TestBladeModeling(TestCase):
         # Checking if normal vectors are right
         points_origin_and_normals = zeros((len(points_origin),6))
         points_origin_and_normals[:,0:3] = points_origin
-        points_origin_and_normals[:,3:6] = blade._points[:,3:6]
+        points_origin_and_normals[:,3:6] = blade.points[:,3:6]
         for point in points_origin_and_normals:
             abs_point = abs(point[0:3])
             if len(abs_point[abs(abs_point-max(abs_point))<=1e-5])>1:continue # Vertexes are exceptions
@@ -63,7 +63,11 @@ class TestBladeModeling(TestCase):
                 normal[argmax(abs(point[0:3]))] = 1*sign(point[argmax(abs(point[0:3]))])
                 cos_theta = dot(normal, point[3:6])
                 if abs(cos_theta-1)>=1e-3:
-                    self.assertTrue(False, msg = 'point ='+str(point)+' has wrong normal vector')           
+                    self.assertTrue(False, msg = 'point ='+str(point)+' has wrong normal vector')
+
+        # Test saving samples
+        blade.save_samples(delta, None, 'test_sampling/')
+        
 
     def test_filter_by_distance(self):
         """
@@ -73,8 +77,8 @@ class TestBladeModeling(TestCase):
         blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         threshold = 1
         points = random.uniform(-1,1,size=(100,6))
-        blade._points = points
-        points = blade.filter_by_distance(blade._points, threshold)
+        blade.points = points
+        points = blade.filter_by_distance(blade.points, threshold)
         
         for point in points:
             dif = points[:,0:3]-point[0:3]
@@ -95,12 +99,13 @@ class TestBladeModeling(TestCase):
         model = rbf.RBF('test','r3')
         delta = 0.008
         blade.sampling(delta, None)
-        template_points = blade._points
+        template_points = blade.points
         
         delta = 0.005
         blade.sampling(delta, None)
-        models, model_index = blade.make_model(model)
-
+        blade.make_model(model)
+        model = blade.models[0]
+        
         # Verifying if interpolation is right with the extra points of the cube 
         rbf_results = []
         for point in template_points:
@@ -129,7 +134,7 @@ class TestBladeModeling(TestCase):
                 self.assertTrue(abs(cos_theta-1)<=1e-3, msg = 'point ='+str(point)+' has wrong normal vector')
 
         # Test save_model
-        blade.save_model(models, directory_to_save = 'test_make_model/')
+        blade.save_model('test_make_model/')
         
 
     def test_divide_model_points(self):
@@ -183,7 +188,7 @@ class TestBladeModeling(TestCase):
         model_data[:,3] = model_data[:,0]*2
         model_data[:,4] = model_data[:,1]*2
         model_data[:,5] = model_data[:,2]*2
-        blade._points = model_data
+        blade.points = model_data
 
         number_of_validate_data = 100
         validate_data = random.uniform(-1,1, size=(number_of_validate_data,6))
@@ -195,22 +200,24 @@ class TestBladeModeling(TestCase):
 
         number_of_points_per_part = number_of_model_data/3
         intersection_between_divisions = 0.15
-        blade._points = model_data
+        blade.points = model_data
         
-        models, model_index = blade.make_model(model, s)
+        blade.make_model(model, s)
+        models = blade.models
+        model_index = blade.models_index
 
         # Verifying if interpolation is right with extra points
         rbf_results = []
         for point in validate_data:
             for ri in range(0,len(model_index)):
-                if s.f(point)<model_index[ri]:
+                if s.f(point)<model_index[ri][1]:
                     rbf_results.append(models[ri].f(point[0:3]))
                     break
         rbf_results = abs(rbf_results)
         self.assertTrue(max(rbf_results)<tolmax and mean(rbf_results)<tolmean)
 
         # Test save_model
-        blade.save_model(models, 'test_make_model_multiple_RBF/', s, model_index)
+        blade.save_model('test_make_model_multiple_RBF/')
 
 
 
@@ -245,8 +252,9 @@ class TestBladeModeling(TestCase):
                 return array([0, 0, 1])
         zp = ZPlane()
         
-        blade._points = data
-        initial_point = blade.compute_initial_point(zp, s, [])
+        blade.points = data
+        blade.models = [zp]
+        initial_point = blade.compute_initial_point(s, [])
 
         # Verify if the initial point is right
         dif = abs(initial_point - right_initial_point)<=1e-5
@@ -255,7 +263,8 @@ class TestBladeModeling(TestCase):
         # Verify if load trajectories and find next initial point is right
         trajectories = array([[right_initial_point]])
         zp = ZPlane(-0.5)
-        initial_point = blade.compute_initial_point(zp, s, trajectories)
+        blade.models = [zp]
+        initial_point = blade.compute_initial_point(s, trajectories)
         right_initial_point = array([sqrt(0.75), 0, -0.5, 0, 0, 1])
         dif = abs(initial_point - right_initial_point)<=1e-5
         self.assertTrue(dif.all(), msg = 'point ='+str(initial_point)+' is not the right initial point')
@@ -319,12 +328,11 @@ class TestBladeModeling(TestCase):
                 return p[2]-self.z
             def df(self, p):
                 return array([0, 0, 1])
-            def update(self,z):
-                self.z = z
         zp = ZPlane(s)
 
-        blade._points = [initial_point]
-        trajectories = blade.generate_trajectories(zp, s, 0.001)
+        blade.points = [initial_point]
+        blade.models = [zp]
+        trajectories = blade.generate_trajectories(s, 0.001)
 
         # Verify if all points are on circle 1
         trajectory = array(trajectories[0])
@@ -348,7 +356,7 @@ class TestBladeModeling(TestCase):
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Test save_trajectory
-        blade.save_trajectory(trajectories, 'test/test.xml', s, 0.001, 'test/' )
+        blade.save_trajectory(trajectories, 'test/test.xml', s, 0.001, 'test_generate_trajectories/' )
         
 if __name__ == '__main__':
     unittest.main()
