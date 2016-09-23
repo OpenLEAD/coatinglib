@@ -8,6 +8,7 @@ from .. turbine import Turbine
 from .. turbine_config import TurbineConfig, ConfigFileError
 from .. import blade_modeling
 from .. import mathtools
+import shutil
 
 tolmax = 1e-2
 tolmean = 1e-3
@@ -33,8 +34,11 @@ class TestBladeModeling(TestCase):
 
         blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         cube_edge = 0.05
-        delta = 0.005
-        blade.sampling(delta, None)
+        blade.samples_delta = 0.005
+        delta = blade.samples_delta
+        blade.min_distance_between_points = -1
+        
+        blade.sampling()
         points_origin = blade.points[:,0:3]
 
         # Checking if points are on the cube
@@ -65,8 +69,18 @@ class TestBladeModeling(TestCase):
                 if abs(cos_theta-1)>=1e-3:
                     self.assertTrue(False, msg = 'point ='+str(point)+' has wrong normal vector')
 
-        # Test saving samples
-        blade.save_samples(delta, None, 'test_sampling/')
+        # Test saving samples and loading
+        delta = blade.samples_delta
+        shape = blade.points.shape
+        min_distance_between_points = blade.min_distance_between_points
+        blade.save_samples('test_sampling/')
+        blade.load_samples('test_sampling/samples.xml')
+        shutil.rmtree('test_sampling')
+        
+        self.assertTrue(abs(delta - blade.samples_delta)<=1e-5, msg = 'samples_delta was not loaded')
+        self.assertTrue(abs(min_distance_between_points - blade.min_distance_between_points)<=1e-5,
+                        msg = 'min_distance_between_points was not loaded')
+        self.assertTrue(shape == blade.points.shape, msg = 'samples were not loaded')
         
 
     def test_filter_by_distance(self):
@@ -97,12 +111,14 @@ class TestBladeModeling(TestCase):
 
         blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
         model = rbf.RBF('test','r3')
-        delta = 0.008
-        blade.sampling(delta, None)
+        blade.samples_delta = 0.008
+        blade.min_distance_between_points = -1
+        blade.sampling()
         template_points = blade.points
-        
-        delta = 0.005
-        blade.sampling(delta, None)
+
+        blade.samples_delta = 0.005
+        delta = blade.samples_delta
+        blade.sampling()
         blade.make_model(model)
         model = blade.models[0]
         
@@ -133,9 +149,10 @@ class TestBladeModeling(TestCase):
                 cos_theta = dot(normal, point[3:6])
                 self.assertTrue(abs(cos_theta-1)<=1e-3, msg = 'point ='+str(point)+' has wrong normal vector')
 
-        # Test save_model
+        # Test save_model and loading
         blade.save_model('test_make_model/')
-        
+        blade.load_model('test_make_model/model.xml')
+        shutil.rmtree('test_make_model')        
 
     def test_divide_model_points(self):
         """
@@ -149,7 +166,8 @@ class TestBladeModeling(TestCase):
         s = mathtools.Sphere(18, 0, 1)
         
         # Check output when number_of_points_per_part equals number of points
-        model_points, model_index = blade.divide_model_points(data, s, number_of_data)
+        model_points, model_index = blade.divide_model_points(data, s, number_of_data,
+                                                              intersection_between_divisions)
         self.assertTrue(len(model_points)==1 and len(model_points[0])==len(data),
                         msg="Check fails when number_of_points_per_part equals number_of_data")
 
@@ -198,9 +216,8 @@ class TestBladeModeling(TestCase):
         validate_data[:,4] = validate_data[:,1]*2
         validate_data[:,5] = validate_data[:,2]*2
 
-        number_of_points_per_part = number_of_model_data/3
-        intersection_between_divisions = 0.15
-        blade.points = model_data
+        blade.number_of_points_per_model = number_of_model_data/3
+        blade.intersection_between_divisions = 0.15
         
         blade.make_model(model, s)
         models = blade.models
@@ -218,6 +235,8 @@ class TestBladeModeling(TestCase):
 
         # Test save_model
         blade.save_model('test_make_model_multiple_RBF/')
+        blade.load_model('test_make_model_multiple_RBF/model.xml')
+        shutil.rmtree('test_make_model_multiple_RBF')        
 
 
 
@@ -332,7 +351,8 @@ class TestBladeModeling(TestCase):
 
         blade.points = [initial_point]
         blade.models = [zp]
-        trajectories = blade.generate_trajectories(s, 0.001)
+        blade.trajectory_step = 0.001
+        trajectories = blade.generate_trajectories(s)
 
         # Verify if all points are on circle 1
         trajectory = array(trajectories[0])
@@ -356,7 +376,8 @@ class TestBladeModeling(TestCase):
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Test save_trajectory
-        blade.save_trajectory(trajectories, 'test/test.xml', s, 0.001, 'test_generate_trajectories/' )
+        blade.save_trajectory('test/test.xml', 'test_generate_trajectories/' )
+        shutil.rmtree('test_generate_trajectories') 
         
 if __name__ == '__main__':
     unittest.main()
