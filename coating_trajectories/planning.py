@@ -3,6 +3,7 @@ from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize
 from copy import copy
+from collections import deque
 import mathtools
 import time
 
@@ -43,12 +44,11 @@ def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
-def workspace_limit(turbine,trajectory, trajectory_index, old_joints):
+def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
 
     # 'j' for joints, so it doesnt clumpsy the equations
-    j = old_joints[:]
-    for i in range(1,3)
-        j = [joints(j[-1],trajectory_index+i)] + j
+    j = deque(joints_trajectory)
+    j.rotate(-trajectory_index)
 
     h = turbine.config.model.trajectory_step
     
@@ -59,6 +59,13 @@ def workspace_limit(turbine,trajectory, trajectory_index, old_joints):
     alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
 
     # INVERSE DYNAMICS ComputeInverseDynamics
+    with turbine.robot:
+        turbine.robot.SetDOFValues(j[0], _, turb.robot.CheckLimitsAction.CheckLimitsThrow)
+        turbine.robot.SetDOFVelocities(w, _, turb.robot.CheckLimitsAction.CheckLimitsThrow)
+        torques = turb.robot.ComputeInverseDynamics(alpha)
+        if all(torques < turb.robot.GetDOFMaxTorque):
+            return False#THROW EXCEPTION
+        
     
 
 def compute_robot_joints(turbine, trajectory):
