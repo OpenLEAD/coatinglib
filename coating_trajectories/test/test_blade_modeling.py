@@ -9,6 +9,7 @@ from .. turbine_config import TurbineConfig, ConfigFileError
 from .. import blade_modeling
 from .. import mathtools
 import shutil
+from copy import deepcopy, copy
 
 tolmax = 1e-2
 tolmean = 1e-3
@@ -70,9 +71,9 @@ class TestBladeModeling(TestCase):
                     self.assertTrue(False, msg = 'point ='+str(point)+' has wrong normal vector')
 
         # Test saving samples and loading
-        delta = blade.samples_delta
-        shape = blade.points.shape
-        min_distance_between_points = blade.min_distance_between_points
+        delta = copy(blade.samples_delta)
+        shape = copy(blade.points.shape)
+        min_distance_between_points = copy(blade.min_distance_between_points)
         blade.save_samples('test_sampling/')
         blade.load_samples('test_sampling/samples.xml')
         shutil.rmtree('test_sampling')
@@ -150,9 +151,19 @@ class TestBladeModeling(TestCase):
                 self.assertTrue(abs(cos_theta-1)<=1e-3, msg = 'point ='+str(point)+' has wrong normal vector')
 
         # Test save_model and loading
+        model = deepcopy(blade.models[0])
         blade.save_model('test_make_model/')
         blade.load_model('test_make_model/model.xml')
-        shutil.rmtree('test_make_model')        
+        shutil.rmtree('test_make_model')
+
+        self.assertTrue(blade.model_iter_surface is None, msg = 'model_iter_surface is not None, and it should be.')
+        self.assertTrue(model.model_type == blade.models[0].model_type, msg = 'model_type check failed')
+        for i in range(0,len(model._w)):
+            self.assertTrue(abs(model._w[i]-blade.models[0]._w[i])<=1e-5, msg = 'model_w check failed')
+            self.assertTrue((abs(model._points[i]-blade.models[0]._points[i])<=1e-5).all(), msg = 'model_point check failed')
+        self.assertTrue(model._kernel == blade.models[0]._kernel, msg = 'kernel check failed')
+        self.assertTrue(abs(model._eps-blade.models[0]._eps)<=1e-5, msg = 'eps check failed')
+        
 
     def test_divide_model_points(self):
         """
@@ -187,12 +198,75 @@ class TestBladeModeling(TestCase):
                         msg="""Check fails when number_of_points_per_part is 1/3 of number_of_data
                             len(model_points[i]) is not number_of_data/3.    
                             """)
-        
 
-    def test_make_model_multiple_RBF(self):
+    def test_select_model(self):
         """
-        The test verifies if the interpolation is right, using extra points of the cube (test object)
-        and multiple RBFs. Also, it verifies outside points, and the normal vectors.
+        The object is a cylinder. The zaxis is in (0,0). Data is generated as follows:
+        Number of points per model = 2000 points
+        Intersection coefficient = 0.15 (300 points)
+        Groups: (0, 2.50), (2.00, 3.00), (2.70, 3.15), (3.10, 5.00)
+        z = 0.0 .. 1.99 - 1700 points
+        z = 2.00 .. 2.50 - 300 points
+        z = 2.51 .. 2.69 - 1400 points
+        z = 2.70 .. 3.00 - 300 points
+        z = 3.01 .. 3.09 - 1400 points
+        z = 3.10 .. 3.15 - 300 points
+        z = 3.16 .. 5.00 - 1700 points
+        R = 0.25
+        A plane is the model_iter_surface.
+        """
+
+        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        model = rbf.RBF('test','r3')
+        p = mathtools.Plane(0, 0, 1)
+        blade.intersection_between_divisions = 0.15
+        blade.number_of_points_per_model = 2000
+        
+        data = zeros((7100,6))
+        xy = random.uniform(-1,1,size=(7100,2))
+        R = (sqrt(sum(xy*xy,1))).reshape(7100,1)
+        xy = xy/R
+        xy = xy * sqrt(0.25)
+        data[:,0:2] = xy[:,0:2]
+        data[1700:2000, 2] = random.uniform(2, 2.5, 300)
+        data[2000:3400, 2] = random.uniform(2.51, 2.69, 1400)
+        data[3400:3700, 2] = random.uniform(2.70, 3.00, 300)
+        data[3700:5100, 2] = random.uniform(3.01, 3.09, 1400)
+        data[5100:5400, 2] = random.uniform(3.10, 3.15, 300)
+        data[5400:7100, 2] = random.uniform(3.16, 5, 1700)
+        data[:,3] = xy[:,0]
+        data[:,4] = xy[:,1]
+
+        blade.points = data
+        blade.make_model(model, p)
+        #blade.save_model('test_select_model/')
+
+        test_data = zeros((8,6))
+        xy = random.uniform(-1,1,size=(8,2))
+        R = (sqrt(sum(xy*xy,1))).reshape(8,1)
+        xy = xy/R
+        xy = xy * sqrt(0.25)
+        z = [1.5, 2.0, 2.51, 2.6,
+             3.1, 3.12, 3.16, 4]
+        test_data[:,0:2] = xy[:,0:2]
+        test_data[:,3] = xy[:,0]
+        test_data[:,4] = xy[:,1]
+        test_data[:,2] = z
+
+        self.assertTrue(len(blade.models)==4, msg='Number of models is'+str(len(blade.models)))
+        index_verification = [0,0,1,1,2,2,3,3]
+
+        for i in range(0,len(test_data)):
+            model = blade.select_model(test_data[i])
+            self.assertTrue(model == blade.models[index_verification[i]],
+                            msg = 'Model was not well selected')
+                
+
+    def test_make_model_multiple(self):
+        """
+        The test verifies if the interpolation is right, using extra points
+        and multiple RBF models.
+        Tests the method select_model_from_list.
         """
 
         blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
@@ -206,7 +280,6 @@ class TestBladeModeling(TestCase):
         model_data[:,3] = model_data[:,0]*2
         model_data[:,4] = model_data[:,1]*2
         model_data[:,5] = model_data[:,2]*2
-        blade.points = model_data
 
         number_of_validate_data = 100
         validate_data = random.uniform(-1,1, size=(number_of_validate_data,6))
@@ -216,29 +289,40 @@ class TestBladeModeling(TestCase):
         validate_data[:,4] = validate_data[:,1]*2
         validate_data[:,5] = validate_data[:,2]*2
 
+        blade.points = model_data
         blade.number_of_points_per_model = number_of_model_data/3
         blade.intersection_between_divisions = 0.15
         
         blade.make_model(model, s)
-        models = blade.models
-        model_index = blade.models_index
 
         # Verifying if interpolation is right with extra points
         rbf_results = []
         for point in validate_data:
-            for ri in range(0,len(model_index)):
-                if s.f(point)<model_index[ri][1]:
-                    rbf_results.append(models[ri].f(point[0:3]))
-                    break
+            model = blade.select_model(point)
+            rbf_results.append(model.f(point))
         rbf_results = abs(rbf_results)
         self.assertTrue(max(rbf_results)<tolmax and mean(rbf_results)<tolmean)
 
-        # Test save_model
+        # Test save_model and loading
+        models = deepcopy(blade.models)
+        models_index = deepcopy(blade.models_index)
+        model_iter_surface = deepcopy(blade.model_iter_surface)
         blade.save_model('test_make_model_multiple_RBF/')
         blade.load_model('test_make_model_multiple_RBF/model.xml')
-        shutil.rmtree('test_make_model_multiple_RBF')        
+        shutil.rmtree('test_make_model_multiple_RBF')
 
+        self.assertTrue(model_iter_surface.name() == blade.model_iter_surface.name(), msg = 'model_iter_surface name check failed.')
+        self.assertTrue(abs(model_iter_surface._Rn - blade.model_iter_surface._Rn)<=1e-5, msg = 'model_iter_surface Rn check failed')
 
+        for i in range(0,len(blade.models)):
+            for j in range(0,len(blade.models[i]._w)):
+                self.assertTrue(abs(models[i]._w[j]-blade.models[i]._w[j])<=1e-5, msg = 'model_w check failed')
+                self.assertTrue((abs(models[i]._points[j]-blade.models[i]._points[j])<=1e-5).all(), msg = 'model_point check failed')
+            self.assertTrue(models[i]._kernel == blade.models[i]._kernel, msg = 'kernel check failed')
+            self.assertTrue(abs(models[i]._eps-blade.models[i]._eps)<=1e-5, msg = 'eps check failed')
+            self.assertTrue(abs(models_index[i][0]-blade.models_index[i][0])<=1e-5 and abs(models_index[i][1]-blade.models_index[i][1])<=1e-5,
+            msg = 'models_index check failed')
+            
 
     def test_compute_initial_point(self):
         """
@@ -337,6 +421,11 @@ class TestBladeModeling(TestCase):
                 self.z = z0
                 self._name = 'Plane'
                 self.s = sphere
+                self.model_type = 'RBF'
+                self._w = [0]
+                self._eps = 0
+                self._kernel = 'r3'
+                self._points = [0]
             def f(self, p):
                 if abs(self.s._Rn-2)<=1e-5:
                     self.z = -1
@@ -376,8 +465,23 @@ class TestBladeModeling(TestCase):
         self.assertTrue(test_circle.all(), msg = 'point(s) ='+str(trajectory[~test_circle])+' is (are) not on trajectory')
 
         # Test save_trajectory
-        blade.save_trajectory('test/test.xml', 'test_generate_trajectories/' )
-        shutil.rmtree('test_generate_trajectories') 
+        trajectory_iter_surface = deepcopy(blade.trajectory_iter_surface)
+        trajectory_step = blade.trajectory_step
+        trajectories = deepcopy(blade.trajectories)
+        
+        blade.save_model('test/')
+        blade.save_trajectory('test/model.xml', 'test_generate_trajectories/' )
+        blade.load_trajectory('test_generate_trajectories/trajectory.xml')
+        shutil.rmtree('test_generate_trajectories')
+
+        self.assertTrue(trajectory_iter_surface.name() == blade.trajectory_iter_surface.name(), msg = 'trajectory_iter_surface name check failed.')
+        self.assertTrue(abs(trajectory_iter_surface._Rn0 - blade.trajectory_iter_surface._Rn)<=1e-5, msg = 'trajectory_iter_surface Rn check failed')
+        self.assertTrue(abs(trajectory_iter_surface.stopR - blade.trajectory_iter_surface.stopR)<=1e-5, msg = 'trajectory_iter_surface stopR check failed')
+        self.assertTrue(abs(trajectory_iter_surface.coatingstep - blade.trajectory_iter_surface.coatingstep)<=1e-5, msg = 'trajectory_iter_surface coatingstep check failed')
+
+        for i in range(0, len(blade.trajectories)): # trajectory
+            for j in range(0,len(trajectories[i])): # point
+                self.assertTrue((abs(trajectories[i][j] - blade.trajectories[i][j])<=1e-5).all(), msg = 'trajectories check failed')
         
 if __name__ == '__main__':
     unittest.main()

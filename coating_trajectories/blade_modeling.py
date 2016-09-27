@@ -116,19 +116,16 @@ class BladeModeling:
         for i in range(0,len(models)):
             doc = ET.SubElement(model, "interpolation")
             ET.SubElement(doc, "type").text = models[i].model_type
-            ET.SubElement(doc, "w").text = directory_to_save + 'w_' + str(i) + ".csv"
             ET.SubElement(doc, "points").text = directory_to_save + 'points_' + str(i) + ".csv"
-            if model_index:
-                ET.SubElement(doc, "switching_parameter").text = str(model_index[i])
-            savetxt(directory_to_save + 'w_' + str(i) + '.csv', models[i]._w,
-                    fmt='%3.8f', delimiter = ',')
-            savetxt(directory_to_save + 'points_' + str(i) + '.csv', models[i]._points,
-                    fmt='%3.8f', delimiter = ',')
+            savetxt(directory_to_save + 'points_' + str(i) + '.csv', models[i]._points, fmt='%3.8f', delimiter = ',')
+            
             if models[i].model_type == 'RBF':
+                ET.SubElement(doc, "w").text = directory_to_save + 'w_' + str(i) + ".csv"
+                savetxt(directory_to_save + 'w_' + str(i) + '.csv', models[i]._w, fmt='%3.8f', delimiter = ',')
                 ET.SubElement(doc, "kernel").text = models[i]._kernel
-                if models[i]._kernel=='gaussr':
-                    ET.SubElement(doc, "gauss_parameter").text = str(models[i].gausse)
                 ET.SubElement(doc, "eps").text = str(models[i]._eps)
+                if models[i]._kernel=='gaussr': ET.SubElement(doc, "gauss_parameter").text = str(models[i].gausse)
+                
   
         tree = ET.ElementTree(model)
         tree.write(directory_to_save + "model.xml", pretty_print=True)
@@ -176,8 +173,7 @@ class BladeModeling:
             ET.SubElement(ETfile, "path").text = directory_to_save + 'trajectory_' + str(i) + '.csv'
             iter_surface.update()
             ET.SubElement(ETfile, "iter_R").text = str(iter_surface._Rn)
-            savetxt(directory_to_save + 'trajectory_' + str(i) + '.csv', trajectories[i],
-                    fmt='%3.8f', delimiter = ',')
+            savetxt(directory_to_save + 'trajectory_' + str(i) + '.csv', trajectories[i], fmt='%3.8f', delimiter = ',')
 
         ET.SubElement(trajectory, "npz_file").text = directory_to_save + 'trajectory' + ".npz"
         savez_compressed(directory_to_save + 'trajectory.npz', array=trajectories)
@@ -223,6 +219,7 @@ class BladeModeling:
         if xml.find('iter_surface').find('type').text != 'None':
             self.model_iter_surface = getattr(mathtools, xml.find('iter_surface').find('type').text)(float(xml.find('iter_surface').find('Rn').text),0,0)
             self.models_index = ast.literal_eval(xml.find('iter_surface').find('switching_parameters').text)
+        else: self.model_iter_surface = None
 
         self.intersection_between_divisions = float(xml.find('intersection_between_divisions').text)
         self.number_of_points_per_model = int(xml.find('number_of_points_per_model').text)
@@ -241,7 +238,7 @@ class BladeModeling:
             else: raise TypeError('This type of interpolation was not yet implemented')
         return
     
-    def load_trajectories(self, xml_file):
+    def load_trajectory(self, xml_file):
         """
         A method to load the trajectories and the used trajectory configurations.
 
@@ -261,10 +258,23 @@ class BladeModeling:
                                                                                                       float(xml.find('iter_surface').find('stopR').text),
                                                                                                       float(xml.find('iter_surface').find('coatingstep').text)
                                                                                                       )
-
         self.load_model(xml.find('xml_model').text)
         self.trajectories = load(xml.find('npz_file').text)['array']
         return
+
+    def validate_models(self, models, samples):
+        """
+        After the load_model call, the user may not know if the models are valid.
+        This method verifies if the model are valid w.r.t. the samples. 
+
+        Keyword arguments:
+        models -- the model objects (e.g. RBF).
+        samples -- samples of the object.
+        """
+
+        return
+            
+            
 
     def sampling(self):
         """
@@ -381,7 +391,7 @@ class BladeModeling:
         models_index = []
         models = []
         
-        if len(self.points)>9000:
+        if len(self.points)>7000:
             if model_iter_surface is None:
                 raise ValueError("The number of points is "+str(len(self.points))+""", which is
                                 bigger than 9000. It is not safe to make an unique model this big.
@@ -395,9 +405,10 @@ class BladeModeling:
                                                                      intersection_between_divisions)                
 
         for i in range(0,len(model_points)):
-            model._points = model_points[i]
-            model.make()
-            models.append(model)
+            temp_model = deepcopy(model)
+            temp_model._points = model_points[i]
+            temp_model.make()
+            models.append(temp_model)
 
         self.models = models
         self.models_index = models_index
@@ -431,8 +442,7 @@ class BladeModeling:
         
         model_points = []
         points_distance = iter_surface.f_array(points)
-        points = [x for (y,x) in sorted(zip(points_distance, points))]
-        points = array(points)
+        points = points[argsort(points_distance)]
         number_of_points = len(points)
         model_points.append(points[0:number_of_points_per_part])
         model_index = [(iter_surface.f(points[0]),
@@ -473,7 +483,7 @@ class BladeModeling:
             iter_surface.findnextparallel(initial_point)
             point = initial_point
             
-        model = self.select_model_from_list(point)
+        model = self.select_model(point)
         return mathtools.curvepoint(model, iter_surface, point[0:3])
 
     def draw_parallel(self, point_on_surfaces, model, iter_surface, step):
@@ -557,7 +567,7 @@ class BladeModeling:
         self.trajectory_iter_surface = iter_surface
  
         while iter_surface.criteria():
-            model = self.select_model_from_list(point_on_surfaces)
+            model = self.select_model(point_on_surfaces)
             trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
             p0=trajectories[-1][-1]
             iter_surface.update()
@@ -565,20 +575,17 @@ class BladeModeling:
             self.trajectories = trajectories
         return trajectories
 
-    def select_model_from_list(self, point):
+    def select_model(self, point):
         """
         From a list of models generated for a highly sampled object,
         this method selects the model that interpolates the parallel to be computed.
 
         Keyword arguments:
-        models -- list of models, e.g., RBF objects.
-        model_index -- when to switch between models.
-        model_iter_surface -- iter_surface used to divide the models.
-        point_on_surfaces -- a point of the parallel.
+        point -- a point of the parallel.
         """
         
-        models = self.models
-        models_index = self.models_index
+        models = array(self.models)
+        models_index = array(self.models_index)
         intersection_between_divisions = self.intersection_between_divisions
         model_iter_surface = self.model_iter_surface
         
@@ -587,6 +594,9 @@ class BladeModeling:
 
         f_point = model_iter_surface.f(point)
         models = models[(models_index[:,0] <= f_point) & (models_index[:,1] >= f_point)]
+
+        if len(models) == 1:
+            return models[0]
         
         if len(models)==0:
             raise ValueError("Point not in range of the RBF models")
