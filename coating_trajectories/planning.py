@@ -53,7 +53,7 @@ def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
     h = turbine.config.model.trajectory_step
     
     # Joints velocity - Central Difference (h**6 order error)
-    w = ( (j[3]-j[-3]) + 9*(j[-2]-j[2]) + 45*(j[1]-j[1]) )/(60.0*h)
+    w = ( (j[3]-j[-3]) + 9*(j[-2]-j[2]) + 45*(j[1]-j[-1]) )/(60.0*h)
 
     # Joints acceleration - Central Difference (h**6 order error)
     alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
@@ -65,7 +65,8 @@ def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
         torques = turb.robot.ComputeInverseDynamics(alpha)
         if all(torques < turb.robot.GetDOFMaxTorque):
             return False#THROW EXCEPTION
-        
+
+    return torques
     
 
 def compute_robot_joints(turbine, trajectory):
