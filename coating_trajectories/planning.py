@@ -15,8 +15,6 @@ places - robot places to coat a specific set of parallels
 turbine - full environment and parameters
 """
 
-_filter_options = {'mh12': mh12_filter}
-
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
 
@@ -38,7 +36,9 @@ def mh12_filter(turbine, trajectories):
             filtered_trajectories += [filtered_trajectory]
 
     return filtered_trajectories
-    
+
+
+_filter_options = {'mh12': mh12_filter}    
 
 def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
