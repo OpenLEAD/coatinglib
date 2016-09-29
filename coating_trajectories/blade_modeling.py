@@ -70,7 +70,7 @@ class BladeModeling:
         ET.SubElement(samples, "min_distance_between_points").text = str(min_distance_between_points)
         ET.SubElement(samples, "path").text = directory_to_save + 'samples.csv'
             
-        savetxt(directory_to_save + 'samples.csv', self.points, fmt='%3.8f', delimiter = ',')
+        savetxt(directory_to_save + 'samples.csv', self.points, delimiter = ',')
 
         tree = ET.ElementTree(samples)
         tree.write(directory_to_save + "samples.xml", pretty_print=True)
@@ -117,11 +117,11 @@ class BladeModeling:
             doc = ET.SubElement(model, "interpolation")
             ET.SubElement(doc, "type").text = models[i].model_type
             ET.SubElement(doc, "points").text = directory_to_save + 'points_' + str(i) + ".csv"
-            savetxt(directory_to_save + 'points_' + str(i) + '.csv', models[i]._points, fmt='%3.8f', delimiter = ',')
+            savetxt(directory_to_save + 'points_' + str(i) + '.csv', models[i]._points, delimiter = ',')
             
             if models[i].model_type == 'RBF':
                 ET.SubElement(doc, "w").text = directory_to_save + 'w_' + str(i) + ".csv"
-                savetxt(directory_to_save + 'w_' + str(i) + '.csv', models[i]._w, fmt='%3.8f', delimiter = ',')
+                savetxt(directory_to_save + 'w_' + str(i) + '.csv', models[i]._w, delimiter = ',')
                 ET.SubElement(doc, "kernel").text = models[i]._kernel
                 ET.SubElement(doc, "eps").text = str(models[i]._eps)
                 if models[i]._kernel=='gaussr': ET.SubElement(doc, "gauss_parameter").text = str(models[i].gausse)
@@ -173,7 +173,7 @@ class BladeModeling:
             ET.SubElement(ETfile, "path").text = directory_to_save + 'trajectory_' + str(i) + '.csv'
             iter_surface.update()
             ET.SubElement(ETfile, "iter_R").text = str(iter_surface._Rn)
-            savetxt(directory_to_save + 'trajectory_' + str(i) + '.csv', trajectories[i], fmt='%3.8f', delimiter = ',')
+            savetxt(directory_to_save + 'trajectory_' + str(i) + '.csv', trajectories[i], delimiter = ',')
 
         ET.SubElement(trajectory, "npz_file").text = directory_to_save + 'trajectory' + ".npz"
         savez_compressed(directory_to_save + 'trajectory.npz', array=trajectories)
@@ -259,7 +259,7 @@ class BladeModeling:
                                                                                                       float(xml.find('iter_surface').find('coatingstep').text)
                                                                                                       )
         self.load_model(xml.find('xml_model').text)
-        self.trajectories = load(xml.find('npz_file').text)['array']
+        self.trajectories = (load(xml.find('npz_file').text)['array']).tolist()
         return
 
     def validate_models(self, models, samples):
@@ -552,7 +552,7 @@ class BladeModeling:
             raise TypeError("Object is not a valid surface.")
 
         if self.model_iter_surface is not None:
-            if iter_surface.name() != self.model_iter_surface:
+            if iter_surface.name() != self.model_iter_surface.name():
                 raise TypeError("Object iter_surface must have same type of model_iter_surface.")
 
         if not self.models:
@@ -593,13 +593,13 @@ class BladeModeling:
             return models[0]
 
         f_point = model_iter_surface.f(point)
-        models = models[(models_index[:,0] <= f_point) & (models_index[:,1] >= f_point)]
+        models = models[(models_index[:,0] <= f_point+1e-5) & (models_index[:,1] >= f_point-1e-5)]
 
         if len(models) == 1:
             return models[0]
         
         if len(models)==0:
-            raise ValueError("Point not in range of the RBF models")
+            raise ValueError("Point:"+str(point)+", with value:"+str(f_point)+", is not in range of the RBF models.\n "+str(self.models_index))
 
         
         f_points = float('Inf')
