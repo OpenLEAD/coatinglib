@@ -60,8 +60,8 @@ def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
 
     # INVERSE DYNAMICS ComputeInverseDynamics
     with turbine.robot:
-        turbine.robot.SetDOFValues(j[0], _, turb.robot.CheckLimitsAction.CheckLimitsThrow)
-        turbine.robot.SetDOFVelocities(w, _, turb.robot.CheckLimitsAction.CheckLimitsThrow)
+        turbine.robot.SetDOFValues(j[0], turb.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
+        turbine.robot.SetDOFVelocities(w, turb.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
         torques = turb.robot.ComputeInverseDynamics(alpha)
         if all(torques < turb.robot.GetDOFMaxTorque):
             return False#THROW EXCEPTION
