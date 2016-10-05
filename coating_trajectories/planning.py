@@ -1,4 +1,4 @@
-from numpy import sqrt, dot, concatenate, arange, array, zeros, transpose, linalg
+from numpy import sqrt, dot, concatenate, arange, array, zeros, transpose, linalg, cross
 from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize
@@ -65,6 +65,22 @@ def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
         torques = turb.robot.ComputeInverseDynamics(alpha)
         if any(torques < turb.robot.GetDOFMaxTorque):
             return False#THROW EXCEPTION
+
+    tangent_vec = cross(trajectory[0:3],trajectory[3:6])
+    tangent_vec = tangent_vec/sqrt(dot(tangent_vec,tangent_vec))
+
+    Jpos = turbine.manipulator.CalculateJacobian()
+    Hpos = turbine.robot.ComputeHessianTranslation(turb.manipulator.GetArmDOF(),
+                                                   turbine.manipulator.GetEndEffectorTransform()[0:3,3])
+    Hpos = dot(Hpos,w)
+
+    Hpos_tan = dot(Hpos,tangent_vec)
+    Jpos_tan = dot(tangent_vec, Jpos)
+
+    errorgain_tan = contcatenate((Jpos_tan,Hpos_tan))
+    theta_limits = zip(-2*turbine.robot.GetDOFResolutions(),2*turbine.robot.GetDOFResolutions())
+    w_limits = zip(-w*0.01,w*0.01)
+        
 
     return torques
     
