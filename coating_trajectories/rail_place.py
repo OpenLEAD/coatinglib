@@ -10,13 +10,13 @@ def _rand_angle(turbine, x, y, alpha_seed):
     # Given a set of (0,1) random alpha_seed,
     # the function output a uniform constrained by x/y/anglelimit set of angles. 
     
-    alpha_min = turbine.environment.rail_angle_mean - turbine.environment.rail_angle_limit
-    alpha_max = turbine.environment.rail_angle_mean + turbine.environment.rail_angle_limit
+    alpha_min = turbine.config.environment.rail_angle_mean - turbine.config.environment.rail_angle_limit
+    alpha_max = turbine.config.environment.rail_angle_mean + turbine.config.environment.rail_angle_limit
     
     # Get min and max angles for that position
     # (so to fit inside the avaible area)
-    local_limit = [sign(y)*arctan2(abs(turbine.environment.x_max - x), abs(y)),
-                   -sign(y)*arctan2(abs(turbine.environment.x_min - x), abs(y))]
+    local_limit = [sign(y)*arctan2(abs(turbine.config.environment.x_max - x), abs(y)),
+                   -sign(y)*arctan2(abs(turbine.config.environment.x_min - x), abs(y))]
 
     
     alpha_max = minimum( maximum(local_limit[0],local_limit[1]), alpha_max)
@@ -37,29 +37,29 @@ def rand_rail(turbine, N = 1):
     #S - secondary rail,
     #alpha - angle from the perpendicular to the primary rail
 
-    alpha_min = turbine.environment.rail_angle_mean - turbine.environment.rail_angle_limit
-    alpha_max = turbine.environment.rail_angle_mean + turbine.environment.rail_angle_limit
+    alpha_min = turbine.config.environment.rail_angle_mean - turbine.config.environment.rail_angle_limit
+    alpha_max = turbine.config.environment.rail_angle_mean + turbine.config.environment.rail_angle_limit
     
     # Randomness
     random.seed(int(time()+int((time()-int(time()))*10000)))
     x,y,alpha = random.rand(3,N)
     
-    x = (turbine.environment.x_max - turbine.environment.x_min)*x + turbine.environment.x_min
+    x = (turbine.config.environment.x_max - turbine.config.environment.x_min)*x + turbine.config.environment.x_min
 
     
     if alpha_min > 0: #Limits of the avaible area depends on alpha limits
-        y_max = (turbine.environment.x_max - x)/tan(alpha_min)
-        y_min = (turbine.environment.x_min - x)/tan(alpha_min)
-        y_max = minimum(y_max,turbine.environment.y_max)
-        y_min = maximum(y_min,turbine.environment.y_min)
+        y_max = (turbine.config.environment.x_max - x)/tan(alpha_min)
+        y_min = (turbine.config.environment.x_min - x)/tan(alpha_min)
+        y_max = minimum(y_max,turbine.config.environment.y_max)
+        y_min = maximum(y_min,turbine.config.environment.y_min)
     elif alpha_max < 0:
-        y_max = (turbine.environment.x_min - x)/tan(alpha_max)
-        y_min = (turbine.environment.x_max - x)/tan(alpha_max)
-        y_max = minimum(y_max,turbine.environment.y_max)
-        y_min = maximum(y_min,turbine.environment.y_min)
+        y_max = (turbine.config.environment.x_min - x)/tan(alpha_max)
+        y_min = (turbine.config.environment.x_max - x)/tan(alpha_max)
+        y_max = minimum(y_max,turbine.config.environment.y_max)
+        y_min = maximum(y_min,turbine.config.environment.y_min)
     else:
-        y_max = turbine.environment.y_max
-        y_min = turbine.environment.y_min
+        y_max = turbine.config.environment.y_max
+        y_min = turbine.config.environment.y_min
         
     y = (y_max - y_min)*y + y_min
 
@@ -101,5 +101,5 @@ class RailPlace:
 
     def getXYZ(self, turbine):
         # Get the XYZ value of the end of the secondary rail
-        return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), turbine.environment.z_floor_level ])
+        return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), turbine.config.environment.z_floor_level ])
 
