@@ -42,7 +42,7 @@ def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
-def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
+def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
 
     # 'j' for joints, so it doesnt clumpsy the equations
     j = deque(joints_trajectory)
@@ -63,24 +63,38 @@ def workspace_limit(turbine,trajectory, joints_trajectory, trajectory_index):
         torques = turb.robot.ComputeInverseDynamics(alpha)
         if any(torques < turb.robot.GetDOFMaxTorque):
             return False#THROW EXCEPTION
+        else:
+            return True
 
-    tangent_vec = cross(trajectory[0:3],trajectory[3:6])
+    #Frame_transform=np.transpose(turb.manipulator.GetTransform()[0:3,0:3])
+    normal_vec = point_normal[3:6]
+    #normal_vec = np.dot(R,normal_vec)
+    tangent_vec = cross(point_normal[0:3],normal_vec)
     tangent_vec = tangent_vec/sqrt(dot(tangent_vec,tangent_vec))
+    #tangent_vec = np.dot(R,tangent_vec)
+    perp_vec = cross(normal_vec,tangent_vec)
+    #perp_vec = np.dot(R,perp_vec)
 
     Jpos = turbine.manipulator.CalculateJacobian()
-    Hpos = turbine.robot.ComputeHessianTranslation(turb.manipulator.GetArmDOF(),
+    Hpos = turbine.robot.ComputeHessianTranslation(turbine.manipulator.GetArmDOF(),
                                                    turbine.manipulator.GetEndEffectorTransform()[0:3,3])
     Hpos = dot(Hpos,w)
+    theta_limits = zip(-2*turbine.robot.GetDOFResolutions(),2*turbine.robot.GetDOFResolutions())
+    w_limits = zip(-w*0.01,w*0.01) #HARDCODED 1% error
+    limts = tuple(theta_limits + w_limits)
 
     Hpos_tan = dot(Hpos,tangent_vec)
     Jpos_tan = dot(tangent_vec, Jpos)
-
     errorgain_tan = contcatenate((Jpos_tan,Hpos_tan))
-    theta_limits = zip(-2*turbine.robot.GetDOFResolutions(),2*turbine.robot.GetDOFResolutions())
-    w_limits = zip(-w*0.01,w*0.01)
-        
+    velocity_tan_error = (linprog(errorgain_tan, bounds=limts).get('fun'),-linprog(-errorgain_tan, bounds=limts).get('fun')))
 
-    return torques
+    Jpos_normal = dot(normal_vec, Jpos)
+    position_normal_error = (linprog(Jpos_normal, bounds=limts).get('fun'),-linprog(-Jpos_normal, bounds=limts).get('fun')))
+
+    Jpos_perp = dot(perp_vec, Jpos)
+    position_perp_error = (linprog(Jpos_perp, bounds=limts).get('fun'),-linprog(-Jpos_perp, bounds=limts).get('fun')))
+
+    return w,alpha,torques,velocity_tan_error,position_normal_error,position_perp_error 
     
 
 def compute_robot_joints(turbine, trajectory):
