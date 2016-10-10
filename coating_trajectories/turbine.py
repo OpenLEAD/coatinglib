@@ -108,30 +108,30 @@ class Turbine:
         
         # Primary Rail
         primary_extent = self.primary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
-        primary_offset = array([0,-primary_extent[1],-primary_extent[2]])+array([0, 0, self.environment.primary_safe_margin])
+        primary_offset = array([0,-primary_extent[1],-primary_extent[2]])+array([0, 0, self.config.environment.primary_safe_margin])
         primary_offset_transform = eye(4)
         primary_offset_transform[0:3,3] = primary_offset
         
         # Secondary Rail
         secondary_extent = self.secondary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
         #Resizing 
-        secondary_extent[2] = abs(rail_place.s)/2.0 + self.environment.secondary_safe_margin
+        secondary_extent[2] = abs(rail_place.s)/2.0 + self.config.environment.secondary_safe_margin
         self.env.RemoveKinBody(self.secondary)
         self.secondary.InitFromBoxes(array([concatenate([zeros(3),secondary_extent])]),True)
         self.env.AddKinBody(self.secondary)
         #
-        secondary_offset = array([0,-secondary_extent[1],secondary_extent[2]])+array([0, self.environment.robot_level_difference, -self.environment.secondary_safe_margin])
+        secondary_offset = array([0,-secondary_extent[1],secondary_extent[2]])+array([0, self.config.environment.robot_level_difference, -self.config.environment.secondary_safe_margin])
         secondary_offset_transform = eye(4)
         secondary_offset_transform[0:3,3] = secondary_offset
         
         # Rails Traonsform and Placement
-        primary_transform = transformLookat(array([0,0,self.environment.z_floor_level]),
-                                            array([rail_place.p,0,self.environment.z_floor_level]),
+        primary_transform = transformLookat(array([0,0,self.config.environment.z_floor_level]),
+                                            array([rail_place.p,0,self.config.environment.z_floor_level]),
                                             [0,0,1])
         self.primary.SetTransform(dot(primary_transform,primary_offset_transform))
         
         secondary_transform = transformLookat(rail_place.getXYZ(self),
-                                                   array([rail_place.p,0,self.environment.z_floor_level]),
+                                                   array([rail_place.p,0,self.config.environment.z_floor_level]),
                                                    [0,0,1])    
         self.secondary.SetTransform(dot(secondary_transform,secondary_offset_transform))
 
@@ -146,7 +146,7 @@ class Turbine:
     def place_robot(self,rail_place):
         """ Place robot on the end of the secondary rail """
         Placement = eye(4)
-        Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, self.environment.robot_level_difference]
+        Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, self.config.environment.robot_level_difference]
         R = matrixFromAxisAngle([0, 0, rail_place.alpha])
         self.robot.SetTransform(dot(Placement, R))
 
