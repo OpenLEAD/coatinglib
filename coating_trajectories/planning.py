@@ -6,13 +6,11 @@ from copy import copy
 from collections import deque
 import mathtools
 import time
+import logging
 
-""" Main package for robot joints' positions and velocities planning,
+"""
+Main package for robot joints' positions and velocities planning,
 robot base calculation, torque and manipulability analysis.
-
-Keyword arguments:
-places - robot places to coat a specific set of parallels
-turbine - full environment and parameters
 """
 
 def _std_robot_filter(turbine, trajectories):
@@ -97,7 +95,7 @@ def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
     return w,alpha,torques,velocity_tan_error,position_normal_error,position_perp_error 
     
 
-def compute_robot_joints(turbine, trajectory):
+def compute_robot_joints(turbine, trajectory, trajectory_index):
     """
     Iterates points of the trajectories, computing optimal robot's joints
     (minimizing orientation error).
@@ -108,47 +106,24 @@ def compute_robot_joints(turbine, trajectory):
     """
 
     robot = turbine.robot
-    q0, _ = inverse_kinematics(turbine, trajectory[0])
-        
-    biggest_manipulability = 0
-    temp_q = []
-    for q in q0:
-        try: 
-            manipulability, _, _ = compute_manipulability_det(robot, q)
-            if manipulability>biggest_manipulability:
-                biggest_manipulability = manipulability
-                temp_q = q
-        except IndexError:
-            raise IndexError('There is no solution for the given trajectory.')
+    joint_solution, _ = inverse_kinematics(turbine, trajectory[0])   
+    best_joint_solution = best_joint_solution_regarding_manipulability(joint_solution, robot)
     
-    robot.SetDOFValues(temp_q)
+    robot.SetDOFValues(best_joint_solution)
     joint_solutions = []
     
-    for index in range(0,len(trajectory)):
+    for index in range(trajectory_index, len(trajectory)):
         res = orientation_error_optimization(turbine, trajectory[index])
-
-        # Verifying optimization solution
-        if not res.success:
-            print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to optimization fail.'
-            return joint_solutions, False
+        if trajectory_constraints(turbine, res, trajectory[index]):
+            joint_solutions.append(res.x)
+        else:
+            joint_solution, _ = inverse_kinematics(turbine, trajectory[index])   
+            best_joint_solution = best_joint_solution_regarding_manipulability(joint_solution, robot)
+            new_joint_solutions = backtrack(turbine, trajectory[trajectory_index:index], joint_solutions[-1])
+            if len(new_joint_solutions)==0: return joint_solution
+            else: joint_solutions = joint_solutions + compute_robot_joints(turbine, trajectory, index)
             
-        # Verifying environment and self collision
-        robot.SetDOFValues(res.x)
-        if turbine.check_robot_collision():
-            print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to env collision detection.'
-            return joint_solutions, False
-        if robot.CheckSelfCollision():
-            print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to self collision detection.'
-            return joint_solutions, False
-
-        # Verifying angle tolerance
-        if not orientation_cons(turbine, trajectory[index]):
-            print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to orientation constraint.'
-            return joint_solutions, False
-
-        # Passed all constraints
-        joint_solutions.append(res.x)
-    return joint_solutions, True
+    return joint_solutions
 
 def orientation_error_optimization(turbine, point, tol=1e-3):
     """ Minimizes the orientation error, given an initial configuration of the robot
@@ -160,6 +135,7 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
     point -- 6x1 vector is the goal (point to be coated). (x,y,z) cartesian position
     and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
     """
+    
     robot = turbine.robot
     q0 = robot.GetDOFValues()
     manip = robot.GetActiveManipulator()
@@ -194,6 +170,7 @@ def orientation_cons(turbine, point):
     """
     Return True if the orientation error is inside limits.
     """
+    
     cos_tolerance = cos(turbine.config.coating.angle_tolerance)
     robot = turbine.robot
     manip = robot.GetActiveManipulator()
@@ -202,18 +179,23 @@ def orientation_cons(turbine, point):
     Rx = Rx/sqrt(dot(Rx,Rx))
     return (-dot(point[3:6], Rx) - cos_tolerance)>=0
 
-def Qvector_backtrack(y, Q):
-    """ Call when optimization fails. Previous solution should be recomputed.
+def backtrack(turbine, trajectory, q0):
+    """
+    Call when optimization fails. Previous solution should be recomputed.
 
     Keyword arguments:
-    y -- computed coated points.
-    Q -- computed robot's joints.
+    turbine -- turbine object
+    trajectory -- computed coated points.
+    q0 -- initial joint solution.
     """
-    for rev_y in reversed(y):
-        res = coating.optmizeQ(turbine, rev_y, Q[-1])
-        Q.append(res.x)
-        if not res.success:
-            print 'Qvector_backtrack error'
+    
+    Q = []
+    for point in reversed(trajectory):
+        res = orientation_error_optimization(turbine, point, tol=1e-3)
+
+        if trajectory_constraints(turbine, res, point):
+            Q.append(res.x)
+        else: return []
     return list(reversed(Q))
 
 def inverse_kinematics(turbine, point):
@@ -338,3 +320,50 @@ def compute_manipulability_det(robot, joint_configuration):
         Jori = manip.CalculateAngularVelocityJacobian()
         J = concatenate((Jpos,Jori))
     return sqrt(linalg.det(dot(transpose(J),J))), sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
+
+def best_joint_solution_regarding_manipulability(joint_solutions, robot):
+    """
+    Given a list of joint solutions for a specific point, the function computes maniulability and returns the
+    best solution regarding manipulability criteria.
+    """
+    biggest_manipulability = 0
+    temp_q = []
+    for q in joint_solutions:
+        try: 
+            manipulability, _, _ = compute_manipulability_det(robot, q)
+            if manipulability>biggest_manipulability:
+                biggest_manipulability = manipulability
+                temp_q = q
+        except IndexError:
+            raise IndexError('There is no solution for the given trajectory.')
+    return temp_q
+
+def trajectory_constraints(turbine, res, point):
+    """
+    Check robot self and environment collision, optimization result,
+    and angle tolerance.
+    """
+
+    robot = turbine.robot
+    logging.basicConfig(filename='trajectory_constraints.log', level=logging.DEBUG)
+    
+    # Verifying optimization solution
+    if not res.success:
+        logging.info('Optimization failed in point: '+str(index)+'/'+str(len(trajectory))+', due to optimization fail.')
+        return False
+
+    # Verifying environment and self collision
+    robot.SetDOFValues(res.x)
+    if turbine.check_robot_collision():
+        logging.info('Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to env collision detection.')
+        return False
+    if robot.CheckSelfCollision():
+        logging.info('Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to self collision detection.')
+        return False
+
+    # Verifying angle tolerance
+    if not orientation_cons(turbine, point):
+        logging.info('Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to orientation constraint.')
+        return False
+
+    return True
