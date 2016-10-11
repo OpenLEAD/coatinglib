@@ -9,8 +9,8 @@ from .. visualizer import Visualizer
 class TestVisualizer(TestCase):
 
     def setUp(self):
-        turbconf = TurbineConfig.load("/dummy.cfg", self.test_dir)
-        turb = Turbine(turbconf, False)
+        turbconf = TurbineConfig.load("dummy.cfg", self.test_dir)
+        turb = Turbine(turbconf)
         turb.env.Remove(turb.primary)
         turb.env.Remove(turb.secondary)
         turb.env.Remove(turb.iris)
