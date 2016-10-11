@@ -86,13 +86,13 @@ def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
     Hpos_tan = dot(Hpos,tangent_vec)
     Jpos_tan = dot(tangent_vec, Jpos)
     errorgain_tan = contcatenate((Jpos_tan,Hpos_tan))
-    velocity_tan_error = (linprog(errorgain_tan, bounds=limts).get('fun'),-linprog(-errorgain_tan, bounds=limts).get('fun')))
+    velocity_tan_error = (linprog(errorgain_tan, bounds=limts).get('fun'),-linprog(-errorgain_tan, bounds=limts).get('fun'))
 
     Jpos_normal = dot(normal_vec, Jpos)
-    position_normal_error = (linprog(Jpos_normal, bounds=limts).get('fun'),-linprog(-Jpos_normal, bounds=limts).get('fun')))
+    position_normal_error = (linprog(Jpos_normal, bounds=limts).get('fun'),-linprog(-Jpos_normal, bounds=limts).get('fun'))
 
     Jpos_perp = dot(perp_vec, Jpos)
-    position_perp_error = (linprog(Jpos_perp, bounds=limts).get('fun'),-linprog(-Jpos_perp, bounds=limts).get('fun')))
+    position_perp_error = (linprog(Jpos_perp, bounds=limts).get('fun'),-linprog(-Jpos_perp, bounds=limts).get('fun'))
 
     return w,alpha,torques,velocity_tan_error,position_normal_error,position_perp_error 
     
@@ -130,6 +130,7 @@ def compute_robot_joints(turbine, trajectory):
         # Verifying optimization solution
         if not res.success:
             print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to optimization fail.'
+            return joint_solutions, False
             
         # Verifying environment and self collision
         robot.SetDOFValues(res.x)
@@ -138,19 +139,18 @@ def compute_robot_joints(turbine, trajectory):
             return joint_solutions, False
         if robot.CheckSelfCollision():
             print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to self collision detection.'
+            return joint_solutions, False
 
         # Verifying angle tolerance
         if not orientation_cons(turbine, trajectory[index]):
             print 'Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to orientation constraint.'
             return joint_solutions, False
 
-        else:
-            joint_solutions.append(res.x)
-            robot.SetDOFValues(res.x)
-            time.sleep(0.01)
+        # Passed all constraints
+        joint_solutions.append(res.x)
     return joint_solutions, True
 
-def orientation_error_optimization(turbine, point):
+def orientation_error_optimization(turbine, point, tol=1e-3):
     """ Minimizes the orientation error, given an initial configuration of the robot
     and the desired point to coat (with its normal vector). The constraints of the minimi-
     zation are: to reach de point position (equality).
@@ -164,8 +164,8 @@ def orientation_error_optimization(turbine, point):
     q0 = robot.GetDOFValues()
     manip = robot.GetActiveManipulator()
     lower_limits, upper_limits = robot.GetActiveDOFLimits()
-    lower_limits = lower_limits+0.05
-    upper_limits = upper_limits-0.05
+    lower_limits = lower_limits+0.01
+    upper_limits = upper_limits-0.01
     
     with robot:
         def func(q):
@@ -174,15 +174,18 @@ def orientation_error_optimization(turbine, point):
             Rx = T[0:3,0]
             Rx = Rx/sqrt(dot(Rx,Rx))
             return dot(point[3:6], Rx)
+        
         def position_cons(q):
             robot.SetDOFValues(q, manip.GetArmIndices())
             T = manip.GetTransform()
             pos = T[0:3,3]
             dif = pos-point[0:3]
-            return dot(dif,dif)
+            return dot(dif,dif)/tol
         
         cons = ({'type':'eq', 'fun': position_cons})
+        
         bnds = tuple([(lower_limits[i],upper_limits[i]) for i in range(0,len(lower_limits))])
+        
         res = minimize(func, q0, constraints=cons, method='SLSQP',
                        bounds = bnds, options={'disp': False})
     return res    
@@ -240,7 +243,7 @@ def inverse_kinematics(turbine, point):
     number_of_angles = 10
 
     distance_tolerance = arange(coating_tolerance_min, coating_tolerance_max, 1e-3)
-    if distance_tolerance:
+    if len(distance_tolerance)>0:
         for distance in arange(coating_tolerance_min, coating_tolerance_max, 1e-3):
             new_point = concatenate((point[0:3]+distance*point[3:6], point[3:6]))
             iksol = ikfast(robot, new_point)
