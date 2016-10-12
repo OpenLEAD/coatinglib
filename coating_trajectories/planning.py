@@ -95,34 +95,40 @@ def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
     return w,alpha,torques,velocity_tan_error,position_normal_error,position_perp_error 
     
 
-def compute_robot_joints(turbine, trajectory, trajectory_index):
+def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions = []):
     """
     Iterates points of the trajectories, computing optimal robot's joints
     (minimizing orientation error).
 
     Keyword arguments:
-    place -- robot position
-    turbine -- tubine object
+    turbine -- turbine object
+    trajectory -- trajectory to coat
+    trajectory_index -- where to begin
+    joint_solutions -- initial joint_solutions
     """
 
     robot = turbine.robot
-    joint_solution, _ = inverse_kinematics(turbine, trajectory[0])   
+
+    # Compute inverse kinematics and find a solution
+    joint_solution, _ = inverse_kinematics(turbine, trajectory[trajectory_index])   
     best_joint_solution = best_joint_solution_regarding_manipulability(joint_solution, robot)
-    
     robot.SetDOFValues(best_joint_solution)
-    joint_solutions = []
-    
-    for index in range(trajectory_index, len(trajectory)):
+
+    # Find solutions for previous points
+    previous_joint_solutions = backtrack(turbine, trajectory[:trajectory_index+1])
+    if len(previous_joint_solutions)==0:
+        return joint_solution
+
+    if len(joint_solutions)>0: joint_solutions = previous_joint_solutions + joint_solutions
+    else: joint_solutions = previous_joint_solutions
+
+    # Find solutions for next points
+    for index in range(trajectory_index+1, len(trajectory)):
         res = orientation_error_optimization(turbine, trajectory[index])
         if trajectory_constraints(turbine, res, trajectory[index]):
             joint_solutions.append(res.x)
         else:
-            joint_solution, _ = inverse_kinematics(turbine, trajectory[index])   
-            best_joint_solution = best_joint_solution_regarding_manipulability(joint_solution, robot)
-            new_joint_solutions = backtrack(turbine, trajectory[trajectory_index:index], joint_solutions[-1])
-            if len(new_joint_solutions)==0: return joint_solution
-            else: joint_solutions = joint_solutions + compute_robot_joints(turbine, trajectory, index)
-            
+            return compute_robot_joints(turbine, trajectory, index, joint_solutions)
     return joint_solutions
 
 def orientation_error_optimization(turbine, point, tol=1e-3):
@@ -179,20 +185,20 @@ def orientation_cons(turbine, point):
     Rx = Rx/sqrt(dot(Rx,Rx))
     return (-dot(point[3:6], Rx) - cos_tolerance)>=0
 
-def backtrack(turbine, trajectory, q0):
+def backtrack(turbine, trajectory):
     """
     Call when optimization fails. Previous solution should be recomputed.
 
     Keyword arguments:
     turbine -- turbine object
-    trajectory -- computed coated points.
-    q0 -- initial joint solution.
+    trajectory -- already computed coated points.
     """
-    
+
+    robot = turbine.robot
     Q = []
+    
     for point in reversed(trajectory):
         res = orientation_error_optimization(turbine, point, tol=1e-3)
-
         if trajectory_constraints(turbine, res, point):
             Q.append(res.x)
         else: return []
