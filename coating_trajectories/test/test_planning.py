@@ -144,7 +144,7 @@ class TestPlanning(TestCase):
 ##        vis.plot(array(trajectory)[:,0:3])
 ##        vis.plot_normal(trajectory)
 ##        x = raw_input('wait')
-        joint_solutions, terminate = planning.compute_robot_joints(turb, trajectory, 0)
+        joint_solutions = planning.compute_robot_joints(turb, trajectory, 0)
         self.assertTrue(len(joint_solutions)==len(trajectory),
                         msg = 'The trajectory is not feasible')
         
