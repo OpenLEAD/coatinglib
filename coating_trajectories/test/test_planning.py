@@ -70,6 +70,30 @@ class TestPlanning(TestCase):
                 break
         self.assertTrue(tolerance_verification, 'Tolerances could not be verified')
 
+    def test_inverse_kinematics_maximum_tolerance(self):
+        """
+        The test starts with a reachable point and modify it by a small step until the robot
+        uses the tolerance to coat it. If there is no tolerance, the test will fail.
+        """
+        
+        turbconf = TurbineConfig.load(self.path, self.test_dir)
+        turb = Turbine(turbconf)
+        
+        step = 1e-3
+        point = turb.manipulator.GetTransform()[0:3,3]
+        point = concatenate((point,[1,0,0]))
+        iksol,_ = planning.inverse_kinematics(turb, point)
+        tolerance_verification = False
+
+        while len(iksol)>0:
+            turb.robot.SetDOFValues(iksol[0])
+            point[0:3] = point[0:3]+step
+            iksol, tolerance = planning.inverse_kinematics_maximum_tolerance(turb, point)
+            if tolerance:
+                tolerance_verification = True
+                break
+        self.assertTrue(tolerance_verification, 'Tolerances could not be verified')
+
     def test_check_dof_limits(self):
         """
         Test a feasible and a non-feasible configuration of joint values. 
