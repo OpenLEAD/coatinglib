@@ -146,7 +146,7 @@ class Turbine:
     def place_robot(self,rail_place):
         """ Place robot on the end of the secondary rail """
         Placement = eye(4)
-        Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, self.config.environment.robot_level_difference]
+        Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, 2.0*self.config.environment.robot_level_difference]
         R = matrixFromAxisAngle([0, 0, rail_place.alpha])
         self.robot.SetTransform(dot(Placement, R))
 
