@@ -12,15 +12,11 @@ class RBF:
        http://graphics.stanford.edu/courses/cs468-10-fall/LectureSlides/04_Surface_Reconstruction.pdf
 
     Keyword arguments: 
-    name -- of the object (string), e.g. jiraublade.
     kernel -- radial basis functions: r3, logr, gaussr. (r = abs(ci-cj))
     points -- of the object to be modeled.
     """
 
-    def __init__(self, name, kernel, points=[], eps=1e-3, gausse = 1e-1):
-
-        if not isinstance(name, basestring):
-            raise ValueError('name is not a string')
+    def __init__(self, kernel, points=[], eps=1e-3, gausse = 1e-1):
 
         if not isinstance(kernel, basestring):
             raise ValueError('kernel is not a string')
@@ -32,7 +28,6 @@ class RBF:
         self._kernel = kernel
         self._phi_dict = {'r3':self._r3,'logr':self._logr,'gaussr':self._gaussr}
         self._dphi_dict = {'r3':self._dr3,'logr':self._dlogr,'gaussr':self._dgaussr}
-        self._name = name+'_'+kernel
         self._eps = eps
         self._w = []
         self._points = points
