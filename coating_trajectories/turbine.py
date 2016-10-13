@@ -150,8 +150,14 @@ class Turbine:
         R = matrixFromAxisAngle([0, 0, rail_place.alpha])
         self.robot.SetTransform(dot(Placement, R))
 
-    def check_robot_collision(self):
+    def check_robot_collision(self): ##Check only for robot base, the rest can be adapted
         """ Check robot <-> environment collision """
-        with self.env:
-            collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
+        with self.robot:
+            for link in self.robot.GetLinks():
+                link.Enable(False)
+            self.robot.GetLink('Base').Enable(True)
+            self.robot.GetLink('Arm0').Enable(True)
+            with self.env:
+                collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
+
         return any(collisions)
