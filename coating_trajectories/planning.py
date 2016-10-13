@@ -16,7 +16,7 @@ robot base calculation, torque and manipulability analysis.
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
 
-def mh12_filter(turbine, trajectories):
+def _mh12_filter(turbine, trajectories):
     pistol = 0.3
     flame = 0.23
     _working_radius_squared = (1.285+pistol+flame)**2
@@ -34,11 +34,11 @@ def mh12_filter(turbine, trajectories):
     return filtered_trajectories
 
 
-_filter_options = {'mh12': mh12_filter}    
+_filter_options = {'mh12': _mh12_filter}    
 
 def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
-    _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
+    return _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
