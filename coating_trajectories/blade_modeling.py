@@ -22,12 +22,10 @@ class BladeModeling:
     """
 
     turbine = None
-    name = None
     blade = None
     
-    def __init__(self, name, turbine, blade):
+    def __init__(self, turbine, blade):
         self.turbine = turbine
-        self._name = name
         self._blade = blade
         self.trajectories = []
         self.points = []
@@ -41,7 +39,7 @@ class BladeModeling:
         self.trajectory_step = turbine.config.model.trajectory_step
         self.trajectory_iter_surface = None
 
-    def save_samples(self, directory_to_save):
+    def save_samples(self, directory_to_save, name):
         """
         A method to save object samples and samples's info.
 
@@ -64,7 +62,7 @@ class BladeModeling:
                 raise
 
         samples = ET.Element("samples")
-        ET.SubElement(samples, "name").text = self._name
+        ET.SubElement(samples, "name").text = name
         ET.SubElement(samples, "number_of_samples").text = str(len(self.points))
         ET.SubElement(samples, "delta").text = str(delta)
         ET.SubElement(samples, "min_distance_between_points").text = str(min_distance_between_points)
@@ -77,7 +75,7 @@ class BladeModeling:
         
         return
 
-    def save_model(self, directory_to_save):
+    def save_model(self, directory_to_save, name):
         """
         A method to save model and model info
 
@@ -101,7 +99,7 @@ class BladeModeling:
                 raise
 
         model = ET.Element("model")
-        ET.SubElement(model, "name").text = self._name
+        ET.SubElement(model, "name").text = name
 
         surface = ET.SubElement(model, "iter_surface")
         if iter_surface is not None:   
@@ -131,7 +129,7 @@ class BladeModeling:
         tree.write(directory_to_save + "model.xml", pretty_print=True)
         return
 
-    def save_trajectory(self, xml_model, directory_to_save):
+    def save_trajectory(self, xml_model, directory_to_save, name):
         """
         A method to save trajectory and trajectory info. Two type of files are saved:
         .npz and n .csv files
@@ -155,7 +153,7 @@ class BladeModeling:
                 raise
 
         trajectory = ET.Element("trajectory")
-        ET.SubElement(trajectory, "name").text = self._name
+        ET.SubElement(trajectory, "name").text = name
         ET.SubElement(trajectory, "trajectory_step").text = str(trajectory_step)
         
         ET.SubElement(trajectory, "xml_model").text = xml_model
@@ -232,7 +230,7 @@ class BladeModeling:
                 kernel = xml_model.find('kernel').text
                 gausse = None
                 if xml_model.find("gauss_parameter") is not None: gausse = float(xml_model.find("gauss_parameter").text)
-                model = rbf.RBF(self._name, kernel, points, eps, gausse)
+                model = rbf.RBF(name, kernel, points, eps, gausse)
                 model._w = loadtxt(xml_model.find('w').text, delimiter=',')
                 self.models.append(model)
             else: raise TypeError('This type of interpolation was not yet implemented')
