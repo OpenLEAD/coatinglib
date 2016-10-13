@@ -39,8 +39,8 @@ class TestRBF(TestCase):
         and computes the function for validation_data points. If mean and max values,
         outside points, and the normal vectors are in a threshold, the test passes. 
         """
-        name = "test"
-        rbf_r3 = rbf.RBF(name, 'r3', self.model_data)
+        
+        rbf_r3 = rbf.RBF('r3', self.model_data)
         rbf_r3.make()
 
         # Verifying if validation_data is right
@@ -80,8 +80,8 @@ class TestRBF(TestCase):
         and computes the function for validation_data points. If mean and max values,
         outside points, and the normal vectors are in a threshold, the test passes. 
         """
-        name = "test"
-        rbf_gaussr = rbf.RBF(name, 'gaussr', self.model_data)
+
+        rbf_gaussr = rbf.RBF('gaussr', self.model_data)
         rbf_gaussr.make()
 
         # Verifying if validation_data is right
@@ -121,8 +121,8 @@ class TestRBF(TestCase):
         and computes the function for validation_data points. If mean and max values,
         outside points, and the normal vectors are in a threshold, the test passes. 
         """
-        name = "test"
-        rbf_logr = rbf.RBF(name, 'logr', self.model_data)
+
+        rbf_logr = rbf.RBF('logr', self.model_data)
         rbf_logr.make()
 
         # Verifying if validation_data is right

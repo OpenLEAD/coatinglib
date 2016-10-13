@@ -33,7 +33,7 @@ class TestBladeModeling(TestCase):
         side length, which center is at (0,0,-1).
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         cube_edge = 0.05
         blade.samples_delta = 0.005
         delta = blade.samples_delta
@@ -74,7 +74,7 @@ class TestBladeModeling(TestCase):
         delta = copy(blade.samples_delta)
         shape = copy(blade.points.shape)
         min_distance_between_points = copy(blade.min_distance_between_points)
-        blade.save_samples('test_sampling/')
+        blade.save_samples('test_sampling/', self.name)
         blade.load_samples('test_sampling/samples.xml')
         shutil.rmtree('test_sampling')
         
@@ -89,7 +89,7 @@ class TestBladeModeling(TestCase):
         The test verifies if the distance between points are greater or equal a threshold.
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         threshold = 1
         points = random.uniform(-1,1,size=(100,6))
         blade.points = points
@@ -110,7 +110,7 @@ class TestBladeModeling(TestCase):
         Also, it verifies outside points, and the normal vectors.
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         model = rbf.RBF('test','r3')
         blade.samples_delta = 0.008
         blade.min_distance_between_points = -1
@@ -152,7 +152,7 @@ class TestBladeModeling(TestCase):
 
         # Test save_model and loading
         model = deepcopy(blade.models[0])
-        blade.save_model('test_make_model/')
+        blade.save_model('test_make_model/', self.name)
         blade.load_model('test_make_model/model.xml')
         shutil.rmtree('test_make_model')
 
@@ -170,7 +170,7 @@ class TestBladeModeling(TestCase):
         The test generates random data and call method for division.
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         number_of_data = 15000
         intersection_between_divisions = 0.15
         data = random.uniform(-10,10,size=(number_of_data,6))
@@ -216,7 +216,7 @@ class TestBladeModeling(TestCase):
         A plane is the model_iter_surface.
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         model = rbf.RBF('test','r3')
         p = mathtools.Plane(0, 0, 1)
         blade.intersection_between_divisions = 0.15
@@ -269,7 +269,7 @@ class TestBladeModeling(TestCase):
         Tests the method select_model_from_list.
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         model = rbf.RBF('test','r3')
         s = mathtools.Sphere(0, 0, 1)
         
@@ -307,7 +307,7 @@ class TestBladeModeling(TestCase):
         models = deepcopy(blade.models)
         models_index = deepcopy(blade.models_index)
         model_iter_surface = deepcopy(blade.model_iter_surface)
-        blade.save_model('test_make_model_multiple_RBF/')
+        blade.save_model('test_make_model_multiple_RBF/', self.name)
         blade.load_model('test_make_model_multiple_RBF/model.xml')
         shutil.rmtree('test_make_model_multiple_RBF')
 
@@ -336,7 +336,7 @@ class TestBladeModeling(TestCase):
         next point is [sqrt(0.75), 0, -0.5] (the step of the sphere is 1 and the new plane is z=-0.5).
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         s = mathtools.Sphere(2, 0, 1)
         data = random.uniform(-1,1,size=(100,6))
         data[:,0:3] =  data[:,0:3]*(1.0/(sqrt(sum(data[:,0:3]*data[:,0:3],1)))).reshape(100,1)
@@ -380,7 +380,7 @@ class TestBladeModeling(TestCase):
         implicit circle x^2+y^2 = 3, z = -1.
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         s = mathtools.Sphere(2, 0, 1)
         initial_point = array([sqrt(3), 0, -1, 0, 0, 1])
         
@@ -412,7 +412,7 @@ class TestBladeModeling(TestCase):
         - sphere: radius = 1.0, model: z = -0.5, intersection: x^2+y^2 = 0.75
         """
 
-        blade = blade_modeling.BladeModeling(self.name, TestBladeModeling.turb, self.blade)
+        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
         s = mathtools.Sphere(2, 0.9, 0.5)
         initial_point = array([sqrt(3), 0, -1, 0, 0, 1])
         
@@ -469,8 +469,8 @@ class TestBladeModeling(TestCase):
         trajectory_step = blade.trajectory_step
         trajectories = deepcopy(blade.trajectories)
         
-        blade.save_model('test/')
-        blade.save_trajectory('test/model.xml', 'test_generate_trajectories/' )
+        blade.save_model('test/', self.name)
+        blade.save_trajectory('test/model.xml', 'test_generate_trajectories/', self.name)
         blade.load_trajectory('test_generate_trajectories/trajectory.xml')
         shutil.rmtree('test_generate_trajectories')
 
