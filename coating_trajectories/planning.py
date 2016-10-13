@@ -218,6 +218,7 @@ def inverse_kinematics(turbine, point):
     manip = robot.GetActiveManipulator()
     coating_tolerance_max = turbine.config.coating.max_distance
     coating_tolerance_min = turbine.config.coating.min_distance
+    coating_tolerance_ideal = turbine.config.coating.ideal_distance
 
     # Compute solution without tolerances
     iksol = ikfast(robot, point)
@@ -232,8 +233,8 @@ def inverse_kinematics(turbine, point):
 
     distance_tolerance = arange(coating_tolerance_min, coating_tolerance_max, 1e-3)
     if len(distance_tolerance)>0:
-        for distance in arange(coating_tolerance_min, coating_tolerance_max, 1e-3):
-            new_point = concatenate((point[0:3]+distance*point[3:6], point[3:6]))
+        for distance in distance_tolerance:
+            new_point = concatenate((point[0:3]+(distance-coating_tolerance_ideal)*point[3:6], point[3:6]))
             iksol = ikfast(robot, new_point)
             if len(iksol)>0: return iksol, ['distance', distance] 
             if len(angles)>0:
@@ -264,6 +265,43 @@ def inverse_kinematics(turbine, point):
                                    concatenate((point[0:3],dot(p, transpose(Rd)))))
                     if len(iksol)>0:return iksol, ['angle', angle]
     return [], []
+
+def inverse_kinematics_maximum_tolerance(turbine, point):
+    """
+    Solve the inverse kinematics given point (IKFast) with maximum tolerance limits.
+
+    Keyword arguments:
+    turbine -- turbine object
+    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
+    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
+    """
+
+    robot = turbine.robot
+    manip = robot.GetActiveManipulator()
+    distance = turbine.config.coating.max_distance - turbine.config.coating.ideal_distance
+
+    # Compute solution without tolerances
+    iksol = ikfast(robot, point)
+    if len(iksol)>0:
+        return iksol, []
+
+    # Compute solution with maximum distance and angle tolerances
+    angles = turbine.config.coating.angle_tolerance
+    number_of_angles = 10 
+    
+    new_point = concatenate((point[0:3]+distance*point[3:6], point[3:6]))
+    iksol = ikfast(robot, new_point)
+    if len(iksol)>0: return iksol, ['distance', distance] 
+    Rz = mathtools.Raxis(mathtools.compute_perpendicular_vector(manip.GetDirection()),
+                         angle)
+    p = dot(manip.GetDirection(), transpose(Rz))
+    k = 2*pi/number_of_angles
+    for i in range(0, number_of_angles):
+        alfa = k*i
+        Rd = mathtools.Raxis(manip.GetDirection(),alfa)
+        iksol = ikfast(robot, concatenate((point[0:3],dot(p, transpose(Rd)))))
+        if len(iksol)>0:return iksol, ['angle', angle]
+    return [], []   
             
 def ikfast(robot, point):
     """
