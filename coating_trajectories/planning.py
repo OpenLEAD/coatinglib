@@ -146,12 +146,13 @@ def compute_first_feasible_point(turbine, trajectory):
     for i in range(0,len(trajectory)):
         iksol, tolerance = inverse_kinematics_maximum_tolerance(turbine, trajectory[i])
         if len(iksol)>0:
-            if sensibility_check(turbine, point_normal, joints_trajectory, trajectory_index
-            return i
-        
+            iksol, tolerance = inverse_kinematics(turbine, trajectory[i])
+            return i, iksol, tolerance
+    raise ValueError('No solution for given trajectory')
 
 def orientation_error_optimization(turbine, point, tol=1e-3):
-    """ Minimizes the orientation error, given an initial configuration of the robot
+    """
+    Minimizes the orientation error, given an initial configuration of the robot
     and the desired point to coat (with its normal vector). The constraints of the minimi-
     zation are: to reach de point position (equality).
 
