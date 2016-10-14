@@ -20,14 +20,15 @@ def _mh12_filter(turbine, trajectories):
     pistol = 0.3
     flame = 0.23
     _working_radius_squared = (1.285+pistol+flame)**2
-    def distance_robot_squared(trajectory, robot):
-        delta = robot.GetJoints()[1].GetAnchor() - trajectory
+    
+    def distance_robot_squared(trajectory_points):
+        delta = turbine.robot.GetJoints()[1].GetAnchor() - trajectory_points
         return sum(delta*delta,1)
 
     filtered_trajectories = []
     for trajectory in trajectories:
         trajectory = array(trajectory)
-        filtered_trajectory = trajectory[distance_robot_squared(trajectory[:,0:3], turbine.robot) < _working_radius_squared]
+        filtered_trajectory = trajectory[distance_robot_squared(trajectory[:,0:3]) < _working_radius_squared]
         if len(filtered_trajectory)>0:
             filtered_trajectories.append(filtered_trajectory)
 
