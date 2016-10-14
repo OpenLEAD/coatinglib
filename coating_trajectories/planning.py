@@ -40,7 +40,7 @@ def filter_trajectories(turbine, trajectories):
     name = turbine.robot.GetName()
     _filter_options.get(name,_std_robot_filter)(turbine, trajectories)
 
-def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
+def central_difference(turbine, joints_trajectory, trajectory_index):
 
     # 'j' for joints, so it doesnt clumpsy the equations
     j = deque(joints_trajectory)
@@ -54,25 +54,28 @@ def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
     # Joints acceleration - Central Difference (h**6 order error)
     alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
 
+    return w, alpha
+
+def torque_computation(turbine, joints, w, alpha):
     # INVERSE DYNAMICS ComputeInverseDynamics
     with turbine.robot:
-        turbine.robot.SetDOFValues(j[0], turb.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
-        turbine.robot.SetDOFVelocities(w, turb.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
-        torques = turb.robot.ComputeInverseDynamics(alpha)
+        turbine.robot.SetDOFValues(joints, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
+        turbine.robot.SetDOFVelocities(w, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
+        torques = turbine.robot.ComputeInverseDynamics(alpha)
+
         if any(torques < turb.robot.GetDOFMaxTorque):
             return False#THROW EXCEPTION
         else:
             return True
+    return torques
 
-    #Frame_transform=np.transpose(turb.manipulator.GetTransform()[0:3,0:3])
+def sensibility(turbine, point_normal, w, alpha):
+    
     normal_vec = point_normal[3:6]
-    #normal_vec = np.dot(R,normal_vec)
     tangent_vec = cross(point_normal[0:3],normal_vec)
     tangent_vec = tangent_vec/sqrt(dot(tangent_vec,tangent_vec))
-    #tangent_vec = np.dot(R,tangent_vec)
     perp_vec = cross(normal_vec,tangent_vec)
-    #perp_vec = np.dot(R,perp_vec)
-
+    
     Jpos = turbine.manipulator.CalculateJacobian()
     Hpos = turbine.robot.ComputeHessianTranslation(turbine.manipulator.GetArmDOF(),
                                                    turbine.manipulator.GetEndEffectorTransform()[0:3,3])
@@ -92,7 +95,7 @@ def workspace_limit(turbine,point_normal, joints_trajectory, trajectory_index):
     Jpos_perp = dot(perp_vec, Jpos)
     position_perp_error = (linprog(Jpos_perp, bounds=limts).get('fun'),-linprog(-Jpos_perp, bounds=limts).get('fun'))
 
-    return w,alpha,torques,velocity_tan_error,position_normal_error,position_perp_error 
+    return velocity_tan_error, position_normal_error, position_perp_error 
     
 
 def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions = []):
@@ -103,7 +106,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions 
     Keyword arguments:
     turbine -- turbine object
     trajectory -- trajectory to coat
-    trajectory_index -- where to begin
+    trajectory_index -- where to begin. Index of a feasible point in the trajectory.
     joint_solutions -- initial joint_solutions
     """
 
@@ -130,6 +133,22 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions 
         else:
             return compute_robot_joints(turbine, trajectory, index, joint_solutions)
     return joint_solutions
+
+def compute_first_feasible_point(turbine, trajectory):
+    """
+    Method to compute the first feasible point in the trajectory: where to start.
+
+    Keyword arguments:
+    turbine -- turbine object
+    trajectory -- trajectory to coat
+    """
+
+    for i in range(0,len(trajectory)):
+        iksol, tolerance = inverse_kinematics_maximum_tolerance(turbine, trajectory[i])
+        if len(iksol)>0:
+            if sensibility_check(turbine, point_normal, joints_trajectory, trajectory_index
+            return i
+        
 
 def orientation_error_optimization(turbine, point, tol=1e-3):
     """ Minimizes the orientation error, given an initial configuration of the robot
@@ -357,6 +376,7 @@ def compute_manipulability_det(robot, joint_configuration):
     robot -- the robot. 
     joint_configuration -- q Nx1, joint configuration.
     """
+                                 
     manip = robot.GetActiveManipulator()
     with robot:
         robot.SetDOFValues(joint_configuration)
@@ -370,6 +390,7 @@ def best_joint_solution_regarding_manipulability(joint_solutions, robot):
     Given a list of joint solutions for a specific point, the function computes maniulability and returns the
     best solution regarding manipulability criteria.
     """
+                                 
     biggest_manipulability = 0
     temp_q = []
     for q in joint_solutions:
