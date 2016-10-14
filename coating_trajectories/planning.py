@@ -1,7 +1,7 @@
 from numpy import sqrt, dot, concatenate, arange, array, zeros, transpose, linalg, sum, cross
 from openravepy import IkFilterOptions
 from math import pi, cos, sin, atan2
-from scipy.optimize import minimize
+from scipy.optimize import minimize, linprog
 from copy import copy
 from collections import deque
 from path_filters import filter_trajectories
@@ -64,12 +64,21 @@ def sensibility(turbine, point_normal, w, alpha):
     velocity_tan_error = (linprog(errorgain_tan, bounds=limts).get('fun'),-linprog(-errorgain_tan, bounds=limts).get('fun'))
 
     Jpos_normal = dot(normal_vec, Jpos)
-    position_normal_error = (linprog(Jpos_normal, bounds=limts).get('fun'),-linprog(-Jpos_normal, bounds=limts).get('fun'))
+    position_normal_error = (linprog(Jpos_normal, bounds=theta_limits).get('fun'),-linprog(-Jpos_normal, bounds=theta_limits).get('fun'))
 
     Jpos_perp = dot(perp_vec, Jpos)
-    position_perp_error = (linprog(Jpos_perp, bounds=limts).get('fun'),-linprog(-Jpos_perp, bounds=limts).get('fun'))
+    position_perp_error = (linprog(Jpos_perp, bounds=theta_limits).get('fun'),-linprog(-Jpos_perp, bounds=theta_limits).get('fun'))
 
-    return velocity_tan_error, position_normal_error, position_perp_error 
+    Jw = turbine.manipulator.CalculateAngularVelocityJacobian()
+    x_dir = turbine.manipulator.GetTransform()[0:3,0]
+    nhat = mathtools.hat(normal_vec)
+    xn = dot(x_dir,nhat)
+    Jcos = -dot(xn,Jw)
+    cos = -dot(x_dir,normal_vec)
+    dcos = (linprog(Jcos, bounds=theta_limits).get('fun'),-linprog(-Jcos, bounds=theta_limits).get('fun'))
+    angle_error = tuple(np.arccos(cos+dcos))
+
+    return velocity_tan_error, position_normal_error, position_perp_error, angle_error
     
 
 def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions = []):
