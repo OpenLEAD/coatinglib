@@ -230,7 +230,7 @@ class BladeModeling:
                 kernel = xml_model.find('kernel').text
                 gausse = None
                 if xml_model.find("gauss_parameter") is not None: gausse = float(xml_model.find("gauss_parameter").text)
-                model = rbf.RBF(name, kernel, points, eps, gausse)
+                model = rbf.RBF(kernel, points, eps, gausse)
                 model._w = loadtxt(xml_model.find('w').text, delimiter=',')
                 self.models.append(model)
             else: raise TypeError('This type of interpolation was not yet implemented')

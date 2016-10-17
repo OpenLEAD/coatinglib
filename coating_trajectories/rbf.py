@@ -6,10 +6,13 @@ from copy import copy
 
 
 class RBF:
-    """Radial basis function class for blade modeling.
-       The RBF interpolation is an implicit reconstruction of an object.
-       The algorithm is described in pages 35-40 of course available in link:
-       http://graphics.stanford.edu/courses/cs468-10-fall/LectureSlides/04_Surface_Reconstruction.pdf
+    """
+    Radial basis function class for blade modeling.
+    The RBF interpolation is an implicit reconstruction of an object.
+    The algorithm is described in pages 35-40 of course available in link:
+    http://graphics.stanford.edu/courses/cs468-10-fall/LectureSlides/04_Surface_Reconstruction.pdf
+    Or in paper: Reconstruction and Representation of 3D Objects with Radial Basis
+    Functions, J.C. Carr, R.K. Beatson.
 
     Keyword arguments: 
     kernel -- radial basis functions: r3, logr, gaussr. (r = abs(ci-cj))
