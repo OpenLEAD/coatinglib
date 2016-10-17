@@ -32,6 +32,9 @@ Ro = np.transpose(np.array([[-1,0,0],[0,0,1],[0,1,0]]))
 To = np.eye(4)
 To[0:3,0:3]=Ro
 x=None
+
+DB_dict = dict()
+
 for rp in RP:
     
     turb.place_rail(rp)
@@ -46,18 +49,22 @@ for rp in RP:
 
     filtered_trajectories = path_filters.filter_trajectories(turb, blade.trajectories)
 
-    full_joint_solutions = []
+    counter = 0
     for filtered_trajectory in filtered_trajectories:
-        joint_solutions = []
         for filtered_trajectory_part in filtered_trajectory:
-            joint_solutions.append(planning.compute_robot_joints(turb, filtered_trajectory_part, 0))
-        full_joint_solutions.append(joint_solutions)
+            try:
+                lower, _, _ = compute_first_feasible_point(turb, filtered_trajectory_part)
+            except:
+                continue
             
-    #x = input(x)
+            upper = lower + len(planning.compute_robot_joints(turb, filtered_trajectory_part, lower))
+            
+            for point in filtered_trajectory_part[lower:upper]:
+                DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
+                                              set([tuple(rp.getPSAlpha())]))
 
-    
-# follow parallels (verifing limits) and saving points
-# save railplace info to points
+        print counter
+        counter += 1
 
-#loop
 
+        
