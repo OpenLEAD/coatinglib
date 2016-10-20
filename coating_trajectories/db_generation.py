@@ -1,70 +1,66 @@
-import os
-import turbine_config
-import turbine
-import visualizer
-import numpy as np
-import rail_place
+from path_filters import filter_trajectories
 import planning
-import blade_modeling
+from numpy import save
 
+def generate_db(turbine, blade, rail_positions, DB_dict = dict()): 
+    """
+    Function that store feasible trajectories for random rail_positions. Each feasible point
+    in a trajectory is mapped to a rail position that can coat it. Therefore, the DB returns
+    a dictionary where points are keys and rail positions are values, e.g.:
+         {     (1.0, 1.1, 1.3):                   (2.4   ,  1.2  ), ( 2.4  ,  1.3  )}
+         {point( x ,  y ,  z ): rail poisitions   (rail_1, rail_2), (rail_1, rail_2)}
 
-dir_test = os.path.join(os.path.realpath('.'),'test')
-os.environ['OPENRAVE_DATA'] = str(dir_test)
+    Keyword arguments:
+    turb -- turbine object
+    blade -- blade object
+    rail_positions -- number of random rail positions
+    """
 
-cfg = turbine_config.TurbineConfig.load('turbine_unittest.cfg','test')
-turb = turbine.Turbine(cfg)
+    for rp in rail_positions:
+        turbine.place_rail(rp)
+        turbine.place_robot(rp)
+        
+        if turbine.check_rail_collision():
+            continue
+        
+        if turbine.check_robot_collision():
+            continue
 
-vz = visualizer.Visualizer(turb.env)
+        filtered_trajectories = filter_trajectories(turbine, blade.trajectories)
 
-RP = rail_place.rand_rail(turb,20)
-rpt = rail_place.RailPlace((.80,0.15,0))
+        counter = 0
+        for filtered_trajectory in filtered_trajectories:
+            for filtered_trajectory_part in filtered_trajectory:
+                try:
+                    lower, _, _ = planning.compute_first_feasible_point(turbine, filtered_trajectory_part)
+                except ValueError: #raise
+                    continue
 
-folder = "jiraublade"
-blade = blade_modeling.BladeModeling(turb, turb.blades[0])
+                joint_solutions = planning.compute_robot_joints(turbine, filtered_trajectory_part, lower)
+                upper = lower + len(joint_solutions)
+                
+##                for i in range(0,len(joint_solutions)):
+##                    w, alpha = planning.compute_angular_velocities(turbine, joint_solutions, i)
+##                    torques = planning.torque_computation(turbine, joint_solutions[i], w, alpha)
+##                    velocity_tan_error, position_normal_error,
+##                    position_perp_error, angle_error = planning.sensibility(turbine, filtered_trajectory_part[lower+i], w, alpha)
+                
+                for point in filtered_trajectory_part[lower:upper]:
+                    DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
+                                                  set([tuple(rp.getPSAlpha())]))
 
-#blade.load_trajectory(os.path.join(folder,"trajectory/trajectory.xml"))
+            print counter
+            save('db.npy', DB_dict) 
+            counter += 1
+                                                          
+    return DB_dict
 
-##for trajectory in blade.trajectories:
-##    vz.plot(trajectory)
+def save_obj(obj, name ):
+    with open('obj/'+ name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-#position trajectories
-Ro = np.transpose(np.array([[-1,0,0],[0,0,1],[0,1,0]]))
-To = np.eye(4)
-To[0:3,0:3]=Ro
-x=None
-
-DB_dict = dict()
-
-for rp in RP:
-    
-    turb.place_rail(rp)
-    turb.place_robot(rp)
-    turb.robot.SetTransform(np.dot(turb.robot.GetTransform(),To))
-    
-    if turb.check_rail_collision():
-        continue
-    
-    if turb.check_robot_collision():
-        continue
-
-    filtered_trajectories = path_filters.filter_trajectories(turb, blade.trajectories)
-
-    counter = 0
-    for filtered_trajectory in filtered_trajectories:
-        for filtered_trajectory_part in filtered_trajectory:
-            try:
-                lower, _, _ = compute_first_feasible_point(turb, filtered_trajectory_part)
-            except:
-                continue
-            
-            upper = lower + len(planning.compute_robot_joints(turb, filtered_trajectory_part, lower))
-            
-            for point in filtered_trajectory_part[lower:upper]:
-                DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
-                                              set([tuple(rp.getPSAlpha())]))
-
-        print counter
-        counter += 1
-
+def load_obj(name ):
+    with open('obj/' + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
         
