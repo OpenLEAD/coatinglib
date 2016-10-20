@@ -1,6 +1,5 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt, random, transpose, zeros
 from math import cos, sin, ceil, pi, isnan
-from openravepy import IkFilterOptions
 from abc import ABCMeta, abstractmethod
 from copy import copy
 
@@ -99,13 +98,11 @@ def rotate_trajectories(turbine, trajectories, T=[]):
     R = T[0:3,0:3]
     for i in range(0,len(trajectories)):
         traj = array(trajectories[i])
-        Ra = zeros((len(traj),len(traj[0])))
-        Ra[:,0] = sum(R[0,:]*traj[:,0:3],1)
-        Ra[:,1] = sum(R[1,:]*traj[:,0:3],1)
-        Ra[:,2] = sum(R[2,:]*traj[:,0:3],1)
-        Ra[:,3] = sum(R[0,:]*traj[:,3:6],1)
-        Ra[:,4] = sum(R[1,:]*traj[:,3:6],1)
-        Ra[:,5] = sum(R[2,:]*traj[:,3:6],1)
+        Ra = zeros(traj.shape)
+        
+        Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
+        Ra[:,3:6] = dot(traj[:,3:6], transpose(R))
+        
         trajectories[i] = Ra.tolist()
     return trajectories
         
