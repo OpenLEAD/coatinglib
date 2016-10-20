@@ -6,7 +6,8 @@ from .. import planning
 from numpy import concatenate, array, random, arange, dot
 from numpy import sqrt, sin, cos, ones, sum, zeros, cross
 from math import pi
-from openravepy import RaveCreateCollisionChecker, CollisionOptions, CollisionReport
+from openravepy import RaveCreateCollisionChecker, CollisionOptions, CollisionReport, matrixFromAxisAngle
+from .. import mathtools
 
 class TestPlanning(TestCase):
 
@@ -30,7 +31,8 @@ class TestPlanning(TestCase):
         point = turb.manipulator.GetTransform()[0:3,3]
         disturbance = random.uniform(-0.01,0.01,3)
         point = point + disturbance
-        point = concatenate((point,[1,0,0]))
+        point = concatenate((point,-turb.manipulator.GetDirection()))
+        
         iksol = planning.ikfast(turb.robot, point)
         self.assertTrue(len(iksol)>0, msg = 'No solution was found')
 
@@ -42,7 +44,7 @@ class TestPlanning(TestCase):
         self.assertTrue(len(iksol)>0, msg = 'No solution was found')
 
         # Non-reachable point
-        point[0] += -0.2
+        point[0] += -10
         iksol = planning.ikfast(turb.robot, point)
         self.assertTrue(len(iksol)==0, msg = 'A solution was found')
 
@@ -57,7 +59,7 @@ class TestPlanning(TestCase):
         
         step = 1e-3
         point = turb.manipulator.GetTransform()[0:3,3]
-        point = concatenate((point,[1,0,0]))
+        point = concatenate((point,-turb.manipulator.GetDirection()))
         iksol,_ = planning.inverse_kinematics(turb, point)
         tolerance_verification = False
 
@@ -81,7 +83,7 @@ class TestPlanning(TestCase):
         
         step = 1e-3
         point = turb.manipulator.GetTransform()[0:3,3]
-        point = concatenate((point,[1,0,0]))
+        point = concatenate((point,-turb.manipulator.GetDirection()))
         iksol,_ = planning.inverse_kinematics(turb, point)
         tolerance_verification = False
 
@@ -147,7 +149,7 @@ class TestPlanning(TestCase):
         # Generating positions
         x = -2.7 + (2 - cos(3*theta))*cos(theta)
         y = 1 + (2 - cos(3*theta))*sin(theta)
-        z = ones(len(theta))*robot_pos[2]
+        z = zeros(len(theta))
         positions = [[x[i],y[i],z[i]] for i in range(0,len(x))]
 
         # Generating normal vectors
@@ -163,11 +165,17 @@ class TestPlanning(TestCase):
                        normal_vectors[i][0], normal_vectors[i][1],
                        normal_vectors[i][2]] for i in range(0,len(positions))]
 
+        X90 = matrixFromAxisAngle([pi/2, 0, 0])
+        Z180 = matrixFromAxisAngle([0, 0, pi])
+        trajectory = array(mathtools.rotate_trajectories(turb, [trajectory], dot(Z180,X90))[0])
+        trajectory[:,2] = trajectory[:,2] + robot_pos[2]
+
 ##        from .. import visualizer
 ##        vis = visualizer.Visualizer(turb.env)
 ##        vis.plot(array(trajectory)[:,0:3])
 ##        vis.plot_normal(trajectory)
 ##        x = raw_input('wait')
+
         joint_solutions = planning.compute_robot_joints(turb, trajectory, 0)
         self.assertTrue(len(joint_solutions)==len(trajectory),
                         msg = 'The trajectory is not feasible')
