@@ -9,10 +9,18 @@ import mathtools
 import time
 import logging
 
+from profilestats import profile
+
 """
 Main package for robot joints' positions and velocities planning,
 robot base calculation, torque and manipulability analysis.
 """
+
+def compute_angular_velocities(turbine, joints_trajectory, trajectory_index):
+
+    if (trajectory_index>2) and ((len(joints_trajectory)-trajectory_index)>3):
+        return central_difference(turbine, joints_trajectory, trajectory_index)
+    else: return None
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
@@ -81,6 +89,7 @@ def sensibility(turbine, point_normal, w, alpha):
     return velocity_tan_error, position_normal_error, position_perp_error, angle_error
     
 
+@profile(dump_stats=True)
 def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions = []):
     """
     Iterates points of the trajectories, computing optimal robot's joints
@@ -96,8 +105,10 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions 
     robot = turbine.robot
 
     # Compute inverse kinematics and find a solution
-    joint_solution, _ = inverse_kinematics(turbine, trajectory[trajectory_index])   
+    joint_solution, _ = inverse_kinematics_maximum_tolerance_angle(turbine, trajectory[trajectory_index])   
     best_joint_solution = best_joint_solution_regarding_manipulability(joint_solution, robot)
+    if len(best_joint_solution)==0:
+        return joint_solutions
     robot.SetDOFValues(best_joint_solution)
 
     # Find solutions for previous points
@@ -117,6 +128,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions 
             return compute_robot_joints(turbine, trajectory, index, joint_solutions)
     return joint_solutions
 
+@profile(print_stats=200, dump_stats=True)
 def compute_first_feasible_point(turbine, trajectory):
     """
     Method to compute the first feasible point in the trajectory: where to start.
@@ -127,12 +139,12 @@ def compute_first_feasible_point(turbine, trajectory):
     """
 
     for i in range(0,len(trajectory)):
-        iksol, tolerance = inverse_kinematics_maximum_tolerance(turbine, trajectory[i])
+        iksol, tolerance = inverse_kinematics_maximum_tolerance_angle(turbine, trajectory[i])
         if len(iksol)>0:
-            iksol, tolerance = inverse_kinematics(turbine, trajectory[i])
             return i, iksol, tolerance
     raise ValueError('No solution for given trajectory')
 
+@profile()
 def orientation_error_optimization(turbine, point, tol=1e-3):
     """
     Minimizes the orientation error, given an initial configuration of the robot
@@ -175,6 +187,7 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
                        bounds = bnds, options={'disp': False})
     return res    
 
+@profile()
 def orientation_cons(turbine, point):
     """
     Return True if the orientation error is inside limits.
@@ -188,6 +201,7 @@ def orientation_cons(turbine, point):
     Rx = Rx/sqrt(dot(Rx,Rx))
     return (-dot(point[3:6], Rx) - cos_tolerance)>=0
 
+@profile()
 def backtrack(turbine, trajectory):
     """
     Call when optimization fails. Previous solution should be recomputed.
@@ -242,15 +256,11 @@ def inverse_kinematics(turbine, point):
             if len(iksol)>0: return iksol, ['distance', distance] 
             if len(angles)>0:
                 for angle in angles:
-                    Rz = mathtools.Raxis(mathtools.compute_perpendicular_vector(manip.GetDirection()),
-                                         angle)
-                    p = dot(manip.GetDirection(), transpose(Rz))
+                    normal_tol = dot(point[3:6],transpose(mathtools.Raxis(mathtools.compute_perpendicular_vector(new_point[3:6]), angle)))
                     k = 2*pi/number_of_angles
                     for i in range(0, number_of_angles):
                         alfa = k*i
-                        Rd = mathtools.Raxis(manip.GetDirection(),alfa)
-                        iksol = ikfast(robot,
-                                       concatenate((point[0:3],dot(p, transpose(Rd)))))
+                        iksol = ikfast(robot, concatenate((new_point[0:3],dot(normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
                         if len(iksol)>0:return iksol, ['angle', angle]
 
     # No distance tolerance, but angle tolerance
@@ -289,23 +299,54 @@ def inverse_kinematics_maximum_tolerance(turbine, point):
         return iksol, []
 
     # Compute solution with maximum distance and angle tolerances
-    angles = turbine.config.coating.angle_tolerance
+    angle = turbine.config.coating.angle_tolerance
     number_of_angles = 10 
     
     new_point = concatenate((point[0:3]+distance*point[3:6], point[3:6]))
     iksol = ikfast(robot, new_point)
     if len(iksol)>0: return iksol, ['distance', distance] 
-    Rz = mathtools.Raxis(mathtools.compute_perpendicular_vector(manip.GetDirection()),
-                         angle)
-    p = dot(manip.GetDirection(), transpose(Rz))
+    normal_tol = dot(point[3:6],transpose(mathtools.Raxis(mathtools.compute_perpendicular_vector(point[3:6]), angle)))
     k = 2*pi/number_of_angles
     for i in range(0, number_of_angles):
         alfa = k*i
-        Rd = mathtools.Raxis(manip.GetDirection(),alfa)
-        iksol = ikfast(robot, concatenate((point[0:3],dot(p, transpose(Rd)))))
+        iksol = ikfast(robot, concatenate((point[0:3],dot(normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
         if len(iksol)>0:return iksol, ['angle', angle]
     return [], []   
-            
+
+@profile()
+def inverse_kinematics_maximum_tolerance_angle(turbine, point):
+    """
+    Solve the inverse kinematics given point (IKFast) with maximum tolerance limits.
+
+    Keyword arguments:
+    turbine -- turbine object
+    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
+    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
+    """
+
+    robot = turbine.robot
+    manip = robot.GetActiveManipulator()
+   
+    # Compute solution without tolerances
+    iksol = ikfast(robot, point)
+    if len(iksol)>0:
+        return iksol, []
+
+    # Compute solution with maximum distance and angle tolerances
+    angle = turbine.config.coating.angle_tolerance
+    number_of_angles = 4 #HARDCODED 
+
+    normal_tol = dot(point[3:6],transpose(mathtools.Raxis(mathtools.compute_perpendicular_vector(point[3:6]), angle)))
+    k = 2*pi/number_of_angles
+    for i in range(0, number_of_angles):
+        alfa = k*i
+        iksol = ikfast(robot, concatenate((point[0:3],dot(normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
+        if len(iksol)>0:
+            return iksol, ['angle', angle]
+    return [], [] 
+
+
+@profile()
 def ikfast(robot, point):
     """
     Call openrave IKFast. It computes the inverse kinematic for the point.
@@ -319,8 +360,13 @@ def ikfast(robot, point):
     
     with robot:
         manip = robot.GetActiveManipulator()
+        Tee = manip.GetTransform()
+        Rx = Tee[0:3,0]
+        Rx = Rx/sqrt(dot(Rx,Rx))
+        Rab = mathtools.Rab(Rx, -point[3:6])
+        
         T = zeros((4,4))
-        T[0:3,0:3] = mathtools.Rab(manip.GetDirection(), point[3:6])
+        T[0:3,0:3] = dot(Rab,Tee[0:3,0:3])
         T[0:3,3] = point[0:3]
         T[3,0:4] = [0,0,0,1]
         solutions = robot.GetActiveManipulator().FindIKSolutions(T, IkFilterOptions.CheckEnvCollisions)
@@ -348,7 +394,7 @@ def check_dof_limits(robot, q):
             return False
     return True
 
-
+@profile()
 def compute_manipulability_det(robot, joint_configuration):
     """
     Compute robot manipulability as described in:
@@ -369,10 +415,12 @@ def compute_manipulability_det(robot, joint_configuration):
         J = concatenate((Jpos,Jori))
     return sqrt(linalg.det(dot(transpose(J),J))), sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
 
+
+@profile()
 def best_joint_solution_regarding_manipulability(joint_solutions, robot):
     """
-    Given a list of joint solutions for a specific point, the function computes maniulability and returns the
-    best solution regarding manipulability criteria.
+    Given a list of joint solutions for a specific point, the function computes
+    maniulability and returns the best solution regarding manipulability criteria.
     """
                                  
     biggest_manipulability = 0
@@ -387,6 +435,8 @@ def best_joint_solution_regarding_manipulability(joint_solutions, robot):
             raise IndexError('There is no solution for the given trajectory.')
     return temp_q
 
+
+@profile()
 def trajectory_constraints(turbine, res, point):
     """
     Check robot self and environment collision, optimization result,
@@ -398,21 +448,22 @@ def trajectory_constraints(turbine, res, point):
     
     # Verifying optimization solution
     if not res.success:
-        logging.info('Optimization failed in point: '+str(index)+'/'+str(len(trajectory))+', due to optimization fail.')
+        logging.info('Optimization failed in point: '+str(point)+', due to optimization fail.')
         return False
 
     # Verifying environment and self collision
     robot.SetDOFValues(res.x)
     if turbine.check_robot_collision():
-        logging.info('Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to env collision detection.')
+        logging.info('Trajectory terminates in point: '+str(point)+', due to env collision detection.')
         return False
     if robot.CheckSelfCollision():
-        logging.info('Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to self collision detection.')
+        logging.info('Trajectory terminates in point: '+str(point)+', due to self collision detection.')
         return False
 
     # Verifying angle tolerance
     if not orientation_cons(turbine, point):
-        logging.info('Trajectory terminates in point: '+str(index)+'/'+str(len(trajectory))+', due to orientation constraint.')
+        logging.info('Trajectory terminates in point: '+str(point)+', due to orientation constraint.')
         return False
 
     return True
+
