@@ -1,4 +1,4 @@
-from numpy import array, dot, eye, concatenate, zeros
+from numpy import array, dot, eye, concatenate, zeros, sign, pi
 from openravepy import transformLookat, matrixFromAxisAngle, Environment, databases, IkParameterization
 from openravepy.misc import InitOpenRAVELogging
 from os import path
@@ -147,7 +147,7 @@ class Turbine:
         """ Place robot on the end of the secondary rail """
         Placement = eye(4)
         Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, 2.0*self.config.environment.robot_level_difference]
-        R = matrixFromAxisAngle([0, 0, rail_place.alpha])
+        R = matrixFromAxisAngle([0, 0, rail_place.alpha + (sign(rail_place.p)+1)*pi/2.0])
         self.robot.SetTransform(dot(Placement, R))
 
     def check_robot_collision(self): ##Check only for robot base, the rest can be adapted
