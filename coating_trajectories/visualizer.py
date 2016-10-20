@@ -48,7 +48,7 @@ class Visualizer:
         """
         points = array(points)
         if len(points.shape)==1:
-            points = points.reshape(len(points),1)
+            points = points.reshape(1,len(points))
         if len(points.shape)==3:
             points = [item for sublist in points for item in sublist]
             points = array(points)[:,0:6]
