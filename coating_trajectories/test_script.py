@@ -27,21 +27,21 @@ Ro = np.transpose(np.array([[-1,0,0],[0,0,1],[0,1,0]]))
 To = np.eye(4)
 To[0:3,0:3]=Ro
 x=None
-for rp in RP:
-    
-    turb.place_rail(rp)
-    turb.place_robot(rp)
-    turb.robot.SetTransform(np.dot(turb.robot.GetTransform(),To))
-    
-    if turb.check_rail_collision():
-        continue
-    
-
-    if turb.check_robot_collision():
-        continue
-
-    filtered_trajectories = path_filters.filter_trajectories(turb, blade.trajectories)
-    
+##for rp in RP:
+##    
+##    turb.place_rail(rp)
+##    turb.place_robot(rp)
+##    turb.robot.SetTransform(np.dot(turb.robot.GetTransform(),To))
+##    
+##    if turb.check_rail_collision():
+##        continue
+##    
+##
+##    if turb.check_robot_collision():
+##        continue
+##
+##    filtered_trajectories = path_filters.filter_trajectories(turb, blade.trajectories)
+##    
     #x = input(x)
 
     
