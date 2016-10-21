@@ -24,7 +24,7 @@ def _mh12_filter(turbine, trajectories):
         indices = nonzero(boo[1:] != boo[:-1])[0] + 1
         split_trajectory = split(trajectory, indices)
         filtered_trajectory_list = split_trajectory[0::2] if boo[0] else split_trajectory[1::2]
-        if boo[0] & boo[-1]:
+        if boo[0] & boo[-1] & (len(filtered_trajectory_list)>1):
             filtered_trajectory_list[0] = concatenate((filtered_trajectory_list[-1],filtered_trajectory_list[0]))
             del filtered_trajectory_list[-1]
 
