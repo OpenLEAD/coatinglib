@@ -1,8 +1,10 @@
 from path_filters import filter_trajectories
 import planning
 from numpy import save
+from visualizer import Visualizer
 
-def generate_db(turbine, blade, rail_positions, DB_dict = dict()): 
+
+def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number_of_points_per_trajectory = 100): 
     """
     Function that store feasible trajectories for random rail_positions. Each feasible point
     in a trajectory is mapped to a rail position that can coat it. Therefore, the DB returns
@@ -15,7 +17,7 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict()):
     blade -- blade object
     rail_positions -- number of random rail positions
     """
-
+    vis = Visualizer(turbine.env)
     for rp in rail_positions:
         turbine.place_rail(rp)
         turbine.place_robot(rp)
@@ -23,10 +25,16 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict()):
         if turbine.check_rail_collision():
             continue
         
-        if turbine.check_robot_collision():
+        if turbine.check_robotbase_collision():
             continue
 
         filtered_trajectories = filter_trajectories(turbine, blade.trajectories)
+
+##        vis.remove_points('trajectories')
+##        for filtered_trajectory in filtered_trajectories:
+##            for filtered_trajectory_part in filtered_trajectory:
+##                vis.plot(filtered_trajectory_part, 'trajectories', ((0,0,1)))
+##        x = raw_input('wait')
 
         counter = 0
         for filtered_trajectory in filtered_trajectories:
@@ -44,10 +52,11 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict()):
 ##                    torques = planning.torque_computation(turbine, joint_solutions[i], w, alpha)
 ##                    velocity_tan_error, position_normal_error,
 ##                    position_perp_error, angle_error = planning.sensibility(turbine, filtered_trajectory_part[lower+i], w, alpha)
-                
-                for point in filtered_trajectory_part[lower:upper]:
-                    DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
-                                                  set([tuple(rp.getPSAlpha())]))
+
+                if upper-lower>minimal_number_of_points_per_trajectory:
+                    for point in filtered_trajectory_part[lower:upper]:
+                        DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
+                                                      set([tuple(rp.getPSAlpha())]))
 
             print counter
             save('db.npy', DB_dict) 
