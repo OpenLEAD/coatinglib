@@ -8,6 +8,7 @@ from path_filters import filter_trajectories
 import mathtools
 import time
 import logging
+from openravepy import databases, IkParameterization
 
 from profilestats import profile
 
@@ -105,11 +106,13 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions 
     robot = turbine.robot
 
     # Compute inverse kinematics and find a solution
-    joint_solution, _ = inverse_kinematics_maximum_tolerance_angle(turbine, trajectory[trajectory_index])   
-    best_joint_solution = best_joint_solution_regarding_manipulability(joint_solution, robot)
-    if len(best_joint_solution)==0:
+    set_ikmodel_translation3d(robot)
+    _, joint_solution, _ = compute_feasible_point(turbine, trajectory[trajectory_index])
+    set_ikmodel_transform6D(robot)
+    
+    if len(joint_solution)==0:
         return joint_solutions
-    robot.SetDOFValues(best_joint_solution)
+    robot.SetDOFValues(joint_solution)
 
     # Find solutions for previous points
     previous_joint_solutions = backtrack(turbine, trajectory[:trajectory_index+1])
@@ -128,7 +131,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, joint_solutions 
             return compute_robot_joints(turbine, trajectory, index, joint_solutions)
     return joint_solutions
 
-@profile(print_stats=200, dump_stats=True)
+@profile(print_stats=10, dump_stats=True)
 def compute_first_feasible_point(turbine, trajectory):
     """
     Method to compute the first feasible point in the trajectory: where to start.
@@ -138,13 +141,34 @@ def compute_first_feasible_point(turbine, trajectory):
     trajectory -- trajectory to coat
     """
 
-    for i in range(0,len(trajectory)):
-        iksol, tolerance = inverse_kinematics_maximum_tolerance_angle(turbine, trajectory[i])
-        if len(iksol)>0:
-            return i, iksol, tolerance
-    raise ValueError('No solution for given trajectory')
+    robot = turbine.robot
+    with robot:
+        set_ikmodel_translation3d(robot)
+        for i in range(0,len(trajectory)):
+            ans, sol, tolerance = compute_feasible_point(turbine, trajectory[i])
+            if ans:
+                set_ikmodel_transform6D(robot)
+                return i, sol, tolerance
+        set_ikmodel_transform6D(robot)
+        raise ValueError('No solution for given trajectory')
 
-@profile()
+def compute_feasible_point(turbine, point):
+    """
+    Method to compute if point is feasible.
+
+    Keyword arguments:
+    turbine -- turbine object
+    point -- point to coat
+    """
+
+    with turbine.robot:
+        iksol, tolerance = ikfast_position(turbine.robot, point)
+        if len(iksol)>0:
+            res = orientation_error_optimization(turbine, point)
+            if(trajectory_constraints(turbine, res, point)):
+                return True, res.x, tolerance
+        return False, [], []
+
 def orientation_error_optimization(turbine, point, tol=1e-3):
     """
     Minimizes the orientation error, given an initial configuration of the robot
@@ -167,15 +191,13 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
     with robot:
         def func(q):
             robot.SetDOFValues(q, manip.GetArmIndices())
-            T = manip.GetTransform()
-            Rx = T[0:3,0]
+            Rx = manip.GetTransform()[0:3,0]
             Rx = Rx/sqrt(dot(Rx,Rx))
             return dot(point[3:6], Rx)
         
         def position_cons(q):
-            robot.SetDOFValues(q, manip.GetArmIndices())
-            T = manip.GetTransform()
-            pos = T[0:3,3]
+            robot.SetDOFValues(q)
+            pos = manip.GetTransform()[0:3,3]
             dif = pos-point[0:3]
             return dot(dif,dif)/tol
         
@@ -187,21 +209,15 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
                        bounds = bnds, options={'disp': False})
     return res    
 
-@profile()
 def orientation_cons(turbine, point):
     """
     Return True if the orientation error is inside limits.
     """
-    
-    cos_tolerance = cos(turbine.config.coating.angle_tolerance)
-    robot = turbine.robot
-    manip = robot.GetActiveManipulator()
-    T = manip.GetTransform()
-    Rx = T[0:3,0]
-    Rx = Rx/sqrt(dot(Rx,Rx))
-    return (-dot(point[3:6], Rx) - cos_tolerance)>=0
 
-@profile()
+    Rx = turbine.robot.GetActiveManipulator().GetTransform()[0:3,0]
+    Rx = Rx/sqrt(dot(Rx,Rx))
+    return (dot(point[3:6], Rx)) <= -cos(turbine.config.coating.angle_tolerance)
+
 def backtrack(turbine, trajectory):
     """
     Call when optimization fails. Previous solution should be recomputed.
@@ -311,9 +327,8 @@ def inverse_kinematics_maximum_tolerance(turbine, point):
         alfa = k*i
         iksol = ikfast(robot, concatenate((point[0:3],dot(normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
         if len(iksol)>0:return iksol, ['angle', angle]
-    return [], []   
+    return [], []
 
-@profile()
 def inverse_kinematics_maximum_tolerance_angle(turbine, point):
     """
     Solve the inverse kinematics given point (IKFast) with maximum tolerance limits.
@@ -345,8 +360,6 @@ def inverse_kinematics_maximum_tolerance_angle(turbine, point):
             return iksol, ['angle', angle]
     return [], [] 
 
-
-@profile()
 def ikfast(robot, point):
     """
     Call openrave IKFast. It computes the inverse kinematic for the point.
@@ -375,7 +388,23 @@ def ikfast(robot, point):
             if len(solutions.shape)==1:
                 solutions = solutions.reshape((1,solutions.shape[0]))
                 
-        return solutions 
+        return solutions, [] 
+
+def ikfast_position(robot, point):
+    """
+    Call openrave IKFast Translation3D. It computes the inverse kinematic for the point.
+    It returns one solution.
+
+    keyword arguments:
+    robot -- the robot. 
+    point -- point to coat is a 6D array, which (x,y,z) cartesian position
+    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
+    """
+
+    with robot:
+        ikparam = IkParameterization(point[0:3],IkParameterization.Type.Translation3D)
+        sol = robot.GetActiveManipulator().FindIKSolution(ikparam, IkFilterOptions.CheckEnvCollisions)
+        return sol, []
 
 def check_dof_limits(robot, q):
     """
@@ -394,7 +423,6 @@ def check_dof_limits(robot, q):
             return False
     return True
 
-@profile()
 def compute_manipulability_det(robot, joint_configuration):
     """
     Compute robot manipulability as described in:
@@ -415,8 +443,6 @@ def compute_manipulability_det(robot, joint_configuration):
         J = concatenate((Jpos,Jori))
     return sqrt(linalg.det(dot(transpose(J),J))), sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
 
-
-@profile()
 def best_joint_solution_regarding_manipulability(joint_solutions, robot):
     """
     Given a list of joint solutions for a specific point, the function computes
@@ -435,8 +461,6 @@ def best_joint_solution_regarding_manipulability(joint_solutions, robot):
             raise IndexError('There is no solution for the given trajectory.')
     return temp_q
 
-
-@profile()
 def trajectory_constraints(turbine, res, point):
     """
     Check robot self and environment collision, optimization result,
@@ -467,3 +491,16 @@ def trajectory_constraints(turbine, res, point):
 
     return True
 
+def set_ikmodel_translation3d(robot):
+    ikmodel = databases.inversekinematics.InverseKinematicsModel(
+        robot=robot, iktype=IkParameterization.Type.Translation3D)
+    if not ikmodel.load():
+        ikmodel.autogenerate()
+    return
+
+def set_ikmodel_transform6D(robot):
+    ikmodel = databases.inversekinematics.InverseKinematicsModel(
+        robot=robot, iktype=IkParameterization.Type.Transform6D)
+    if not ikmodel.load():
+        ikmodel.autogenerate()
+    return
