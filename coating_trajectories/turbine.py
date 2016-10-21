@@ -47,13 +47,19 @@ class Turbine:
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
         
-        self.ikmodel = databases.inversekinematics.InverseKinematicsModel(
+        ikmodel = databases.inversekinematics.InverseKinematicsModel(
+            robot=self.robot,
+            iktype=IkParameterization.Type.Translation3D
+            )
+        if not  ikmodel.load():
+             ikmodel.autogenerate()
+
+        ikmodel = databases.inversekinematics.InverseKinematicsModel(
             robot=self.robot,
             iktype=IkParameterization.Type.Transform6D
             )
-        
-        if not  self.ikmodel.load():
-             self.ikmodel.autogenerate()
+        if not  ikmodel.load():
+             ikmodel.autogenerate()
 
 
         # Principal turbine elements linked to attributes
@@ -150,8 +156,8 @@ class Turbine:
         R = matrixFromAxisAngle([0, 0, rail_place.alpha + (sign(rail_place.p)+1)*pi/2.0])
         self.robot.SetTransform(dot(Placement, R))
 
-    def check_robot_collision(self): ##Check only for robot base, the rest can be adapted
-        """ Check robot <-> environment collision """
+    def check_robotbase_collision(self):
+        """ Check robot's base <-> environment collision """
         with self.robot:
             for link in self.robot.GetLinks():
                 link.Enable(False)
@@ -160,4 +166,9 @@ class Turbine:
             with self.env:
                 collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
 
+        return any(collisions)
+
+    def check_robot_collision(self):
+        """ Check robot <-> environment collision """
+        collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
         return any(collisions)
