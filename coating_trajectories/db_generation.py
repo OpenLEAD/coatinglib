@@ -1,8 +1,9 @@
 from path_filters import filter_trajectories
 import planning
-from numpy import save
+from numpy import save, load
 from visualizer import Visualizer
-
+import logging
+import time
 
 def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number_of_points_per_trajectory = 100): 
     """
@@ -17,27 +18,34 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
     blade -- blade object
     rail_positions -- number of random rail positions
     """
+    from os.path import basename,splitext,join, exists
+    from datetime import datetime
+    now = datetime.now()
+    _ , week, dayofweek = now.isocalendar()
+    directory = join('week'+str(week), 'day'+str(dayofweek))
+    from os import makedirs
+    if not exists(directory):
+        makedirs(directory)
+
     vis = Visualizer(turbine.env)
+    logging.basicConfig(filename=join(directory,'trajectory_constraints' + now.strftime('%X').replace(':','_') + '.log'), level=logging.DEBUG)
     for rp in rail_positions:
         turbine.place_rail(rp)
         turbine.place_robot(rp)
         
         if turbine.check_rail_collision():
+            logging.info('Bad rail placement: rail collision')
             continue
         
         if turbine.check_robotbase_collision():
+            logging.info('Bad robot placement: robot base collision')
             continue
 
         filtered_trajectories = filter_trajectories(turbine, blade.trajectories)
 
-##        vis.remove_points('trajectories')
-##        for filtered_trajectory in filtered_trajectories:
-##            for filtered_trajectory_part in filtered_trajectory:
-##                vis.plot(filtered_trajectory_part, 'trajectories', ((0,0,1)))
-##        x = raw_input('wait')
-
         counter = 0
         for filtered_trajectory in filtered_trajectories:
+            logging.info('Trajectory: '+str(counter)+', rail position: '+str(rp))
             for filtered_trajectory_part in filtered_trajectory:
                 try:
                     lower, _, _ = planning.compute_first_feasible_point(turbine, filtered_trajectory_part)
@@ -54,14 +62,14 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
 ##                    position_perp_error, angle_error = planning.sensibility(turbine, filtered_trajectory_part[lower+i], w, alpha)
 
                 if upper-lower>minimal_number_of_points_per_trajectory:
+                    vis.plot(filtered_trajectory_part[lower:upper],'coated_points')
+                    logging.info('Number of points saved in database: '+str(upper-lower))
                     for point in filtered_trajectory_part[lower:upper]:
                         DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
                                                       set([tuple(rp.getPSAlpha())]))
-
-            print counter
-            save('db.npy', DB_dict) 
-            counter += 1
-                                                          
+                else: logging.info('Points not saved in database, because number of coated points is: '+str(upper-lower))
+                logging.info('\n')
+                counter+=1
     return DB_dict
 
 def save_obj(obj, name ):
@@ -72,4 +80,10 @@ def load_obj(name ):
     with open('obj/' + name + '.pkl', 'rb') as f:
         return pickle.load(f)
 
+def save_db(db_file, directory_to_save):
+    save(directory_to_save+'db.npy', db_file)
+    return
+
+def load_db(directory_to_load):
+    return load(directory_to_load).item()
         
