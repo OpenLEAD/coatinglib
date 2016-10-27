@@ -164,11 +164,13 @@ class Turbine:
             self.robot.GetLink('Base').Enable(True)
             self.robot.GetLink('Arm0').Enable(True)
             with self.env:
-                collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
+                collision_base = [(self.env.CheckCollision(self.robot,body) and not (body == self.robot)) for body in self.bodies]
+            
+            collisions = collision_base
 
         return any(collisions)
 
     def check_robot_collision(self):
         """ Check robot <-> environment collision """
-        collisions = [self.env.CheckCollision(self.robot,body) for body in self.bodies]
+        collisions = [(self.env.CheckCollision(self.robot,body) and not (body == self.robot)) for body in self.bodies]
         return any(collisions)
