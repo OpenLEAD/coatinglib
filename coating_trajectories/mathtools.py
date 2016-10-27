@@ -1,4 +1,5 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt, random, transpose, zeros
+from numpy import array, dot, cross, outer, eye, sum, sqrt
+from numpy import random, transpose, zeros, linalg
 from math import cos, sin, ceil, pi, isnan
 from abc import ABCMeta, abstractmethod
 from copy import copy
@@ -22,6 +23,7 @@ def curvepoint(s1, s2, p0, tol=1e-4):
     p0 -- initial point (3D - without normal vector).
     tol -- tolerance, stop criteria.
     """
+    
     tol2 = tol**2
     while True:
         df1 = s1.df(p0); f1 = s1.f(p0)
@@ -53,19 +55,23 @@ def surfaces_tangent(ray, s2):
     ray -- 6x1 vector, point and normal in surface 1.
     s2 -- surface 2.
     """
+    
     tan = cross(ray[3:6],s2.df(ray))
     tan = tan/sqrt(dot(tan,tan))   
     return tan
 
 def hat(vec):
     """ Skew-symmetric matrix """
-    hvec = array([[0, -vec[2], vec[1]],[vec[2],0,-vec[0]],[-vec[1], vec[0],0]])
+    
+    hvec = array([[0, -vec[2], vec[1]],
+                  [vec[2],0,-vec[0]],
+                  [-vec[1], vec[0],0]])
     return hvec
 
 def Rab(a,b):
     """ Matrix rotation from 'a' to 'b' """
-    a = a/sqrt(dot(a,a))
-    b = b/sqrt(dot(b,b))
+    a = a/linalg.norm(a)
+    b = b/linalg.norm(b)
 
     v = cross(a,b)
     sinab = sqrt(dot(v,v))
@@ -81,6 +87,7 @@ def Rab(a,b):
 def Raxis(a,theta):
     """ Matrix rotation on 'a' axis, angle 'theta' """
     
+    a = a/linalg.norm(a)    
     R = eye(3)*cos(theta) + hat(a)*sin(theta) + (1-cos(theta))*outer(a, a)
     return R
 
@@ -115,11 +122,12 @@ def compute_perpendicular_vector(vector_1):
     Keyword arguments:
     vector_1 -- given vector.
     """
-    vector_1 = vector_1/sqrt(dot(vector_1,vector_1))
+    
+    vector_1 = vector_1/linalg.norm(vector_1)
     vector_2 = copy(vector_1)
     while abs(dot(vector_1,vector_2)-1)<=1e-6:
         vector_2 = vector_1+random.uniform(1,-1,3)
-        vector_2 = vector_2/sqrt(dot(vector_2,vector_2))                  
+        vector_2 = vector_2/linalg.norm(vector_2)                  
     return cross(vector_1,vector_2)
 
 class IterSurface:
