@@ -57,7 +57,7 @@ def surfaces_tangent(ray, s2):
     """
     
     tan = cross(ray[3:6],s2.df(ray))
-    tan = tan/sqrt(dot(tan,tan))   
+    tan = tan/linalg.norm(tan)
     return tan
 
 def hat(vec):
