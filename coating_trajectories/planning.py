@@ -163,7 +163,7 @@ def compute_feasible_point(turbine, point):
     """
 
     with turbine.robot:
-        iksol, tolerance = inverse_kinematics_maximum_tolerance_angle(turbine, point)
+        iksol, tolerance = ik_angle_tolerance(turbine, point)
         if len(iksol)>0:
             logging.info('Point with tolerance found: '+str(point))
             turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(iksol, turbine.robot))
@@ -219,7 +219,7 @@ def orientation_cons(turbine, point):
 
     Rx = turbine.robot.GetActiveManipulator().GetTransform()[0:3,0]
     Rx = Rx/linalg.norm(Rx)
-    return (dot(point[3:6], Rx))+cos(turbine.config.coating.angle_tolerance) <= 0
+    return (dot(point[3:6], Rx)) + cos(turbine.config.coating.angle_tolerance) <= 0
 
 def backtrack(turbine, trajectory):
     """
@@ -242,103 +242,8 @@ def backtrack(turbine, trajectory):
             else: return []
     return list(reversed(Q))
 
-def inverse_kinematics(turbine, point):
-    """
-    Solve the inverse kinematics given point (IKFast).
 
-    Keyword arguments:
-    turbine -- turbine object
-    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
-    """
-
-    robot = turbine.robot
-    manip = robot.GetActiveManipulator()
-    coating_tolerance_max = turbine.config.coating.max_distance
-    coating_tolerance_min = turbine.config.coating.min_distance
-    coating_tolerance_ideal = turbine.config.coating.ideal_distance
-
-    # Compute solution without tolerances
-    iksol = ikfast(robot, point)
-    if len(iksol)>0:
-        return iksol, []
-
-    # Compute solution with distance and angle tolerances
-    angles = []
-    if turbine.config.coating.angle_tolerance>0:
-        angles = arange(0, turbine.config.coating.angle_tolerance, 0.001)
-    number_of_angles = 10
-
-    distance_tolerance = arange(coating_tolerance_min, coating_tolerance_max, 1e-3)
-    if len(distance_tolerance)>0:
-        for distance in distance_tolerance:
-            new_point = concatenate((point[0:3]+(distance-coating_tolerance_ideal)*point[3:6], point[3:6]))
-            iksol = ikfast(robot, new_point)
-            if len(iksol)>0: return iksol, ['distance', distance] 
-            if len(angles)>0:
-                for angle in angles:
-                    normal_tol = dot(point[3:6],transpose(mathtools.Raxis(
-                        mathtools.compute_perpendicular_vector(new_point[3:6]), angle)))
-                    k = 2*pi/number_of_angles
-                    for i in range(0, number_of_angles):
-                        alfa = k*i
-                        iksol = ikfast(robot, concatenate((
-                            new_point[0:3],dot(normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
-                        if len(iksol)>0:return iksol, ['angle', angle]
-
-    # No distance tolerance, but angle tolerance
-    else:
-        if len(angles)>0:
-            for angle in angles:
-                Rz = mathtools.Raxis(mathtools.compute_perpendicular_vector(manip.GetDirection()),
-                                     angle)
-                p = dot(manip.GetDirection(), transpose(Rz))
-                k = 2*pi/number_of_angles
-                for i in range(0, number_of_angles):
-                    alfa = k*i
-                    Rd = mathtools.Raxis(manip.GetDirection(),alfa)
-                    iksol = ikfast(robot,
-                                   concatenate((point[0:3],dot(p, transpose(Rd)))))
-                    if len(iksol)>0:return iksol, ['angle', angle]
-    return [], []
-
-def inverse_kinematics_maximum_tolerance(turbine, point):
-    """
-    Solve the inverse kinematics given point (IKFast) with maximum tolerance limits.
-
-    Keyword arguments:
-    turbine -- turbine object
-    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
-    """
-
-    robot = turbine.robot
-    manip = robot.GetActiveManipulator()
-    distance = turbine.config.coating.max_distance - turbine.config.coating.ideal_distance
-
-    # Compute solution without tolerances
-    iksol = ikfast(robot, point)
-    if len(iksol)>0:
-        return iksol, []
-
-    # Compute solution with maximum distance and angle tolerances
-    angle = turbine.config.coating.angle_tolerance
-    number_of_angles = 10 
-    
-    new_point = concatenate((point[0:3]+distance*point[3:6], point[3:6]))
-    iksol = ikfast(robot, new_point)
-    if len(iksol)>0: return iksol, ['distance', distance] 
-    normal_tol = dot(point[3:6],transpose(mathtools.Raxis(
-        mathtools.compute_perpendicular_vector(point[3:6]), angle)))
-    k = 2*pi/number_of_angles
-    for i in range(0, number_of_angles):
-        alfa = k*i
-        iksol = ikfast(robot, concatenate((point[0:3],dot(
-            normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
-        if len(iksol)>0:return iksol, ['angle', angle]
-    return [], []
-
-def inverse_kinematics_maximum_tolerance_angle(turbine, point):
+def ik_angle_tolerance(turbine, point):
     """
     Solve the inverse kinematics given point (IKFast) with maximum tolerance angle.
 
@@ -351,13 +256,8 @@ def inverse_kinematics_maximum_tolerance_angle(turbine, point):
     robot = turbine.robot
     manip = robot.GetActiveManipulator()
    
-    # Compute solution without tolerances
-    #logging.info('<inverse_kinematics_maximum_tolerance_angle>')
-    #logging.info('point: ' + str(point))
     iksol = ikfast(robot, point)
     if len(iksol)>0:
-        #logging.info('90 graus')
-        #logging.info('<\inverse_kinematics_maximum_tolerance_angle>')
         return iksol, []
     
     # Compute solution with maximum distance and angle tolerances
@@ -375,14 +275,110 @@ def inverse_kinematics_maximum_tolerance_angle(turbine, point):
         iksol = ikfast(robot, concatenate((point[0:3],dot(
             normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
         if len(iksol)>0:
-            #logging.info('ok for: ' + str(dot(normal_tol, transpose(mathtools.Raxis(point[3:6],alfa)))))
             counter+=1
             if counter==2:
-                #logging.info('<\inverse_kinematics_maximum_tolerance_angle>')
                 return iksol, ['angle', angle]
-    #logging.info('nothing found')
-    #logging.info('<\inverse_kinematics_maximum_tolerance_angle>')
-    return [], [] 
+    return [], []
+
+def ik_angle_tolerance_normal_plane(turbine, point, iter_surface, angle_discretization = 5*pi/180):
+    """
+    Solve the inverse kinematics given point (IKFast) with maximum tolerance angle
+    discretizing only on the normal plane.
+    Return example:
+    iksol = [joint_solution_1, joint_solution_2, ..., joint_solution_n]
+    angle_tolerance = [30*pi/180, 30*pi/180, ..., 0*pi/180, ..., -30*pi/180]
+    joint_solution_1.shape = (1,6)
+
+    Keyword arguments:
+    turbine -- turbine object
+    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
+    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
+    iter_surface -- surface used to generate the trajectories to compute the point
+    tangent.
+    angle_discretization -- in radians.
+    """
+
+    iksol = []
+    angle_tolerance = []
+    
+    robot = turbine.robot
+    
+    if angle_discretization == 0:
+        sols = ikfast(robot, point)
+        for sol in sols:
+            iksol.append(sol)
+            angle_tolerance.append(angle)
+        return iksol, angle_tolerance
+    
+    manip = robot.GetActiveManipulator()
+    tolerance = turbine.config.coating.angle_tolerance
+   
+    tan = mathtools.surfaces_tangent(point, iter_surface)
+
+    angle_discretization = min(abs(angle_discretization),
+                               tolerance)
+    
+    for angle in arange(-tolerance, tolerance + angle_discretization, angle_discretization):
+        normal_tol = dot(point[3:6],transpose(mathtools.Raxis(tan, angle)))
+        sols = ikfast(robot, concatenate((point[0:3], normal_tol)))
+        for sol in sols:
+            iksol.append(sol)
+            angle_tolerance.append(angle)
+            
+    return iksol, angle_tolerance 
+
+def Fcost(turbine, start, actual_ik_cells, actual_tolerance_cells, goal):
+
+    robot = turbine.robot
+
+    actual_ik_cells = array(actual_ik_cells)
+    actual_tolerance_cells = array(actual_tolerance_cells)   
+    delta_t = turbine.config.model.trajectory_step/turbine.config.coating.coating_speed
+
+    # Verifying joint velocities consistency from start and goal
+    joint_distance_from_start = actual_ik_cells - start
+    joint_distance_from_goal = actual_ik_cells - goal
+    ws_in_limits_start = [w.all() for w in ((abs(joint_distance_from_start/delta_t) - robot.GetDOFVelocityLimits()) < 0)]
+    ws_in_limits_goal = [w.all() for w in ((abs(joint_distance_from_goal/delta_t) - robot.GetDOFVelocityLimits()) < 0)]
+    ws_in_limits = ws_in_limits_start and ws_in_limits_goal
+    
+    actual_ik_cells = actual_ik_cells[ws_in_limits]
+    actual_tolerance_cells = actual_tolerance_cells[ws_in_limits]
+    joint_distance_from_start = joint_distance_from_start[ws_in_limits]
+    joint_distance_from_goal = joint_distance_from_goal[ws_in_limits]
+
+    # Computing distance from start and goal
+    if (len(joint_distance_from_goal) > 0) and (len(joint_distance_from_start) > 0):
+        G_cost = sqrt(sum(joint_distance_from_start*joint_distance_from_start,1))
+        H_cost = sqrt(sum(joint_distance_from_goal*joint_distance_from_goal,1))
+        # Heuristic cost
+        F_cost = G_cost + H_cost + actual_tolerance_cells
+        return F_cost, actual_ik_cells
+    else:
+        return [], []
+
+def Gcost(turbine, start, actual_ik_cells, actual_tolerance_cells):
+
+    robot = turbine.robot
+
+    actual_ik_cells = array(actual_ik_cells)
+    actual_tolerance_cells = array(actual_tolerance_cells)   
+    delta_t = turbine.config.model.trajectory_step/turbine.config.coating.coating_speed
+
+    # Verifying joint velocities consistency from start and goal
+    joint_distance_from_start = actual_ik_cells - start
+    ws_in_limits = [w.all() for w in ((abs(joint_distance_from_start/delta_t) - robot.GetDOFVelocityLimits()) < 0)]
+    
+    actual_ik_cells = actual_ik_cells[ws_in_limits]
+    actual_tolerance_cells = actual_tolerance_cells[ws_in_limits]
+    joint_distance_from_start = joint_distance_from_start[ws_in_limits]
+
+    # Computing distance from start
+    if len(joint_distance_from_start) > 0:
+        G_cost = sum(abs(joint_distance_from_start/robot.GetDOFVelocityLimits()),1)
+        return G_cost, actual_ik_cells, actual_tolerance_cells
+    else:
+        return [], [], []
 
 def ikfast(robot, point):
     """
