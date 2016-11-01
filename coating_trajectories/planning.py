@@ -1,4 +1,4 @@
-from numpy import sqrt, dot, concatenate, arange, array
+from numpy import sqrt, dot, concatenate, arange, array, abs
 from numpy import transpose, linalg, sum, cross, zeros, eye
 from openravepy import IkFilterOptions, Ray
 from math import pi, cos, sin, atan2
@@ -466,9 +466,9 @@ def compute_manipulability_det(robot, joint_configuration):
         Jpos = manip.CalculateJacobian()
         Jori = manip.CalculateAngularVelocityJacobian()
         J = concatenate((Jpos,Jori))
-    return sqrt(linalg.det(dot(transpose(J),J))), sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
+    return sqrt(linalg.det(dot(transpose(J),J)))#, sqrt(linalg.det(dot(Jpos,transpose(Jpos)))), sqrt(linalg.det(dot(Jori,transpose(Jori))))
 
-def best_joint_solution_regarding_manipulability(joint_solutions, robot):
+def best_joint_solution_regarding_manipulability(joint_solutions, tolerance, robot):
     """
     Given a list of joint solutions for a specific point, the function computes
     maniulability and returns the best solution regarding manipulability criteria.
@@ -476,10 +476,12 @@ def best_joint_solution_regarding_manipulability(joint_solutions, robot):
                                  
     biggest_manipulability = 0
     temp_q = []
+    min_tolerance = min(abs(tolerance))
+    joint_solutions = array(joint_solutions)[tolerance==min_tolerance or tolerance==-min_tolerance] 
     for q in joint_solutions:
         try:
-            manipulability, _, _ = compute_manipulability_det(robot, q)
-            if manipulability>biggest_manipulability:
+            manipulability = compute_manipulability_det(robot, q)
+            if manipulability > biggest_manipulability:
                 biggest_manipulability = manipulability
                 temp_q = q
         except IndexError:
