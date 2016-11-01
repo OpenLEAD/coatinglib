@@ -449,7 +449,7 @@ def check_dof_limits(robot, q):
             return False
     return True
 
-def compute_manipulability_det(robot, joint_configuration):
+def compute_manipulability_det(joint_configuration, robot):
     """
     Compute robot manipulability as described in:
     Yoshikawa, 'Manipulability of robotic mechanisms',
@@ -472,16 +472,18 @@ def compute_manipulability_det(robot, joint_configuration):
 def best_joint_solution_regarding_manipulability(joint_solutions, tolerance, robot):
     """
     Given a list of joint solutions for a specific point, the function computes
-    maniulability and returns the best solution regarding manipulability criteria.
+    manipulability and returns the best solution regarding manipulability criteria.
     """
                                  
     biggest_manipulability = 0
     temp_q = []
-    min_tolerance = min(abs(tolerance))
-    joint_solutions = array(joint_solutions)[tolerance==min_tolerance or tolerance==-min_tolerance] 
+    tolerance = array(tolerance)
+    joint_solutions = array(joint_solutions)
+    joint_solutions = joint_solutions[abs(tolerance)==min(abs(tolerance))]
+    
     for q in joint_solutions:
         try:
-            manipulability = compute_manipulability_det(robot, q)
+            manipulability = compute_manipulability_det(q, robot)
             if manipulability > biggest_manipulability:
                 biggest_manipulability = manipulability
                 temp_q = q
