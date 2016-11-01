@@ -24,6 +24,7 @@ def central_difference(turbine, joints_trajectory, trajectory_index):
     alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
 
     return w, alpha
+
 def curvepoint(s1, s2, p0, tol=1e-4):
     """
     Find a point on s1 and s2 (intersection between surfaces) near p0.
@@ -273,3 +274,41 @@ class Plane(IterSurface):
 
     def name(self):
         return 'Plane'
+
+_backdif2 = array([[1.0, -1.0],
+                   [0,    0  ]])
+
+_backdif3 = array([[3.0/2,    -2.0,   1.0/2 ],
+                   [1.0,      -2.0,   1.0   ]])
+
+_backdif4 = array([[11.0/6,   -3.0,   3.0/2,  -1.0/3],
+                   [2.0,      -5.0,   4.0,    -1.0  ]])
+
+_backdif5 = array([[25.0/12,  -4.0,    3.0,      -4.0/3,  1.0/4],
+                   [35.0/12,  -26.0/3, 19.0/2,   -14.0/3, 11.0/12]])
+
+_backdif6 = array([[137.0/60, -5.0,     5.0,      -10.0/3, 5.0/4,   -1.0/5],
+                   [15.0/4,   -77.0/6,  107.0/6,  -13.0,   61.0/12, -5/6]])
+
+_backdif7 = array([[49.0/20,  -6.0,     15.0/2,  -20.0/3,  15.0/4, -6.0/5,  1.0/6],
+                   [203.0/45, -87.0/5,	117.0/4, -254.0/9, 33.0/2, -27.0/5, 137.0/180]])
+
+_backdiflist = (_backdif2,
+                _backdif3,
+                _backdif4,
+                _backdif5,
+                _backdif6,
+                _backdif7)
+
+def backward_difference(turbine, joints_trajectory):
+    """
+    joints_trajectory - joints_trajectory[0] is the most recent
+    """
+    joints = array(joints_trajectory[:7])
+    h = turbine.config.model.trajectory_step
+    size = len(joints)
+
+    w, alpha = h**(size-size/2) * dot(_backdiflist[size-2],
+                                      h**(size/2) * joints)
+    
+    return w, alpha
