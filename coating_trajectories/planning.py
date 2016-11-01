@@ -1,5 +1,5 @@
 from numpy import sqrt, dot, concatenate, arange, array, abs
-from numpy import transpose, linalg, sum, cross, zeros, eye
+from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
 from openravepy import IkFilterOptions, Ray
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize, linprog
@@ -347,25 +347,26 @@ def Fcost(turbine, start, actual_ik_cells, actual_tolerance_cells, goal):
     else:
         return [], []
 
-def Gcost(turbine, start, actual_ik_cells, actual_tolerance_cells):
+def Gcost(turbine, list_from_start, actual_ik_cells):
 
-    robot = turbine.robot
+    velocity_limits = turbine.robot.GetDOFVelocityLimits()
 
     actual_ik_cells = array(actual_ik_cells)
-    actual_tolerance_cells = array(actual_tolerance_cells)   
-    delta_t = turbine.config.model.trajectory_step/turbine.config.coating.coating_speed
 
     # Verifying joint velocities consistency from start and goal
-    joint_distance_from_start = actual_ik_cells - start
-    ws_in_limits = [w.all() for w in ((abs(joint_distance_from_start/delta_t) - robot.GetDOFVelocityLimits()) < 0)]
+    w_part, alpha_part, size = mathtools.partial_backward_difference(turbine,list_from_start)
     
-    actual_ik_cells = actual_ik_cells[ws_in_limits]
-    actual_tolerance_cells = actual_tolerance_cells[ws_in_limits]
-    joint_distance_from_start = joint_distance_from_start[ws_in_limits]
+    joint_velocities, _  = mathtools.update_backward_difference(turbine, actual_ik_cells,
+                                                                w_part, alpha_part, size)
+    
+    ws_out_limits = [w.any() for w in ((abs(joint_velocities) - velocity_limits) > 0)]
+
+    
 
     # Computing distance from start
-    if len(joint_distance_from_start) > 0:
-        G_cost = sum(abs(joint_distance_from_start/robot.GetDOFVelocityLimits()),1)
+    if joint_velocities.size:
+        G_cost = max(abs(joint_velocities/velocity_limits),1)
+        G_cost[ws_out_limits] = inf
         return G_cost, actual_ik_cells, actual_tolerance_cells
     else:
         return [], [], []
