@@ -4,6 +4,9 @@ from numpy import save, load
 from visualizer import Visualizer
 import logging
 import time
+from os.path import basename,splitext,join, exists
+from datetime import datetime
+from os import makedirs
 
 def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number_of_points_per_trajectory = 100): 
     """
@@ -18,12 +21,10 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
     blade -- blade object
     rail_positions -- number of random rail positions
     """
-    from os.path import basename,splitext,join, exists
-    from datetime import datetime
+    
     now = datetime.now()
     _ , week, dayofweek = now.isocalendar()
     directory = join('week'+str(week), 'day'+str(dayofweek))
-    from os import makedirs
     if not exists(directory):
         makedirs(directory)
 
@@ -45,7 +46,7 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
 
         counter = 0
         for filtered_trajectory in filtered_trajectories:
-            logging.info('Trajectory: '+str(counter)+', rail position: '+str(rp))
+            logging.info('Trajectory: '+str(counter))
             for filtered_trajectory_part in filtered_trajectory:
                 evaluated_points = 0
                 while evaluated_points < len(filtered_trajectory_part):
@@ -86,7 +87,13 @@ def load_obj(name ):
         return pickle.load(f)
 
 def save_db(db_file, directory_to_save):
-    save(directory_to_save+'db.npy', db_file)
+    now = datetime.now()
+    _ , week, dayofweek = now.isocalendar()
+    directory = join(directory_to_save,'week'+str(week), 'day'+str(dayofweek))
+    if not exists(directory):
+        makedirs(directory)
+    filename=join(directory,'db' + now.strftime('%X').replace(':','_') + '.npy')
+    save(filename, db_file)
     return
 
 def load_db(directory_to_load):
