@@ -73,7 +73,7 @@ def sensibility(turbine, point_normal, w, alpha):
 
     return velocity_tan_error, position_normal_error, position_perp_error, angle_error
     
-def compute_robot_joints(turbine, trajectory, trajectory_index):
+def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = None):
     """
     Iterates points of the trajectories, computing optimal robot's joints
     (minimizing orientation error).
@@ -90,7 +90,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index):
     logging.info('Computing robot joints from point: ' + str(trajectory[trajectory_index]))
     
     # Compute inverse kinematics and find a solution
-    ans, joint_solution, _ = compute_feasible_point(turbine, trajectory[trajectory_index])
+    ans, joint_solution, _ = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
     
     if not ans:
         return []
@@ -104,18 +104,18 @@ def compute_robot_joints(turbine, trajectory, trajectory_index):
             joint_solutions.append(res.x)
             robot.SetDOFValues(res.x)
         else:
-            ans, joint_solution, _ = compute_feasible_point(turbine, trajectory[index])
-            if not ans:
-                logging.info('--NOT ANS--')
-                return joint_solutions
-            robot.SetDOFValues(joint_solution)
-            previous_joint_solutions = backtrack(turbine, trajectory[:index+1])
-            if len(previous_joint_solutions)==0:
-                logging.info('----previous_joint_solutions----')
-                return joint_solutions
-            joint_solutions = previous_joint_solutions
-            robot.SetDOFValues(joint_solution)
-    return joint_solutions
+##            ans, joint_solution, _ = compute_feasible_point(turbine, trajectory[index])
+##            if not ans:
+##                logging.info('--NOT ANS--')
+##                return joint_solutions
+##            robot.SetDOFValues(joint_solution)
+##            previous_joint_solutions = backtrack(turbine, trajectory[:index+1])
+##            if len(previous_joint_solutions)==0:
+##                logging.info('----previous_joint_solutions----')
+##                return joint_solutions
+##            joint_solutions = previous_joint_solutions
+##            robot.SetDOFValues(joint_solution)
+            return joint_solutions
 
 #@profile(print_stats=10, dump_stats=True)
 def compute_first_feasible_point(turbine, trajectory):
