@@ -47,29 +47,34 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
         for filtered_trajectory in filtered_trajectories:
             logging.info('Trajectory: '+str(counter)+', rail position: '+str(rp))
             for filtered_trajectory_part in filtered_trajectory:
-                try:
-                    lower, _, _ = planning.compute_first_feasible_point(turbine, filtered_trajectory_part)
-                except ValueError: #raise
-                    continue
+                evaluated_points = 0
+                while evaluated_points < len(filtered_trajectory_part):
+                    try:
+                        lower, _, _ = planning.compute_first_feasible_point(turbine, filtered_trajectory_part[evaluated_points:], blade.trajectory_iter_surface)
+                        evaluated_points = evaluated_points + lower
+                    except ValueError: #raise
+                        evaluated_points = len(filtered_trajectory_part)
+                        continue
 
-                joint_solutions = planning.compute_robot_joints(turbine, filtered_trajectory_part, lower)
-                upper = lower + len(joint_solutions)
-                
-##                for i in range(0,len(joint_solutions)):
-##                    w, alpha = planning.compute_angular_velocities(turbine, joint_solutions, i)
-##                    torques = planning.torque_computation(turbine, joint_solutions[i], w, alpha)
-##                    velocity_tan_error, position_normal_error,
-##                    position_perp_error, angle_error = planning.sensibility(turbine, filtered_trajectory_part[lower+i], w, alpha)
+                    joint_solutions = planning.compute_robot_joints(turbine, filtered_trajectory_part, evaluated_points, blade.trajectory_iter_surface)
+                    upper = evaluated_points + len(joint_solutions)
+                    
+    ##                for i in range(0,len(joint_solutions)):
+    ##                    w, alpha = planning.compute_angular_velocities(turbine, joint_solutions, i)
+    ##                    torques = planning.torque_computation(turbine, joint_solutions[i], w, alpha)
+    ##                    velocity_tan_error, position_normal_error,
+    ##                    position_perp_error, angle_error = planning.sensibility(turbine, filtered_trajectory_part[lower+i], w, alpha)
 
-                if upper-lower>minimal_number_of_points_per_trajectory:
-                    vis.plot(filtered_trajectory_part[lower:upper],'coated_points')
-                    logging.info('Number of points saved in database: '+str(upper-lower))
-                    for point in filtered_trajectory_part[lower:upper]:
-                        DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
-                                                      set([tuple(rp.getPSAlpha())]))
-                else: logging.info('Points not saved in database, because number of coated points is: '+str(upper-lower))
-                logging.info('\n')
-                counter+=1
+                    if upper-evaluated_points > minimal_number_of_points_per_trajectory:
+                        vis.plot(filtered_trajectory_part[evaluated_points:upper],'coated_points')
+                        logging.info('Number of points saved in database: '+str(upper-evaluated_points))
+                        for point in filtered_trajectory_part[evaluated_points:upper]:
+                            DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
+                                                          set([tuple(rp.getPSAlpha())]))
+                    else: logging.info('Points not saved in database, because number of coated points is: '+str(upper-evaluated_points))
+                    logging.info('\n')
+                    evaluated_points = upper+1
+            counter+=1
     return DB_dict
 
 def save_obj(obj, name ):
