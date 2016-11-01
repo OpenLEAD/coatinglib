@@ -1,5 +1,5 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt
-from numpy import random, transpose, zeros, linalg
+from numpy import random, transpose, zeros, linalg, multiply
 from math import cos, sin, ceil, pi, isnan
 from abc import ABCMeta, abstractmethod
 from copy import copy
@@ -312,3 +312,30 @@ def backward_difference(turbine, joints_trajectory):
                                       h**(size/2) * joints)
     
     return w, alpha
+
+def partial_backward_difference(turbine, old_joints_trajectory):
+    """
+    old_joints_trajectory - old_joints_trajectory[0] is the most recent past value
+    Compute from old_joints_trajectory the partial backward diffeference, before adding the last point
+    """
+    joints = array(old_joints_trajectory[:6])
+    h = turbine.config.model.trajectory_step
+    size = len(joints)+1
+
+    w_part, alpha_part = dot(_backdiflist[size-2][:,1:],
+                                      h**(size/2) * joints)
+    
+    return w_part, alpha_part, size
+
+def update_backward_difference(turbine, actual_joint, w_part, alpha_part, size):
+    """
+    joints_trajectory - joints_trajectory[0] is the most recent
+    """
+    h = turbine.config.model.trajectory_step
+
+    w_alpha = h**(size-size/2)* (transpose((w_part, alpha_part)) +
+                                  multiply.outer(h**(size/2) * actual_joint,
+                                                 _backdiflist[size-2][:,0]))
+        
+
+    return w_alpha[:,:,0],w_alpha[:,:,1]
