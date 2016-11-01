@@ -4,8 +4,8 @@ from openravepy import IkFilterOptions, Ray
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize, linprog
 from copy import copy
-from collections import deque
 from path_filters import filter_trajectories
+from mathtools import central_difference
 import mathtools
 import time
 import logging
@@ -22,22 +22,6 @@ def compute_angular_velocities(turbine, joints_trajectory, trajectory_index):
     if (trajectory_index>2) and ((len(joints_trajectory)-trajectory_index)>3):
         return central_difference(turbine, joints_trajectory, trajectory_index)
     else: return None
-
-def central_difference(turbine, joints_trajectory, trajectory_index):
-
-    # 'j' for joints, so it doesnt clumpsy the equations
-    j = deque(joints_trajectory)
-    j.rotate(-trajectory_index)
-
-    h = turbine.config.model.trajectory_step
-    
-    # Joints velocity - Central Difference (h**6 order error)
-    w = ( (j[3]-j[-3]) + 9*(j[-2]-j[2]) + 45*(j[1]-j[-1]) )/(60.0*h)
-
-    # Joints acceleration - Central Difference (h**6 order error)
-    alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
-
-    return w, alpha
 
 def torque_computation(turbine, joints, w, alpha):
     # INVERSE DYNAMICS ComputeInverseDynamics

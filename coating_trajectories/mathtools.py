@@ -3,11 +3,27 @@ from numpy import random, transpose, zeros, linalg
 from math import cos, sin, ceil, pi, isnan
 from abc import ABCMeta, abstractmethod
 from copy import copy
+from collections import deque
 
 class KinBodyError(Exception):    
     def __init__(self):
         Exception.__init__(self, "object is not a KinBody.")
 
+def central_difference(turbine, joints_trajectory, trajectory_index):
+
+    # 'j' for joints, so it doesnt clumpsy the equations
+    j = deque(joints_trajectory)
+    j.rotate(-trajectory_index)
+
+    h = turbine.config.model.trajectory_step
+    
+    # Joints velocity - Central Difference (h**6 order error)
+    w = ( (j[3]-j[-3]) + 9*(j[-2]-j[2]) + 45*(j[1]-j[-1]) )/(60.0*h)
+
+    # Joints acceleration - Central Difference (h**6 order error)
+    alpha = ( 2*(j[-3]+j[3]) - 27*(j[-2]+j[2]) + 270*(j[-1]+j[1]) - 490*j[0] )/(180.0*h**2)
+
+    return w, alpha
 def curvepoint(s1, s2, p0, tol=1e-4):
     """
     Find a point on s1 and s2 (intersection between surfaces) near p0.
