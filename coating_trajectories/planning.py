@@ -118,7 +118,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
             return joint_solutions
 
 #@profile(print_stats=10, dump_stats=True)
-def compute_first_feasible_point(turbine, trajectory):
+def compute_first_feasible_point(turbine, trajectory, iter_surface = None):
     """
     Method to compute the first feasible point in the trajectory: where to start.
 
@@ -130,14 +130,14 @@ def compute_first_feasible_point(turbine, trajectory):
     robot = turbine.robot
     with robot:
         for i in range(0,len(trajectory)):
-            ans, sol, tolerance = compute_feasible_point(turbine, trajectory[i])
+            ans, sol, tolerance = compute_feasible_point(turbine, trajectory[i], iter_surface)
             if ans:
                 logging.info('Feasible point found: '+str(trajectory[i]))
                 return i, sol, tolerance
         logging.info('Feasible point not found.')
         raise ValueError('No solution for given trajectory')
 
-def compute_feasible_point(turbine, point):
+def compute_feasible_point(turbine, point, iter_surface = None):
     """
     Method to compute if point is feasible.
 
@@ -147,10 +147,10 @@ def compute_feasible_point(turbine, point):
     """
 
     with turbine.robot:
-        iksol, tolerance = ik_angle_tolerance(turbine, point)
+        iksol, tolerance = ik_angle_tolerance_normal_plane(turbine, point, iter_surface)
         if len(iksol)>0:
             logging.info('Point with tolerance found: '+str(point))
-            turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(iksol, turbine.robot))
+            turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(iksol, tolerance, turbine.robot))
             res = orientation_error_optimization(turbine, point)
             if(trajectory_constraints(turbine, res, point)):
                 return True, res.x, tolerance
