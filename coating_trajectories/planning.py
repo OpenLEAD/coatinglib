@@ -301,9 +301,15 @@ def ik_angle_tolerance_normal_plane(turbine, point, iter_surface, angle_discreti
 
     angle_discretization = min(abs(angle_discretization),
                                tolerance)
-    
-    for angle in arange(-tolerance, tolerance + angle_discretization, angle_discretization):
+
+    for angle in arange(0, tolerance + angle_discretization, angle_discretization):
         normal_tol = dot(point[3:6],transpose(mathtools.Raxis(tan, angle)))
+        sols = ikfast(robot, concatenate((point[0:3], normal_tol)))
+        for sol in sols:
+            iksol.append(sol)
+            angle_tolerance.append(angle)
+            
+        normal_tol = dot(point[3:6],transpose(mathtools.Raxis(tan, -angle)))
         sols = ikfast(robot, concatenate((point[0:3], normal_tol)))
         for sol in sols:
             iksol.append(sol)
