@@ -78,6 +78,20 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
             counter+=1
     return DB_dict
 
+def invert_db(db, parallels, regions):
+    # Regions as list of [list of tuple (parallel_index, begin_index, end_index)]
+    psa_db = list()
+    
+    for region in regions:
+        inverse_set = set()
+        
+        for parallel_index, begin_index, end_index in region:
+            for point in parallels[parallel_index, begin_index:end_index]:
+                inverse_set |= db[point]
+
+        psa_db.append(inverse_set)
+            
+
 def save_obj(obj, name ):
     with open('obj/'+ name + '.pkl', 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
