@@ -89,7 +89,6 @@ def invert_db(db, parallels, regions):
 
         psa_db.append(inverse_set)
             
-
 def save_db(db_file, directory_to_save):
     now = datetime.now()
     _ , week, dayofweek = now.isocalendar()
@@ -114,4 +113,25 @@ def merge_dbs(*args):
             merged_db[key] = merged_db.get(key,set()) | db.get(key,set())
     return merged_db
 
+def get_bases(db):
+    bases = set()
+    for val in db.values():
+        bases = val|bases
+    return bases
+
+def plot_points_base(db, base_position, vis, point_keys = 'point', color=(0,0,0)):
+    for key, value in db.iteritems():
+        if base_position in value:
+            vis.plot(key, point_keys, color)
+    return
         
+def load_dbs_in_directory(path):
+    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+    dbs = []
+     
+    for afile in onlyfiles:
+        _, file_extension = splitext(afile)
+        if file_extension == '.npy':
+            dbs.append(load_db(join(path,afile)))
+    return merge_dbs(*dbs)
+     
