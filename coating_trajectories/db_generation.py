@@ -102,4 +102,16 @@ def save_db(db_file, directory_to_save):
 
 def load_db(directory_to_load):
     return load(directory_to_load).item()
+
+def merge_dbs(*args):
+    keys = set()
+    for db in args:
+        keys = set(db.keys())|keys
+
+    merged_db = {}
+    for key in keys:
+        for db in args:
+            merged_db[key] = merged_db.get(key,set()) | db.get(key,set())
+    return merged_db
+
         
