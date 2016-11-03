@@ -90,14 +90,6 @@ def invert_db(db, parallels, regions):
         psa_db.append(inverse_set)
             
 
-def save_obj(obj, name ):
-    with open('obj/'+ name + '.pkl', 'wb') as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
-def load_obj(name ):
-    with open('obj/' + name + '.pkl', 'rb') as f:
-        return pickle.load(f)
-
 def save_db(db_file, directory_to_save):
     now = datetime.now()
     _ , week, dayofweek = now.isocalendar()
