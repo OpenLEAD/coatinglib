@@ -1,12 +1,12 @@
 from path_filters import filter_trajectories
 import planning
 from numpy import save, load
-from visualizer import Visualizer
 import logging
 import time
-from os.path import basename,splitext,join, exists
+from os.path import basename, splitext, join, exists, isfile
 from datetime import datetime
-from os import makedirs
+from os import makedirs, listdir
+import copy
 
 def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number_of_points_per_trajectory = 100): 
     """
