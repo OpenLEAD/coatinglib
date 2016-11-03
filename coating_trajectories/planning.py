@@ -116,6 +116,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
 ##            joint_solutions = previous_joint_solutions
 ##            robot.SetDOFValues(joint_solution)
             return joint_solutions
+    return joint_solutions
 
 #@profile(print_stats=10, dump_stats=True)
 def compute_first_feasible_point(turbine, trajectory, iter_surface = None):
