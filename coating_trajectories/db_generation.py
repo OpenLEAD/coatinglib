@@ -28,7 +28,6 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
     if not exists(directory):
         makedirs(directory)
 
-    vis = Visualizer(turbine.env)
     logging.basicConfig(filename=join(directory,'trajectory_constraints' + now.strftime('%X').replace(':','_') + '.log'), level=logging.DEBUG)
     for rp in rail_positions:
         turbine.place_rail(rp)
@@ -67,7 +66,6 @@ def generate_db(turbine, blade, rail_positions, DB_dict = dict(), minimal_number
     ##                    position_perp_error, angle_error = planning.sensibility(turbine, filtered_trajectory_part[lower+i], w, alpha)
 
                     if upper-evaluated_points > minimal_number_of_points_per_trajectory:
-                        vis.plot(filtered_trajectory_part[evaluated_points:upper],'coated_points')
                         logging.info('Number of points saved in database: '+str(upper-evaluated_points))
                         for point in filtered_trajectory_part[evaluated_points:upper]:
                             DB_dict[tuple(point[0:3])] = (DB_dict.get(tuple(point[0:3]),set()) |
