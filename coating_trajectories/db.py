@@ -59,23 +59,30 @@ class DB:
         db_points_to_num = dict()
         try:
             db = self.load_db()
-            db_points_to_num = self.load_db_points_to_num()
         except IOError:
-            if blade is None: raise
-
-            counter = 0
-            for trajectory in blade.trajectories:
-                for point in trajectory:
-                    db[counter] = set()
-                    counter+=1
+            if blade is None:
+                db_points_to_num = dict()    
+            else:
+                counter = 0
+                for trajectory in blade.trajectories:
+                    for point in trajectory:
+                        db[counter] = set()
+                        counter+=1
             self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
             del db
             
-            counter = 0
-            for trajectory in blade.trajectories:
-                for point in trajectory:
-                    db_points_to_num[tuple(point[0:3])] = counter
-                    counter+=1
+
+        try:
+            db_points_to_num = self.load_db_points_to_num()
+        except IOError:
+            if blade is None:
+                db_points_to_num = dict()
+            else:
+                counter = 0
+                for trajectory in blade.trajectories:
+                    for point in trajectory:
+                        db_points_to_num[tuple(point[0:3])] = counter
+                        counter+=1
             self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_points_to_num.pkl'))
             del db_points_to_num
             
@@ -110,19 +117,11 @@ class DB:
             makedirs(join(self.path,'fixed_db'))
 
         path = join(self.path,'fixed_db','db_bases_to_num.pkl')
-            
-        db_bases_to_num = {}
+        
         try:
             db_bases_to_num = self.load_db_pickle(path)
         except IOError:
             db_bases_to_num = dict()
-            db = self.load_db()
-            bases = self.get_bases(db)
-            for i in range(0,len(bases)):
-                base = bases.pop()
-                db_bases_to_num[base] = db_bases_to_num.get(
-                    base,set([len(db_bases_to_num)]))
-        self.save_db_pickle(db_bases_to_num, path)
         return db_bases_to_num
 
     def get_bases(self, db):
