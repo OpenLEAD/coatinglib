@@ -13,7 +13,7 @@ from datetime import datetime
 
 
 def convert():
-    DB.convert_db_point_base_directory('db/servidor/nonconverted', 'db/converted')
+    DB.convert_db_point_base_directory('db/servidor', 'db/converted')
 
 def merge():
     DB.merge_db_directory('db/converted')
@@ -60,13 +60,50 @@ def generate():
     now = datetime.now()
     DB.save_db_pickle(db,'db/servidor/nonconverted/' + now.strftime('%X').replace(':','_') + '.pkl')
 
+def rename_files_by_base():
+    path = 'db/converted'
+    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+
+    db_bases_to_num = DB.load_db_bases_to_num()
+    all_bases_tuple, all_bases_num = db_bases_to_num.keys(), db_bases_to_num.values()
+    del db_bases_to_num
+    all_bases_tuple = [x for (y,x) in sorted(zip(all_bases_num,all_bases_tuple))]
+    del all_bases_num
+
+    for afile in onlyfiles:
+        db = DB.load_db_pickle(join(path,afile))
+        name = all_bases_tuple[db.values()[0].pop()]
+        name = (round(name[0],3), round(name[1],3), round(name[2],3))
+        name = str(name)
+        name = name.replace(', ','_')
+        name = name.replace('(','')
+        name = name.replace(')','')
+        DB.save_db_pickle(db, join(path,name+'.pkl'))
+
+def filter_trajectories():
+    folder = "jiraublade"
+    xml_trajectories_path = os.path.join(folder,"trajectory/trajectory.xml")
+    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
+    blade.load_trajectory(xml_trajectories_path)
+
+    return blade.filter_trajectory()
+
+def plot_robot_in_base():
+    db = DB.load_db_bases_to_num()
+
 if __name__ == '__main__':
     dir_test = os.path.join(os.path.realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
     DB = db.DB('db')#, blade)
-    generate()
+
+    filtered_trajectories, distances = filter_trajectories()
+    #print max(distances)
+    #rename_files_by_base()
+    #convert()
+    #generate()
+    #merge()
 
 
 
