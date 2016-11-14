@@ -147,6 +147,21 @@ def compute_perpendicular_vector(vector_1):
         vector_2 = vector_2/linalg.norm(vector_2)                  
     return cross(vector_1,vector_2)
 
+def distance_point_line_3d(x1, x2, x0):
+    """
+    A line in three dimensions specified by two points x1 and x2.
+    The function calculates the squared distance between a point
+    x0 and the line.
+    
+    keyword arguments:
+    x1 -- (x,y,z) a point of the line
+    x2 -- (x,y,z) a second point of the line
+    x0 -- point not in the line to compute distance
+    """
+
+    return linalg.norm(cross(x0-x1,x0-x2))/linalg.norm(x2-x1)
+
+    
 class IterSurface:
     """ Inheritable class to surfaces that can be iterated and generate the coating
     trajectories.
