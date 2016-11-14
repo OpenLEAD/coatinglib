@@ -607,8 +607,27 @@ class BladeModeling:
                 f_points = dif
             if dif > f_points:
                 return models[i-1]
-        return models[-1]    
-        
-        
+        return models[-1]
 
+    def filter_trajectory(self, interpolation='linear', new_step = None):
+
+        if interpolation == 'linear':
+            f = mathtools.distance_point_line_3d
+
+        if new_step is None:
+            new_step = 10*self.trajectory_step
+
+        if new_step < self.trajectory_step:
+            return
         
+        index_factor = int(new_step/self.trajectory_step)
+        d = []
+        new_trajectories = []
+        for trajectory in self.trajectories:
+            for i in arange(0, len(trajectory), index_factor):
+                for j in range(i+1, i+index_factor):
+                    d.append(f(array(trajectory[i])[0:3],
+                               array(trajectory[min(i+index_factor,len(trajectory)-1)])[0:3],
+                               array(trajectory[min(j,len(trajectory)-1)])[0:3]))
+            new_trajectories.append((array(trajectory)[arange(0, len(trajectory), index_factor)]).tolist())
+        return new_trajectories, d
