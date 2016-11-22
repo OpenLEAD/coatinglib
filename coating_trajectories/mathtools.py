@@ -1,5 +1,7 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt
 from numpy import random, transpose, zeros, linalg, multiply
+from numpy import cos as npcos
+from numpy import sin as npsin
 from math import cos, sin, ceil, pi, isnan
 from abc import ABCMeta, abstractmethod
 from copy import copy
@@ -8,6 +10,23 @@ from collections import deque
 class KinBodyError(Exception):    
     def __init__(self):
         Exception.__init__(self, "object is not a KinBody.")
+
+def annulus_distribution(N,r,R):
+    """
+    return N samples from a uniform distribution over a
+    annulus with inner radius r and outer radius R.
+
+    """
+
+    rho,theta = random.rand(2,N)
+    rho = sqrt((R**2 - r**2)*rho + r**2)
+    theta *= 2*pi
+    
+    x = rho * npcos(theta)
+    y = rho * npsin(theta)
+
+    return transpose([x,y])
+    
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
