@@ -10,7 +10,7 @@ from math import pi, ceil
 from copy import copy, deepcopy
 from lxml import etree as ET
 import ast
-import rbf
+from rbf_gmres import RBF
 
 class BladeModeling:
     """ BladeModeling class for blade modelling.
@@ -38,6 +38,7 @@ class BladeModeling:
         self.number_of_points_per_model = turbine.config.model.number_of_points_per_model
         self.trajectory_step = turbine.config.model.trajectory_step
         self.trajectory_iter_surface = None
+        self.gap = turbine.config.coating.parallel_gap
 
     def save_samples(self, directory_to_save, name):
         """
@@ -230,7 +231,7 @@ class BladeModeling:
                 kernel = xml_model.find('kernel').text
                 gausse = None
                 if xml_model.find("gauss_parameter") is not None: gausse = float(xml_model.find("gauss_parameter").text)
-                model = rbf.RBF(kernel, points, eps, gausse)
+                model = RBF(kernel, points, eps, gausse)
                 model._w = loadtxt(xml_model.find('w').text, delimiter=',')
                 self.models.append(model)
             else: raise TypeError('This type of interpolation was not yet implemented')
@@ -389,18 +390,18 @@ class BladeModeling:
         models_index = []
         models = []
         
-        if len(self.points)>7000:
-            if model_iter_surface is None:
-                raise ValueError("The number of points is "+str(len(self.points))+""", which is
-                                bigger than 9000. It is not safe to make an unique model this big.
-                                Create an iterate surface to partitionate the model
-                                (check mathtools.IterSurface).""")
-            elif not issubclass(model_iter_surface.__class__, mathtools.IterSurface):
-                    raise TypeError("Object is not a valid surface.")
-            else:
-                model_points, models_index = self.divide_model_points(self.points, model_iter_surface,
-                                                                     number_of_points_per_model,
-                                                                     intersection_between_divisions)                
+##        if len(self.points)>7000:
+##            if model_iter_surface is None:
+##                raise ValueError("The number of points is "+str(len(self.points))+""", which is
+##                                bigger than 9000. It is not safe to make an unique model this big.
+##                                Create an iterate surface to partitionate the model
+##                                (check mathtools.IterSurface).""")
+##            elif not issubclass(model_iter_surface.__class__, mathtools.IterSurface):
+##                    raise TypeError("Object is not a valid surface.")
+##            else:
+##                model_points, models_index = self.divide_model_points(self.points, model_iter_surface,
+##                                                                     number_of_points_per_model,
+##                                                                     intersection_between_divisions)                
 
         for i in range(0,len(model_points)):
             temp_model = deepcopy(model)
@@ -609,25 +610,43 @@ class BladeModeling:
                 return models[i-1]
         return models[-1]
 
-    def filter_trajectory(self, interpolation='linear', new_step = None):
+    def filter_trajectory(self, interpolation='linear', new_step = None, max_error = None):
 
         if interpolation == 'linear':
             f = mathtools.distance_point_line_3d
 
         if new_step is None:
-            new_step = 10*self.trajectory_step
+            new_step = 20*self.trajectory_step
 
         if new_step < self.trajectory_step:
-            return
+            return self.trajectory_step
+
+        if max_error is None:
+            max_error = self.gap/2
         
-        index_factor = int(new_step/self.trajectory_step)
-        d = []
+        D = []
         new_trajectories = []
+        input_step = new_step
         for trajectory in self.trajectories:
-            for i in arange(0, len(trajectory), index_factor):
-                for j in range(i+1, i+index_factor):
-                    d.append(f(array(trajectory[i])[0:3],
-                               array(trajectory[min(i+index_factor,len(trajectory)-1)])[0:3],
-                               array(trajectory[min(j,len(trajectory)-1)])[0:3]))
+            d = 100
+            while d > max_error:
+                d_list = []
+                index_factor = int(new_step/self.trajectory_step)
+                index_selection = arange(0, len(trajectory), index_factor)
+                for i in range(0,len(index_selection)):
+                    if i==len(index_selection)-1:
+                        for j in range(index_selection[i], len(trajectory)):
+                            d_list.append(f(array(trajectory[index_selection[i]])[0:3],
+                                            array(trajectory[index_selection[0]])[0:3],
+                                            array(trajectory[j])[0:3]))
+                    else:
+                        for j in range(index_selection[i], index_selection[i+1]):
+                            d_list.append(f(array(trajectory[index_selection[i]])[0:3],
+                                       array(trajectory[index_selection[i+1]])[0:3],
+                                       array(trajectory[j])[0:3]))
+                d = max(d_list)
+                new_step = new_step - self.trajectory_step
+            D.append(d_list)
             new_trajectories.append((array(trajectory)[arange(0, len(trajectory), index_factor)]).tolist())
-        return new_trajectories, d
+            new_step = input_step
+        return new_trajectories, D
