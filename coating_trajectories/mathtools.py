@@ -1,5 +1,6 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt
-from numpy import random, transpose, zeros, linalg, multiply
+from numpy import array, dot, cross, outer, eye, sum, sqrt, ones
+from numpy import random, transpose, zeros, linalg, multiply, linspace, power
+from numpy import ndindex, linspace, power,  ceil, floor, einsum
 from numpy import cos as npcos
 from numpy import sin as npsin
 from math import cos, sin, ceil, pi, isnan
@@ -11,22 +12,23 @@ class KinBodyError(Exception):
     def __init__(self):
         Exception.__init__(self, "object is not a KinBody.")
 
-def annulus_distribution(N,r,R):
+def annulus_distribution(N,r,R, origin = None, dim = 2):
     """
     return N samples from a uniform distribution over a
     annulus with inner radius r and outer radius R.
 
     """
-
-    rho,theta = random.rand(2,N)
-    rho = sqrt((R**2 - r**2)*rho + r**2)
-    theta *= 2*pi
+    if origin is None:
+        origin = zeros((1,dim))
     
-    x = rho * npcos(theta)
-    y = rho * npsin(theta)
-
-    return transpose([x,y])
+    direction = random.randn(N,dim)
+        
+    rho = random.rand(N)
+    rho = power((R**dim - r**dim)*rho + r**dim,1./dim)
     
+    samples = einsum('ij,i->ij',direction,rho/linalg.norm(direction, axis=1))
+
+    return samples + origin
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
