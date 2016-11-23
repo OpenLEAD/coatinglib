@@ -31,7 +31,7 @@ def annulus_distribution(N,r,R, origin = None, dim = 2):
     return samples + origin
 
 
-def fast_poisson_disk(N, r, limits, k = 30):
+def fast_poisson_disk(r, limits, k = 30):
     n = len(limits)
     cellfreq = sqrt(n)/r
     delta = dot(limits,[-1, 1])
