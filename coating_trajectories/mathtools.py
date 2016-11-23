@@ -3,7 +3,7 @@ from numpy import random, transpose, zeros, linalg, multiply, linspace, power
 from numpy import ndindex, linspace, power,  ceil, floor, einsum
 from numpy import cos as npcos
 from numpy import sin as npsin
-from math import cos, sin, ceil, pi, isnan
+from math import cos, sin, pi, isnan
 from abc import ABCMeta, abstractmethod
 from copy import copy
 from collections import deque
@@ -29,6 +29,46 @@ def annulus_distribution(N,r,R, origin = None, dim = 2):
     samples = einsum('ij,i->ij',direction,rho/linalg.norm(direction, axis=1))
 
     return samples + origin
+
+
+def fast_poisson_disk(N, r, limits, k = 30):
+    n = len(limits)
+    cellfreq = sqrt(n)/r
+    delta = dot(limits,[-1, 1])
+    gridsize = ceil(delta*cellfreq)
+    grid = - ones(gridsize.astype('int')).astype('int') 
+    x0 = random.rand(n)
+    grid[tuple(floor(x0*gridsize).astype('int'))] = 0
+    x = [limits[:,0]+delta*x0]
+    activelist = [0]
+    counter = 0
+    while len(activelist)>0:
+        i = activelist[random.randint(len(activelist))]
+        samples = annulus_distribution(k,r,2*r,x[i],n)
+        placed = False
+        for sample in samples:
+            grid_place = floor((sample-limits[:,0])*gridsize/delta).astype('int')
+            if any(grid_place < 0) or any(grid_place >= grid.shape):
+                continue
+
+            for idx in ndindex(tuple([3]*n)):
+                try:
+                    point_index = grid[tuple(array(idx)-1+grid_place)]
+                except IndexError:
+                    continue
+                if point_index == -1:
+                    continue
+                if linalg.norm(sample - x[point_index]) < r:
+                    break
+            else:
+                grid[tuple(grid_place)] = len(x)
+                activelist += [len(x)]
+                x += [sample]
+                placed = True
+        if not placed:
+            del activelist[activelist.index(i)]
+    return x
+            
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
