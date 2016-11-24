@@ -67,12 +67,12 @@ class BladeModeling:
         ET.SubElement(samples, "number_of_samples").text = str(len(self.points))
         ET.SubElement(samples, "delta").text = str(delta)
         ET.SubElement(samples, "min_distance_between_points").text = str(min_distance_between_points)
-        ET.SubElement(samples, "path").text = directory_to_save + 'samples.csv'
+        ET.SubElement(samples, "path").text = join(directory_to_save, 'samples.csv')
             
-        savetxt(directory_to_save + 'samples.csv', self.points, delimiter = ',')
+        savetxt(join(directory_to_save, 'samples.csv'), self.points, delimiter = ',')
 
         tree = ET.ElementTree(samples)
-        tree.write(directory_to_save + "samples.xml", pretty_print=True)
+        tree.write(join(directory_to_save, "samples.xml"), pretty_print=True)
         
         return
 
