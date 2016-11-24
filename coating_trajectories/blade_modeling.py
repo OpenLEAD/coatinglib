@@ -364,7 +364,9 @@ class BladeModeling:
                 idx = Tree.query_ball_point(points[i,0:3],r)
                 idx = array(idx)
                 idx = idx[idx>i]
-                for j in idx:I[j]=False
+                for j in idx:
+                    if dot(points[i,3:6],points[j,3:6])>=0.8:
+                        I[j]=False
             i+=1
             if i==len(points):break
         return array(rays)
