@@ -21,7 +21,12 @@ def merge():
 def plot_gradient():
     vis = Visualizer(turb.env)
     DB.plot_points_gradient(vis)
-    
+
+
+def trajectories_plot(trajectories):
+    for traj in trajectories:
+        vis.plot(traj, 'traj',(1,0,0))
+
 def see_base_plot():
     path = 'db/converted'
     vis = Visualizer(turb.env)
@@ -80,14 +85,6 @@ def rename_files_by_base():
         name = name.replace(')','')
         DB.save_db_pickle(db, join(path,name+'.pkl'))
 
-def filter_trajectories():
-    folder = "jiraublade"
-    xml_trajectories_path = os.path.join(folder,"trajectory/trajectory.xml")
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-    blade.load_trajectory(xml_trajectories_path)
-
-    return blade.filter_trajectory()
-
 def plot_robot_in_base():
     db = DB.load_db_bases_to_num()
 
@@ -96,10 +93,9 @@ if __name__ == '__main__':
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    DB = db.DB('db')#, blade)
+    #DB = db.DB('db')#, blade)
+    vis = Visualizer(turb.env)
 
-    filtered_trajectories, distances = filter_trajectories()
-    #print max(distances)
     #rename_files_by_base()
     #convert()
     #generate()
