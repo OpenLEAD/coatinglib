@@ -652,3 +652,37 @@ class BladeModeling:
             new_trajectories.append((array(trajectory)[arange(0, len(trajectory), index_factor)]).tolist())
             new_step = input_step
         return new_trajectories, D
+
+    def filter_trajectory_opt(self, interpolation='linear', max_error = None):
+
+        if interpolation == 'linear':
+            f = mathtools.distance_point_line_3d
+
+        if max_error is None:
+            max_error = self.gap/2
+        
+        new_trajectories = []
+        N = len(self.trajectories)
+        counter = 0
+        for trajectory in self.trajectories:
+            i = 0
+            new_trajectory = []
+            while i < len(trajectory):
+                new_trajectory.append(trajectory[i])
+                temp_i=i+1
+                for j in range(i+2, len(trajectory)):
+                    for k in range(i,j):
+                        d = f(array(trajectory[i])[0:3],
+                              array(trajectory[j])[0:3],
+                              array(trajectory[k])[0:3])
+                        if d >= max_error:
+                            break
+                    else:
+                        temp_i = j
+                        continue
+                    break
+                i = temp_i
+            new_trajectories.append(new_trajectory)
+            counter+=1
+            print('iter %3i / %3i' % (counter,N))
+        return new_trajectories
