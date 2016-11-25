@@ -2,6 +2,7 @@ from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, ti
 from numpy import meshgrid, array, shape, sum, eye, dot, argsort, concatenate, sqrt
 from numpy import argmax, argmin, savetxt, mean, loadtxt
 from os import makedirs
+from os.path import join
 import errno
 from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
 from scipy.spatial import KDTree
@@ -10,7 +11,7 @@ from math import pi, ceil
 from copy import copy, deepcopy
 from lxml import etree as ET
 import ast
-from rbf_gmres import RBF
+from rbf import RBF
 
 class BladeModeling:
     """ BladeModeling class for blade modelling.
@@ -115,19 +116,19 @@ class BladeModeling:
         for i in range(0,len(models)):
             doc = ET.SubElement(model, "interpolation")
             ET.SubElement(doc, "type").text = models[i].model_type
-            ET.SubElement(doc, "points").text = directory_to_save + 'points_' + str(i) + ".csv"
-            savetxt(directory_to_save + 'points_' + str(i) + '.csv', models[i]._points, delimiter = ',')
+            ET.SubElement(doc, "points").text = join(directory_to_save,'points_' + str(i) + ".csv")
+            savetxt(join(directory_to_save, 'points_' + str(i) + '.csv'), models[i]._points, delimiter = ',')
             
             if models[i].model_type == 'RBF':
-                ET.SubElement(doc, "w").text = directory_to_save + 'w_' + str(i) + ".csv"
-                savetxt(directory_to_save + 'w_' + str(i) + '.csv', models[i]._w, delimiter = ',')
+                ET.SubElement(doc, "w").text = join(directory_to_save, 'w_' + str(i) + ".csv")
+                savetxt(join(directory_to_save, 'w_' + str(i) + '.csv'), models[i]._w, delimiter = ',')
                 ET.SubElement(doc, "kernel").text = models[i]._kernel
                 ET.SubElement(doc, "eps").text = str(models[i]._eps)
                 if models[i]._kernel=='gaussr': ET.SubElement(doc, "gauss_parameter").text = str(models[i].gausse)
                 
   
         tree = ET.ElementTree(model)
-        tree.write(directory_to_save + "model.xml", pretty_print=True)
+        tree.write(join(directory_to_save, "model.xml"), pretty_print=True)
         return
 
     def save_trajectory(self, xml_model, directory_to_save, name):
@@ -169,16 +170,16 @@ class BladeModeling:
         iter_surface._Rn = iter_surface._Rn0
         for i in range(0,len(trajectories)):
             ETfile = ET.SubElement(csv_files, "file")
-            ET.SubElement(ETfile, "path").text = directory_to_save + 'trajectory_' + str(i) + '.csv'
+            ET.SubElement(ETfile, "path").text = join(directory_to_save,'trajectory_' + str(i) + '.csv')
             iter_surface.update()
             ET.SubElement(ETfile, "iter_R").text = str(iter_surface._Rn)
-            savetxt(directory_to_save + 'trajectory_' + str(i) + '.csv', trajectories[i], delimiter = ',')
+            savetxt(join(directory_to_save, 'trajectory_' + str(i) + '.csv'), trajectories[i], delimiter = ',')
 
-        ET.SubElement(trajectory, "npz_file").text = directory_to_save + 'trajectory' + ".npz"
-        savez_compressed(directory_to_save + 'trajectory.npz', array=trajectories)
+        ET.SubElement(trajectory, "npz_file").text = join(directory_to_save,'trajectory.npz')
+        savez_compressed(join(directory_to_save,'trajectory.npz'), array=trajectories)
         
         tree = ET.ElementTree(trajectory)
-        tree.write(directory_to_save + "trajectory.xml", pretty_print=True)
+        tree.write(join(directory_to_save, "trajectory.xml"), pretty_print=True)
         return
 
     def load_samples(self, xml_file):
