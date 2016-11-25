@@ -1,4 +1,4 @@
-from path_filters import filter_trajectories
+from path_filters import filter_trajectories, side_filter
 import planning
 from numpy import save, load, random, array
 from os.path import basename, splitext, join, exists, isfile
