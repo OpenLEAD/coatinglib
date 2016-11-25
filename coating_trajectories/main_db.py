@@ -122,6 +122,27 @@ def rename_files_by_base():
 def plot_robot_in_base():
     db = DB.load_db_bases_to_num()
 
+def generate_robot_positions():
+    rp = rail_place.rand_rail(turb, 1000)
+    keys = [ tuple(p.getPSAlpha()) for p in rp]
+    
+    psalpha_dict = dict(zip(keys, range(0,len(keys))))
+    visited_bases = dict(zip(range(0,len(keys)), zeros(len(keys), dtype=bool)))
+
+    path = join(directory,'fixed_db')
+    
+    try:
+        makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+        
+    with open(join(path,'db_bases_to_num.pkl'), 'wb') as f:
+        cPickle.dump(psalpha_dict, f, cPickle.HIGHEST_PROTOCOL)
+    with open(join(path,'db_visited_bases.pkl'), 'wb') as f:
+        cPickle.dump(visited_bases, f, cPickle.HIGHEST_PROTOCOL)
+    return       
+
 if __name__ == '__main__':
     dir_test = os.path.join(os.path.realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
