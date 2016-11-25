@@ -18,7 +18,8 @@ def convert():
     DB.convert_db_point_base_directory('db/servidor', 'db/converted')
 
 def merge():
-    DB.merge_db_directory('db/converted')
+    DB = db.DB(directory)
+    DB.merge_db_directory(join(directory,'not_merged'))
 
 def plot_gradient():
     DB = db.DB(directory)
