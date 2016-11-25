@@ -1,11 +1,8 @@
 from numpy import array, sum, nonzero, concatenate, split, dot
 
-from profilestats import profile
-
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
 
-@profile(print_stats=10, dump_stats=True)
 def _mh12_filter(turbine, trajectories):
     pistol = 0.3
     flame = 0.23
