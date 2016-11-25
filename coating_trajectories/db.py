@@ -8,6 +8,11 @@ import rail_place
 from colorsys import hls_to_rgb
 import cPickle
 
+
+class NoDBFound(Exception):    
+    def __init__(self, value):
+        Exception.__init__(self,"No DataBase named " + value + " found.")
+
 class DB:
     """
     DB for robot's base position and coated points.
