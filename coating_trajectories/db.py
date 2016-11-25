@@ -267,29 +267,20 @@ class DB:
         else: raise TypeError('rail_position is not valid')
 	
         db_points_to_num = self.load_db_points_to_num()
-        db_bases_to_num = self.load_db_bases_to_num()
-        
         db = dict()
-        base = tuple(rail_position.getPSAlpha())
-        db_bases_to_num[base] = db_bases_to_num.get(base, set([len(db_bases_to_num)]))
-        self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_bases_to_num.pkl'))
 
-        turbine.place_rail(rail_position)
-        turbine.place_robot(rail_position)
-            
-        if turbine.check_rail_collision():
-            return
-        if turbine.check_robotbase_collision():
-            return
-
-        filtered_trajectories = filter_trajectories(turbine, blade.trajectories)
-
-        for filtered_trajectory in filtered_trajectories:
-            for filtered_trajectory_part in filtered_trajectory:
+        filtered_trajectories = side_filter(turbine,blade.trajectories)
+        #filtered_trajectories = filter_trajectories(turbine, blade.trajectories)
+        #for filtered_trajectory in filtered_trajectories:
+            #for filtered_trajectory_part in filtered_trajectory:
+        for filtered_trajectory_part in filtered_trajectories:
                 evaluated_points = 0
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
-                        lower, _, _ = planning.compute_first_feasible_point(turbine, filtered_trajectory_part[evaluated_points:], blade.trajectory_iter_surface)
+                        lower, _, _ = planning.compute_first_feasible_point(
+                            turbine,
+                            filtered_trajectory_part[evaluated_points:],
+                            blade.trajectory_iter_surface)
                         evaluated_points = evaluated_points + lower
                     except ValueError: 
                         evaluated_points = len(filtered_trajectory_part)
