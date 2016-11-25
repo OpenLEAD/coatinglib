@@ -21,8 +21,9 @@ def merge():
     DB.merge_db_directory('db/converted')
 
 def plot_gradient():
-    vis = Visualizer(turb.env)
+    DB = db.DB(directory)
     DB.plot_points_gradient(vis)
+    return
 
 
 def trajectories_plot(trajectories):
