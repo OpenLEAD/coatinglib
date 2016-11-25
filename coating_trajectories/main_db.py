@@ -5,12 +5,14 @@ from turbine import Turbine
 from turbine_config import TurbineConfig, ConfigFileError
 import os
 from visualizer import Visualizer
-from os.path import join, isfile
+from os.path import join, isfile, realpath
 from os import listdir
 import rail_place
-from numpy import array, random
+from numpy import array, random, zeros
 from datetime import datetime
-
+from os import makedirs
+import cPickle
+import errno
 
 def convert():
     DB.convert_db_point_base_directory('db/servidor', 'db/converted')
