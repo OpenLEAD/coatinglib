@@ -74,7 +74,7 @@ class DB:
                         db[counter] = set()
                         counter+=1
             self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
-            del db
+        del db
             
 
         try:
@@ -89,8 +89,17 @@ class DB:
                         db_points_to_num[tuple(point[0:3])] = counter
                         counter+=1
             self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_points_to_num.pkl'))
-            del db_points_to_num
-            
+        del db_points_to_num
+
+        try:
+            db_bases_to_num = self.load_db_bases_to_num()
+        except IOError as error:
+            if error.errno == errno.ENOENT:
+                raise NoDBFound('db_bases_to_num.pkl')
+            else:
+                raise
+        del db_bases_to_num
+           
         if db_in is not None:
             db = self.load_db()
             db = self.merge_db(db_in, db)
