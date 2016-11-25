@@ -10,7 +10,6 @@ import mathtools
 import time
 import logging
 from openravepy import databases, IkParameterization
-from profilestats import profile
 
 """
 Main package for robot joints' positions and velocities planning,
