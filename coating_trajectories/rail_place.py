@@ -48,28 +48,32 @@ def rand_rail(turbine, N = 1, equidistant = True):
         delta_y = turbine.config.environment.y_max - turbine.config.environment.y_min
         limits = array([[turbine.config.environment.x_min, turbine.config.environment.x_max],
                         [turbine.config.environment.y_min, turbine.config.environment.y_max]])
-        x,y = transpose(fast_poisson_disk(sqrt(delta_x*delta_y*1.0/N),limits))
-        alpha = random.rand(len(x))
+        x,y = transpose(fast_poisson_disk(sqrt(delta_x*delta_y*1.0/(N*sqrt(2))),limits))
     else:
         x,y,alpha = random.rand(3,N)
 
         x = (turbine.config.environment.x_max - turbine.config.environment.x_min)*x + turbine.config.environment.x_min
 
 
-        if alpha_min > 0: #Limits of the avaible area depends on alpha limits
-            y_max = (turbine.config.environment.x_max - x)/tan(alpha_min)
-            y_min = (turbine.config.environment.x_min - x)/tan(alpha_min)
-            y_max = minimum(y_max,turbine.config.environment.y_max)
-            y_min = maximum(y_min,turbine.config.environment.y_min)
-        elif alpha_max < 0:
-            y_max = (turbine.config.environment.x_min - x)/tan(alpha_max)
-            y_min = (turbine.config.environment.x_max - x)/tan(alpha_max)
-            y_max = minimum(y_max,turbine.config.environment.y_max)
-            y_min = maximum(y_min,turbine.config.environment.y_min)
-        else:
-            y_max = turbine.config.environment.y_max
-            y_min = turbine.config.environment.y_min
-            
+    if alpha_min > 0: #Limits of the avaible area depends on alpha limits
+        y_max = (turbine.config.environment.x_max - x)/tan(alpha_min)
+        y_min = (turbine.config.environment.x_min - x)/tan(alpha_min)
+        y_max = minimum(y_max,turbine.config.environment.y_max)
+        y_min = maximum(y_min,turbine.config.environment.y_min)
+    elif alpha_max < 0:
+        y_max = (turbine.config.environment.x_min - x)/tan(alpha_max)
+        y_min = (turbine.config.environment.x_max - x)/tan(alpha_max)
+        y_max = minimum(y_max,turbine.config.environment.y_max)
+        y_min = maximum(y_min,turbine.config.environment.y_min)
+    else:
+        y_max = turbine.config.environment.y_max
+        y_min = turbine.config.environment.y_min
+
+    if equidistant:
+        x = x[(y<y_max) & (y>y_min)]
+        y = y[(y<y_max) & (y>y_min)]
+        alpha = random.rand(len(x))
+    else:
         y = (y_max - y_min)*y + y_min
 
     alpha = _rand_angle(turbine, x, y, alpha)
