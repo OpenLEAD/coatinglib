@@ -239,7 +239,7 @@ class DB:
         self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
         return
 
-    def generate_db(self, turbine, blade, rail_position, minimal_number_of_points_per_trajectory = 100): 
+    def generate_db(self, turbine, blade, rail_position, minimal_number_of_points_per_trajectory = 2): 
         """
         Function that store feasible trajectories for random rail_positions. Each feasible point
         in a trajectory is mapped to a rail position that can coat it. Therefore, the DB returns
