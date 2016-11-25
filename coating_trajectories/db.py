@@ -120,7 +120,7 @@ class DB:
 
     def load_db_bases_to_num(self):
         """
-        Load points_to_num database bases:num. Bases are tuples railplace and
+        Load bases_to_num database bases:num. Bases are tuples railplace and
         the num maps the bases (counter to reduce database complexity).
 
         keyword arguments:
