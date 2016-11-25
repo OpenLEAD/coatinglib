@@ -288,11 +288,9 @@ class DB:
 
                     joint_solutions = planning.compute_robot_joints(turbine, filtered_trajectory_part, evaluated_points, blade.trajectory_iter_surface)
                     upper = evaluated_points + len(joint_solutions)
-
                     if upper-evaluated_points > minimal_number_of_points_per_trajectory:
                         for point in filtered_trajectory_part[evaluated_points:upper]:
-                            db[db_points_to_num[tuple(point[0:3])]] = db_bases_to_num[base]
-                        print 'saved'
+                            db[db_points_to_num[tuple(point[0:3])]] = base
                     evaluated_points = upper+1
         return db
 
