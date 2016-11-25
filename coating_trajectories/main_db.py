@@ -110,11 +110,13 @@ def rename_files_by_base():
     for afile in onlyfiles:
         db = DB.load_db_pickle(join(path,afile))
         name = all_bases_tuple[db.values()[0].pop()]
-        name = (round(name[0],3), round(name[1],3), round(name[2],3))
+        rp = rail_place.RailPlace(name)
+        name = rp.getXYZ(turb)
+        name = [round(name[0],3), round(name[1],3), round(name[2],3)]
         name = str(name)
         name = name.replace(', ','_')
-        name = name.replace('(','')
-        name = name.replace(')','')
+        name = name.replace('[','')
+        name = name.replace(']','')
         DB.save_db_pickle(db, join(path,name+'.pkl'))
 
 def plot_robot_in_base():
