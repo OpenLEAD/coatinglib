@@ -43,16 +43,41 @@ def see_base_plot():
 
 def generate():
     turb.robot.GetLink('Flame').Enable(False)
-    folder = "jiraublade"
-    xml_trajectories_path = os.path.join(folder,"trajectory/trajectory.xml")
+    xml_trajectories_path = join(blade_folder,"trajectory/trajectory.xml")
     blade = blade_modeling.BladeModeling(turb, turb.blades[0])
     blade.load_trajectory(xml_trajectories_path)
-    rpt = rail_place.RailPlace((.80,0.15,0))
+    DB = db.DB(directory)
 
-    db_bases_to_num = DB.load_db_bases_to_num()
+    path = join(directory,'not_merged')
+    try:
+        makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
     
     while True:
-        rp = rail_place.rand_rail(turb, 1)[0]
+        with open(join(directory,'fixed_db','db_visited_bases.pkl'), 'rb') as f:
+            db_visited_bases = cPickle.load(f)
+        base_num = None
+        for key, value in db_visited_bases.iteritems():
+            if value == False:
+                db_visited_bases[key] = True
+                base_num = key
+                break
+        if base_num is None:
+            break
+        with open(join(directory,'fixed_db','db_visited_bases.pkl'), 'wb') as f:
+            cPickle.dump(db_visited_bases, f, cPickle.HIGHEST_PROTOCOL)
+        del db_visited_bases
+
+        db_bases_to_num = DB.load_db_bases_to_num()
+        for key, value in db_bases_to_num.iteritems():
+            if value == base_num:
+                base = key
+                break
+        del db_bases_to_num
+
+        rp = rail_place.RailPlace(base)
         turb.place_rail(rp)
         turb.place_robot(rp)
 
@@ -61,13 +86,16 @@ def generate():
         if turb.check_robotbase_collision():
             continue
 
-        break
-        #for base in db_bases_to_num.keys():
-            
-
-    db = DB.generate_db(turb, blade, rp)
-    now = datetime.now()
-    DB.save_db_pickle(db,'db/servidor/nonconverted/' + now.strftime('%X').replace(':','_') + '.pkl')
+        database = DB.generate_db(turb, blade, base_num)
+        name = rp.getXYZ(turb)
+        name = [round(name[0],3), round(name[1],3)]
+        name = str(name)
+        name = name.replace(', ','_')
+        name = name.replace('[','')
+        name = name.replace(']','')
+        print 'saving base local (x,y): ', name
+        DB.save_db_pickle(database, join(path,name+'.pkl'))
+    return
 
 def rename_files_by_base():
     path = 'db/converted'
