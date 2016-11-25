@@ -241,8 +241,10 @@ class DB:
 
     def generate_db(self, turbine, blade, rail_position, minimal_number_of_points_per_trajectory = 2): 
         """
-        Function that store feasible trajectories for random rail_positions. Each feasible point
-        in a trajectory is mapped to a rail position that can coat it. Therefore, the DB returns
+        Function that store feasible trajectories for a given robot's base position.
+        The robot must be placed before this method call.
+        Each feasible point in a trajectory is mapped to a PSAlpha that can coat it.
+        Therefore, the DB returns
         a dictionary where points are keys and rail positions are values, e.g.:
              {     (1.0, 1.1, 1.3):                   (2.4   ,  1.2  ), ( 2.4  ,  1.3  )}
              {point( x ,  y ,  z ): rail poisitions   (rail_1, rail_2), (rail_1, rail_2)}
