@@ -152,17 +152,32 @@ def create_db_with_blade():
     return
 
 if __name__ == '__main__':
-    dir_test = os.path.join(os.path.realpath('.'),'test')
+
+    directory = 'new_db'
+    blade_folder = "jiraublade_hd_filtered"
+    try:
+        makedirs(directory)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+              
+    dir_test = join(realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    #DB = db.DB('db')#, blade)
-    vis = Visualizer(turb.env)
+    
+    generate_robot_positions()
+    #create_db_with_blade()
 
     #rename_files_by_base()
     #convert()
+    #vis = Visualizer(turb.env)
     #generate()
     #merge()
+
+    #vis = Visualizer(turb.env)
+    #plot_gradient()
+    
 
 
 
