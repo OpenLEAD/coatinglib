@@ -143,6 +143,14 @@ def generate_robot_positions():
         cPickle.dump(visited_bases, f, cPickle.HIGHEST_PROTOCOL)
     return       
 
+def create_db_with_blade():
+    xml_trajectories_path = join(blade_folder,"trajectory/trajectory.xml")
+    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
+    blade.load_trajectory(xml_trajectories_path)
+    DB = db.DB(directory, blade)
+    del blade
+    return
+
 if __name__ == '__main__':
     dir_test = os.path.join(os.path.realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
