@@ -132,11 +132,17 @@ class DB:
 
         path = join(self.path,'fixed_db','db_bases_to_num.pkl')
         
-        try:
-            db_bases_to_num = self.load_db_pickle(path)
-        except IOError:
-            db_bases_to_num = dict()
-        return db_bases_to_num
+        return self.load_db_pickle(path)
+
+    def load_db_visited_bases(self):
+        """
+        Load visited_bases database bases:bool. Bases are tuples PSAlpha and
+        the bool show if it was already computed.
+        """
+
+        path = join(self.path,'fixed_db','db_visited_bases.pkl')
+        
+        return self.load_db_pickle(path)
 
     def get_bases(self, db):
         bases = set()
