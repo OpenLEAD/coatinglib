@@ -251,11 +251,21 @@ class DB:
 
         Keyword arguments:
         turbine -- turbine object
-        rail_position -- number of random rail positions
+        rail_position -- PSAlpha, base_number or rail_place object. 
         minimal_number_of_points_per_trajectory -- trajectories smaller then
         this number of points are croped
         """
 
+        if isinstance(rail_position, rail_place.RailPlace):
+            rail_position = rail_place.getPSAlpha()
+        if type(rail_position) == tuple:
+            db_bases_to_num = self.load_db_bases_to_num()
+            base = db_bases_to_num[rail_position]
+            del db_bases_to_num
+        elif type(rail_position) == int:
+            base = rail_position
+        else: raise TypeError('rail_position is not valid')
+	
         db_points_to_num = self.load_db_points_to_num()
         db_bases_to_num = self.load_db_bases_to_num()
         
