@@ -113,7 +113,7 @@ def load_filtered_trajectories():
 
 if __name__ == "__main__":
     
-    name = 'jiraublade_hd'
+    name = 'jiraublade_hd_filtered'
     turbconf = TurbineConfig.load("turbine_unittest.cfg", 'test/')
     environ['OPENRAVE_DATA'] = '/home/renan/git/planning-coating_trajectories/coating_trajectories/test'
     turb = Turbine(turbconf)
@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
     #sampling_blade()
     #save_samples()
-    load_samples()
+    #load_samples()
     
     #make_model()
     #save_model()
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
     #generate_trajectories()
     #save_trajectories()
-    #load_trajectories()
+    load_trajectories()
 
     #trajectories = filter_trajectories()
     #save_filtered_trajectories()
@@ -141,6 +141,6 @@ if __name__ == "__main__":
 
     # Visualizer
     vis = Visualizer(turb.env)
-    plot_samples()
-    #plot_trajectories()
+    #plot_samples()
+    plot_trajectories()
     
