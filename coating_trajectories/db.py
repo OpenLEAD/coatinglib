@@ -216,7 +216,9 @@ class DB:
         """
 
         for key, value in db_file.iteritems():
-            main_db[key] = main_db.get(key,set()) | db_file.get(key)
+            if type(value) == int:
+                value = set([value])
+            main_db[key] = main_db.get(key,set()) | value
         return main_db
         
     def merge_db_directory(self, path):
@@ -230,11 +232,13 @@ class DB:
 
         db = self.load_db()
         onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-         
+        N = len(onlyfiles)
+        index = 0
         for afile in onlyfiles:
             filename, file_extension = splitext(afile)
             if file_extension == '.pkl':
-                print "merging file: ", filename
+                index+=1
+                print('iter %3i\tfile = %s' % (index, filename)) 
                 db = self.merge_db(self.load_db_pickle(join(path,afile)), db)
         self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
         return
@@ -269,11 +273,11 @@ class DB:
         db_points_to_num = self.load_db_points_to_num()
         db = dict()
 
-        filtered_trajectories = side_filter(turbine,blade.trajectories)
-        #filtered_trajectories = filter_trajectories(turbine, blade.trajectories)
-        #for filtered_trajectory in filtered_trajectories:
-            #for filtered_trajectory_part in filtered_trajectory:
-        for filtered_trajectory_part in filtered_trajectories:
+        #filtered_trajectories = side_filter(turbine,blade.trajectories)
+        filtered_trajectories = filter_trajectories(turbine, blade.trajectories,2)
+        for filtered_trajectory in filtered_trajectories:
+            for filtered_trajectory_part in filtered_trajectory:
+        #for filtered_trajectory_part in filtered_trajectories:
                 evaluated_points = 0
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
@@ -290,11 +294,11 @@ class DB:
                     upper = evaluated_points + len(joint_solutions)
                     if upper-evaluated_points > minimal_number_of_points_per_trajectory:
                         for point in filtered_trajectory_part[evaluated_points:upper]:
-                            db[db_points_to_num[tuple(point[0:3])]] = base
+                            db[db_points_to_num[tuple(point[0:3])]] = set([base])
                     evaluated_points = upper+1
         return db
 
-    def plot_points_gradient(self, vis):
+    def plot_points_gradient(self, vis, scale = 1):
         N = 0
         db = self.load_db()
         for key, value in db.iteritems():
@@ -306,7 +310,7 @@ class DB:
         all_points_tuple = [x for (y,x) in sorted(zip(all_points_num,all_points_tuple))]
         del all_points_num
         
-        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/200)))
+        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
         points_num = array(db.keys())[index]
         bases_num = array(db.values())[index]
 
@@ -329,6 +333,13 @@ class DB:
             vis.plot(all_points_tuple[i], 'points_db')
         return
 
+    def plot_bases_db(self, vis, turbine):
+        bases = self.load_db_bases_to_num()
+        for key, value in bases.iteritems():
+            rp = rail_place.RailPlace(key)
+            vis.plot(rp.getXYZ(turbine),'base',(0,0,1))
+        return
+
     def invert_db(self, db, parallels, regions):
     # Regions as list of [list of tuple (parallel_index, begin_index, end_index)]
         psa_db = list()
@@ -341,4 +352,12 @@ class DB:
                     inverse_set |= db[point]
 
             psa_db.append(inverse_set)
+        return
+
+    def clear_db(self):
+        db = self.load_db()
+        for key, value in db.iteritems():
+            db[key] = set()
+        name = join(self.path,'fixed_db','db.pkl')
+        self.save_db_pickle(db, name)
         return
