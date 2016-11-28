@@ -3,7 +3,7 @@ from numpy import array, sum, nonzero, concatenate, split, dot
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
 
-def _mh12_filter(turbine, trajectories):
+def _mh12_filter(turbine, trajectories, N):
     pistol = 0.3
     flame = 0.23
     _working_radius_squared = (1.285+pistol+flame)**2
@@ -25,7 +25,7 @@ def _mh12_filter(turbine, trajectories):
             filtered_trajectory_list[0] = concatenate((filtered_trajectory_list[-1],filtered_trajectory_list[0]))
             del filtered_trajectory_list[-1]
 
-        filtered_trajectory_list = filter(lambda x: len(x)>100,filtered_trajectory_list)
+        filtered_trajectory_list = filter(lambda x: len(x)>N,filtered_trajectory_list)
         if len(filtered_trajectory_list)>0:
             filtered_trajectories.append(filtered_trajectory_list)
 
@@ -47,6 +47,6 @@ def side_filter(turbine, trajectories):
 
 _filter_options = {'mh12': _mh12_filter}    
 
-def filter_trajectories(turbine, trajectories):
+def filter_trajectories(turbine, trajectories, N = 100):
     name = turbine.robot.GetName()
-    return _filter_options.get(name,_std_robot_filter)(turbine, side_filter(turbine,trajectories))
+    return _filter_options.get(name,_std_robot_filter)(turbine, side_filter(turbine,trajectories), N)
