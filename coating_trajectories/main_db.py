@@ -24,8 +24,24 @@ def merge():
 def plot_gradient():
     DB = db.DB(directory)
     DB.plot_points_gradient(vis)
+    DB.plot_bases_db(vis, turb)
     return
 
+def plot_points_covered_by_n(n_max, n_min=0):
+    DB = db.DB(directory)
+    points = []
+    data = DB.load_db()
+    db_points_to_num = DB.load_db_points_to_num()
+    all_points_tuple, all_points_num = db_points_to_num.keys(), db_points_to_num.values()
+    del db_points_to_num
+    all_points_tuple = [x for (y,x) in sorted(zip(all_points_num,all_points_tuple))]
+    del all_points_num
+    for key, value in data.iteritems():
+        if len(value) <= n_max and len(value) >= n_min:
+            points.append(all_points_tuple[key])
+    vis.plot(points,'plot_points_covered_by_n')
+    return
+            
 
 def trajectories_plot(trajectories):
     for traj in trajectories:
@@ -166,7 +182,7 @@ if __name__ == '__main__':
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
     
-    generate_robot_positions()
+    #generate_robot_positions()
     #create_db_with_blade()
 
     #rename_files_by_base()
@@ -175,8 +191,9 @@ if __name__ == '__main__':
     #generate()
     #merge()
 
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
     #plot_gradient()
+    plot_points_covered_by_n(600,50)
     
 
 
