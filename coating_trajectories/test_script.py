@@ -9,7 +9,7 @@ import visualizer
 vz = visualizer.Visualizer(turb.env)
 import numpy as np
 import rail_place
-RP = rail_place.rand_rail(turb,20)
+RP = rail_place.rand_rail(turb.config,20)
 rpt = rail_place.RailPlace((.80,0.15,0))
 import planning
 

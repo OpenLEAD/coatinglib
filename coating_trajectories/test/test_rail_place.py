@@ -13,14 +13,14 @@ class TestRailPlace(TestCase):
         turbconf = TurbineConfig.load("turbine_unittest.cfg", cls.test_dir)
         cls.turb = Turbine(turbconf)
         cls.samples =1000000
-        cls.railplaces = rail_place.rand_rail(cls.turb, cls.samples)
+        cls.railplaces = rail_place.rand_rail(cls.turb.config, cls.samples)
 
     def test_railplace_constrains(self):
         total = 0
         alpha_min = TestRailPlace.turb.config.environment.rail_angle_mean - TestRailPlace.turb.config.environment.rail_angle_limit
         alpha_max = TestRailPlace.turb.config.environment.rail_angle_mean + TestRailPlace.turb.config.environment.rail_angle_limit
         for railpos in TestRailPlace.railplaces:
-            x,y,z = railpos.getXYZ(TestRailPlace.turb)
+            x,y,z = railpos.getXYZ(TestRailPlace.turb.config)
             if ((TestRailPlace.turb.config.environment.x_min <= x <= TestRailPlace.turb.config.environment.x_max)
                 and (TestRailPlace.turb.config.environment.y_min <= y <= TestRailPlace.turb.config.environment.y_max)
                 and z==TestRailPlace.turb.config.environment.z_floor_level
@@ -35,7 +35,7 @@ class TestRailPlace(TestCase):
         alpha_max = TestRailPlace.turb.config.environment.rail_angle_mean + TestRailPlace.turb.config.environment.rail_angle_limit
         railtuples = []
         for railpos in TestRailPlace.railplaces:
-            x,y,_ = railpos.getXYZ(TestRailPlace.turb)
+            x,y,_ = railpos.getXYZ(TestRailPlace.turb.config)
             railtuples.append((x,y,railpos.alpha))
 
         railtuples.sort()

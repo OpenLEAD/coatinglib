@@ -136,7 +136,7 @@ class Turbine:
                                             [0,0,1])
         self.primary.SetTransform(dot(primary_transform,primary_offset_transform))
         
-        secondary_transform = transformLookat(rail_place.getXYZ(self),
+        secondary_transform = transformLookat(rail_place.getXYZ(self.config),
                                                    array([rail_place.p,0,self.config.environment.z_floor_level]),
                                                    [0,0,1])    
         self.secondary.SetTransform(dot(secondary_transform,secondary_offset_transform))
@@ -152,7 +152,7 @@ class Turbine:
     def place_robot(self,rail_place):
         """ Place robot on the end of the secondary rail """
         Placement = eye(4)
-        Placement[0:3,3] = rail_place.getXYZ(self) + [0, 0, 2.0*self.config.environment.robot_level_difference]
+        Placement[0:3,3] = rail_place.getXYZ(self.config) + [0, 0, 2.0*self.config.environment.robot_level_difference]
         R = matrixFromAxisAngle([0, 0, rail_place.alpha + (sign(rail_place.p)+1)*pi/2.0])
         self.robot.SetTransform(dot(Placement, R))
 

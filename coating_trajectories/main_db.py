@@ -103,7 +103,7 @@ def generate():
             continue
 
         database = DB.generate_db(turb, blade, base_num)
-        name = rp.getXYZ(turb)
+        name = rp.getXYZ(turb.config)
         name = [round(name[0],3), round(name[1],3)]
         name = str(name)
         name = name.replace(', ','_')
@@ -127,7 +127,7 @@ def rename_files_by_base():
         db = DB.load_db_pickle(join(path,afile))
         name = all_bases_tuple[db.values()[0].pop()]
         rp = rail_place.RailPlace(name)
-        name = rp.getXYZ(turb)
+        name = rp.getXYZ(turb.config)
         name = [round(name[0],3), round(name[1],3), round(name[2],3)]
         name = str(name)
         name = name.replace(', ','_')
@@ -139,7 +139,7 @@ def plot_robot_in_base():
     db = DB.load_db_bases_to_num()
 
 def generate_robot_positions():
-    rp = rail_place.rand_rail(turb, 1000)
+    rp = rail_place.rand_rail(turb.config, 1000)
     keys = [ tuple(p.getPSAlpha()) for p in rp]
     
     psalpha_dict = dict(zip(keys, range(0,len(keys))))

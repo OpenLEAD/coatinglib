@@ -7,17 +7,17 @@ from time import time
 This module provides the RailPlace class and a generating function rand_rail 
 """
 
-def _rand_angle(turbine, x, y, alpha_seed):
+def _rand_angle(cfg, x, y, alpha_seed):
     # Given a set of (0,1) random alpha_seed,
     # the function output a uniform constrained by x/y/anglelimit set of angles. 
     
-    alpha_min = turbine.config.environment.rail_angle_mean - turbine.config.environment.rail_angle_limit
-    alpha_max = turbine.config.environment.rail_angle_mean + turbine.config.environment.rail_angle_limit
+    alpha_min = cfg.environment.rail_angle_mean - cfg.environment.rail_angle_limit
+    alpha_max = cfg.environment.rail_angle_mean + cfg.environment.rail_angle_limit
     
     # Get min and max angles for that position
     # (so to fit inside the avaible area)
-    local_limit = [sign(y)*arctan2(abs(turbine.config.environment.x_max - x), abs(y)),
-                   -sign(y)*arctan2(abs(turbine.config.environment.x_min - x), abs(y))]
+    local_limit = [sign(y)*arctan2(abs(cfg.environment.x_max - x), abs(y)),
+                   -sign(y)*arctan2(abs(cfg.environment.x_min - x), abs(y))]
 
     
     alpha_max = minimum( maximum(local_limit[0],local_limit[1]), alpha_max)
@@ -28,7 +28,7 @@ def _rand_angle(turbine, x, y, alpha_seed):
     return alpha
 
 
-def rand_rail(turbine, N = 1, equidistant = True):
+def rand_rail(cfg, N = 1, equidistant = True):
     """
     This function generates N random objects of the class RailPlace,
     conditioned to the turbine's constrains.
@@ -38,36 +38,36 @@ def rand_rail(turbine, N = 1, equidistant = True):
     #S - secondary rail,
     #alpha - angle from the perpendicular to the primary rail
 
-    alpha_min = turbine.config.environment.rail_angle_mean - turbine.config.environment.rail_angle_limit
-    alpha_max = turbine.config.environment.rail_angle_mean + turbine.config.environment.rail_angle_limit
+    alpha_min = cfg.environment.rail_angle_mean - cfg.environment.rail_angle_limit
+    alpha_max = cfg.environment.rail_angle_mean + cfg.environment.rail_angle_limit
     
     # Randomness
     random.seed(int(time()+int((time()-int(time()))*10000)))
     if equidistant:
-        delta_x = turbine.config.environment.x_max - turbine.config.environment.x_min
-        delta_y = turbine.config.environment.y_max - turbine.config.environment.y_min
-        limits = array([[turbine.config.environment.x_min, turbine.config.environment.x_max],
-                        [turbine.config.environment.y_min, turbine.config.environment.y_max]])
+        delta_x = cfg.environment.x_max - cfg.environment.x_min
+        delta_y = cfg.environment.y_max - cfg.environment.y_min
+        limits = array([[cfg.environment.x_min, cfg.environment.x_max],
+                        [cfg.environment.y_min, cfg.environment.y_max]])
         x,y = transpose(fast_poisson_disk(sqrt(delta_x*delta_y*1.0/(N*sqrt(2))),limits))
     else:
         x,y,alpha = random.rand(3,N)
 
-        x = (turbine.config.environment.x_max - turbine.config.environment.x_min)*x + turbine.config.environment.x_min
+        x = (cfg.environment.x_max - cfg.environment.x_min)*x + cfg.environment.x_min
 
 
     if alpha_min > 0: #Limits of the avaible area depends on alpha limits
-        y_max = (turbine.config.environment.x_max - x)/tan(alpha_min)
-        y_min = (turbine.config.environment.x_min - x)/tan(alpha_min)
-        y_max = minimum(y_max,turbine.config.environment.y_max)
-        y_min = maximum(y_min,turbine.config.environment.y_min)
+        y_max = (cfg.environment.x_max - x)/tan(alpha_min)
+        y_min = (cfg.environment.x_min - x)/tan(alpha_min)
+        y_max = minimum(y_max,cfg.environment.y_max)
+        y_min = maximum(y_min,cfg.environment.y_min)
     elif alpha_max < 0:
-        y_max = (turbine.config.environment.x_min - x)/tan(alpha_max)
-        y_min = (turbine.config.environment.x_max - x)/tan(alpha_max)
-        y_max = minimum(y_max,turbine.config.environment.y_max)
-        y_min = maximum(y_min,turbine.config.environment.y_min)
+        y_max = (cfg.environment.x_min - x)/tan(alpha_max)
+        y_min = (cfg.environment.x_max - x)/tan(alpha_max)
+        y_max = minimum(y_max,cfg.environment.y_max)
+        y_min = maximum(y_min,cfg.environment.y_min)
     else:
-        y_max = turbine.config.environment.y_max
-        y_min = turbine.config.environment.y_min
+        y_max = cfg.environment.y_max
+        y_min = cfg.environment.y_min
 
     if equidistant:
         x = x[(y<y_max) & (y>y_min)]
@@ -76,7 +76,7 @@ def rand_rail(turbine, N = 1, equidistant = True):
     else:
         y = (y_max - y_min)*y + y_min
 
-    alpha = _rand_angle(turbine, x, y, alpha)
+    alpha = _rand_angle(cfg, x, y, alpha)
 
     # S/P conversion
     S = y/cos(alpha)
@@ -112,7 +112,9 @@ class RailPlace:
         # Get (p,s,alpha) as array
         return array((self.p, self.s, self.alpha))
 
-    def getXYZ(self, turbine):
+    def getXYZ(self, cfg = None):
         # Get the XYZ value of the end of the secondary rail
-        return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), turbine.config.environment.z_floor_level ])
+        if turbine is None:
+            return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), 0 ])
+        return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), cfg.environment.z_floor_level ])
 

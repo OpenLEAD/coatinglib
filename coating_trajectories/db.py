@@ -337,7 +337,7 @@ class DB:
         bases = self.load_db_bases_to_num()
         for key, value in bases.iteritems():
             rp = rail_place.RailPlace(key)
-            vis.plot(rp.getXYZ(turbine),'base',(0,0,1))
+            vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
         return
 
     def invert_db(self, db, parallels, regions):
