@@ -31,24 +31,34 @@ def annulus_distribution(N,r,R, origin = None, dim = 2):
     return samples + origin
 
 
-def fast_poisson_disk(r, limits, k = 30):
+def fast_poisson_disk(r, limits, k = 30, points = None):
     n = len(limits)
     cellfreq = sqrt(n)/r
     delta = dot(limits,[-1, 1])
     gridsize = ceil(delta*cellfreq)
-    grid = - ones(gridsize.astype('int')).astype('int') 
-    x0 = random.rand(n)
-    grid[tuple(floor(x0*gridsize).astype('int'))] = 0
-    x = [limits[:,0]+delta*x0]
-    activelist = [0]
-    counter = 0
+    grid = - ones(gridsize.astype('int')).astype('int')
+    if points is None:
+        x0 = random.rand(n)
+        grid[tuple(floor(x0*gridsize).astype('int'))] = 0
+        x = [limits[:,0]+delta*x0]
+        activelist = [0]
+    else:
+        x = []
+        activelist = []
+        for point in points:
+            grid_place = floor((point-limits[:,0])*gridsize/delta).astype('int')
+            if grid[tuple(grid_place)] == -1:
+                grid[tuple(grid_place)] = len(x)
+                activelist += [len(x)]
+                x += [point]
+
     while len(activelist)>0:
         i = activelist[random.randint(len(activelist))]
         samples = annulus_distribution(k,r,2*r,x[i],n)
         placed = False
         for sample in samples:
             grid_place = floor((sample-limits[:,0])*gridsize/delta).astype('int')
-            if any(grid_place < 0) or any(grid_place >= grid.shape):
+            if any(grid_place < 0) or any(grid_place >= grid.shape) or (grid[tuple(grid_place)] != -1):
                 continue
 
             for idx in ndindex(tuple([3]*n)):
