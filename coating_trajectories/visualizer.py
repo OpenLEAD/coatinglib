@@ -55,13 +55,13 @@ class Visualizer:
         
         if key in self.handles:
             temp = self.handles[key]
-            temp.append(self.env.drawlinelist(points=reshape(c_[points[:,0:3], points[:,0:3]+0.005*points[:,3:6]],
+            temp.append(self.env.drawlinelist(points=reshape(c_[points[:,0:3], points[:,0:3]+0.05*points[:,3:6]],
                                                              (2*len(points),3)),
                                               linewidth=linewidth,
                                               colors=color))
             self.handles[key] = temp
         else:
-            self.handles[key] = [self.env.drawlinelist(points=reshape(c_[points[:,0:3], points[:,0:3]+0.005*points[:,3:6]],
+            self.handles[key] = [self.env.drawlinelist(points=reshape(c_[points[:,0:3], points[:,0:3]+0.05*points[:,3:6]],
                                                              (2*len(points),3)),
                                               linewidth=linewidth,
                                               colors=color)]
