@@ -3,7 +3,7 @@ from numpy import random, transpose, zeros, linalg, multiply, linspace, power
 from numpy import ndindex, linspace, power,  ceil, floor, einsum
 from numpy import cos as npcos
 from numpy import sin as npsin
-from math import cos, sin, pi, isnan
+from math import cos, sin, pi, isnan, acos, atan2
 from abc import ABCMeta, abstractmethod
 from copy import copy
 from collections import deque
@@ -11,6 +11,14 @@ from collections import deque
 class KinBodyError(Exception):    
     def __init__(self):
         Exception.__init__(self, "object is not a KinBody.")
+
+def direction_in_halfplane(rays,direction):
+    """
+    Filter points on the half plane defined by
+    normal plane to direction ( dot(ray[3:6],direction) > 0 )
+    """
+    return rays[ (dot(array(rays)[:,3:6],direction)) > 0 ]
+    
 
 def annulus_distribution(N,r,R, origin = None, dim = 2):
     """
@@ -232,6 +240,14 @@ def distance_point_line_3d(x1, x2, x0):
 
     return linalg.norm(cross(x0-x1,x0-x2))/linalg.norm(x2-x1)
 
+def isospherical_theta(xyz):
+    return acos(xyz[2]/sqrt(xyz[0]**2+xyz[1]**2+xyz[2]**2))
+
+def isospherical_phi(xyz):
+    return atan2(xyz[1],xyz[0])
+
+def isospherical_radius(xyz):
+    return sqrt(xyz[0]**2+xyz[1]**2+xyz[2]**2)
     
 class IterSurface:
     """ Inheritable class to surfaces that can be iterated and generate the coating
@@ -293,28 +309,39 @@ class Sphere(IterSurface):
     coatingstep -- iter step
     """
 
-    def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003):
+    def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003, center = [0,0,0]):
         IterSurface.__init__(self, Rn0, stopR, coatingstep)
+        self.center = center
         
     def f(self, p):
-        return p[0]**2+p[1]**2+p[2]**2-self._Rn**2
+        return ((p[0]-self.center[0])**2 +
+                (p[1]-self.center[1])**2 +
+                (p[2]-self.center[2])**2 -
+                self._Rn**2)
 
     def df(self, p):
-        return array([2*p[0], 2*p[1], 2*p[2]])
+        return array([2*p[0]-self.center[0],
+                      2*p[1]-self.center[1],
+                      2*p[2]-self.center[2]])
 
     def f_array(self, p):
         if len(p)==1: return self.f(p[0])
         p = array(p)
-        return sum(p[:,0:3]*p[:,0:3],1)-self._Rn**2
+        return sum((p[:,0:3]-self.center)*(p[:,0:3]-self.center),1)-self._Rn**2
         
     def find_iter(self, p0):
-        self._Rn = sqrt(p0[0]**2+p0[1]**2+p0[2]**2)
+        self._Rn = sqrt((p0[0]-self.center[0])**2+
+                        (p0[1]-self.center[1])**2+
+                        (p0[2]-self.center[2])**2)
+        return
 
     def criteria(self):
         return self._Rn>self.stopR
 
     def findnextparallel(self, p):
-        d = sqrt(p[0]**2+p[1]**2+p[2]**2)
+        d = sqrt((p[0]-self.center[0])**2+
+                 (p[1]-self.center[1])**2+
+                 (p[2]-self.center[2])**2)
         n = ceil((d-self.stopR)/self.coatingstep)
         self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
         return
