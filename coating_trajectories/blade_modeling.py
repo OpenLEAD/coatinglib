@@ -1,13 +1,13 @@
 from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, tile
 from numpy import meshgrid, array, shape, sum, eye, dot, argsort, concatenate, sqrt
-from numpy import argmax, argmin, savetxt, mean, loadtxt
+from numpy import argmax, argmin, savetxt, mean, loadtxt, cross, linalg
 from os import makedirs
 from os.path import join
 import errno
 from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
 from scipy.spatial import KDTree
 import mathtools
-from math import pi, ceil
+from math import pi, ceil, isnan
 from copy import copy, deepcopy
 from lxml import etree as ET
 import ast
@@ -393,18 +393,18 @@ class BladeModeling:
         models_index = []
         models = []
         
-##        if len(self.points)>7000:
-##            if model_iter_surface is None:
-##                raise ValueError("The number of points is "+str(len(self.points))+""", which is
-##                                bigger than 9000. It is not safe to make an unique model this big.
-##                                Create an iterate surface to partitionate the model
-##                                (check mathtools.IterSurface).""")
-##            elif not issubclass(model_iter_surface.__class__, mathtools.IterSurface):
-##                    raise TypeError("Object is not a valid surface.")
-##            else:
-##                model_points, models_index = self.divide_model_points(self.points, model_iter_surface,
-##                                                                     number_of_points_per_model,
-##                                                                     intersection_between_divisions)                
+        if len(self.points)>7000:
+            if model_iter_surface is None:
+                raise ValueError("The number of points is "+str(len(self.points))+""", which is
+                                bigger than 9000. It is not safe to make an unique model this big.
+                                Create an iterate surface to partitionate the model
+                                (check mathtools.IterSurface).""")
+            elif not issubclass(model_iter_surface.__class__, mathtools.IterSurface):
+                    raise TypeError("Object is not a valid surface.")
+            else:
+                model_points, models_index = self.divide_model_points(self.points, model_iter_surface,
+                                                                     number_of_points_per_model,
+                                                                     intersection_between_divisions)                
 
         for i in range(0,len(model_points)):
             temp_model = deepcopy(model)
@@ -528,7 +528,64 @@ class BladeModeling:
                             return trajectory
                     except IndexError:
                         raise IndexError('Step is too big and the function terminated soon.')
-            trajectory.append(next_point_on_surfaces)  
+            trajectory.append(next_point_on_surfaces)
+
+    def draw_meridians(self, parallel, miridian_step, parallel_step):
+        
+        meridians = []
+        iter_surface = self.trajectory_iter_surface
+        stopR = iter_surface.stopR
+        Rn0 = iter_surface._Rn0
+
+        for i in arange(0, len(parallel), parallel_step)[:-1]:
+            meridian = []
+            point = parallel[i]
+            iter_surface.find_iter(point)
+            iter_surface.coatingstep = miridian_step
+            iter_surface.stopR = stopR
+            while iter_surface.criteria():
+                model = self.select_model(point)
+                df = model.df(point)
+                df = df/linalg.norm(df)
+                point[3:6] = df
+                meridian.append(point)
+                if abs(dot(df, point[0:3]/linalg.norm(point[0:3]))) >= 1-1e-1:
+                    break
+                tan = cross(point[0:3]/linalg.norm(point[0:3]), df)
+                tan = cross(df, tan)
+                iter_surface.update()
+                point[0:3] = point[0:3] + tan*miridian_step
+                model = self.select_model(point)
+                point = mathtools.curvepoint(model,
+                                             iter_surface,
+                                             point[0:3])
+
+            
+
+            point = parallel[i]
+            iter_surface.find_iter(point)
+            iter_surface.coatingstep = -miridian_step
+            iter_surface.stopR = Rn0
+            while not iter_surface.criteria():
+                model = self.select_model(point)
+
+                df = model.df(point)
+                df = df/linalg.norm(df)
+                point[3:6] = df
+                meridian.append(point)
+                if abs(dot(df, point[0:3]/linalg.norm(point[0:3]))) >= 1-1e-1:
+                    break
+                tan = cross(point[0:3]/linalg.norm(point[0:3]), df)
+                tan = cross(df, tan)
+                iter_surface.update()
+                point[0:3] = point[0:3] + tan*miridian_step
+                model = self.select_model(point)
+                point = mathtools.curvepoint(model,
+                                             iter_surface,
+                                             point[0:3])
+            meridians.append(meridian)
+        return meridians
+        
 
     def generate_trajectories(self, iter_surface):
         """
