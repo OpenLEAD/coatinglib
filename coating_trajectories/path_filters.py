@@ -1,4 +1,5 @@
 from numpy import array, sum, nonzero, concatenate, split, dot
+from mathtools import direction_in_halfplane
 
 def _std_robot_filter(turbine, trajectories):
     raise ValueError("No trajectory filter for "+turbine.robot.GetName()+" robot. Create new function.")
@@ -32,14 +33,13 @@ def _mh12_filter(turbine, trajectories, N):
     return filtered_trajectories
 
 def side_filter(turbine, trajectories):
-    Rx = turbine.robot.GetTransform()[0:3,0]
+    Rx = -turbine.robot.GetTransform()[0:3,0]
     
     filtered_trajectories = []
     for trajectory in trajectories:
-        trajectory = array(trajectory)
-        filtered_trajectory = trajectory[ (dot(trajectory[:,3:6],Rx)) < 0 ]
+        filtered_trajectory = direction_in_halfplane(trajectory,Rx)
         if len(filtered_trajectory) > 0:
-            filtered_trajectories.append(filtered_trajectory)
+            filtered_trajectories += [filtered_trajectory]
 
     return filtered_trajectories
             
