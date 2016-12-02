@@ -340,6 +340,18 @@ class DB:
             vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
         return
 
+    def get_bases_from_region(self, db, region_points):
+    # Regions as list of points, db = { point_num : base_num }
+        psa_db = list()
+        db_points_to_num = self.load_db_points_to_num()
+        db_bases_to_num = self.load_db_bases_to_num()
+        base_nums = [ db[db_points_to_num[pt]] for pt in region_points ]
+
+        sorted_bases = [ set(base) for (num,base) in sorted(zip(db_base_to_num.values(),db_base_to_num.keys()))]
+
+        return reduce(lambda a,b: a & b,list(array(sorted_bases)[base_nums]))
+
+
     def invert_db(self, db, parallels, regions):
     # Regions as list of [list of tuple (parallel_index, begin_index, end_index)]
         psa_db = list()
