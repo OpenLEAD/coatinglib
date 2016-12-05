@@ -538,7 +538,7 @@ class BladeModeling:
         meridian = []
 
         # Going up
-        point = origin
+        point = array(origin)
         iter_surface.find_iter(point)
         iter_surface.coatingstep = meridian_step
         iter_surface.stopR = stopR
@@ -561,7 +561,7 @@ class BladeModeling:
 
         
         #Going down
-        point = origin
+        point = array(origin)
         iter_surface.find_iter(point)
         iter_surface.coatingstep = -meridian_step
         iter_surface.stopR = Rn0
