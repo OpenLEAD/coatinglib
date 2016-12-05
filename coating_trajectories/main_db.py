@@ -189,8 +189,8 @@ def make_grid():
         T = array([[1,0,0,0],[0,0,-1,0],[0,1,0,0],[0,0,0,1]])
         meridians = blade.draw_meridians(parallel, 1e-3, 5)
         meridians = mathtools.rotate_trajectories(turb, meridians, T)
-        with open(join(directory,'fixed_db','meridians.pkl'), 'wb') as f:
-            cPickle.dump(meridians, f, cPickle.HIGHEST_PROTOCOL)
+##        with open(join(directory,'fixed_db','meridians.pkl'), 'wb') as f:
+##            cPickle.dump(meridians, f, cPickle.HIGHEST_PROTOCOL)
         
     for meridian in meridians:
         vis.plot(meridian,'meridians')
@@ -337,5 +337,5 @@ if __name__ == '__main__':
     #plot_points_covered_by_n(600,50)
 
     meridians, parallels = make_grid()
-    trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
-    compute_bases_to_coat_points(trajectories_in_grid)
+##    trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
+##    compute_bases_to_coat_points(trajectories_in_grid)
