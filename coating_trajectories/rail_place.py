@@ -114,7 +114,7 @@ class RailPlace:
 
     def getXYZ(self, cfg = None):
         # Get the XYZ value of the end of the secondary rail
-        if turbine is None:
+        if cfg is None:
             return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), 0 ])
         return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), cfg.environment.z_floor_level ])
 
