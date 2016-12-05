@@ -530,7 +530,63 @@ class BladeModeling:
                         raise IndexError('Step is too big and the function terminated soon.')
             trajectory.append(next_point_on_surfaces)
 
-    def draw_meridians(self, parallel, miridian_step, parallel_step):
+    def draw_meridian_by_point(self, origin, meridian_step = 0.001):
+        
+        iter_surface = self.trajectory_iter_surface
+        stopR = iter_surface.stopR
+        Rn0 = iter_surface._Rn0
+        meridian = []
+
+        # Going up
+        point = origin
+        iter_surface.find_iter(point)
+        iter_surface.coatingstep = meridian_step
+        iter_surface.stopR = stopR
+        while iter_surface.criteria():
+            model = self.select_model(point)
+            df = model.df(point)
+            df = df/linalg.norm(df)
+            point[3:6] = df
+            meridian += [point]
+            if abs(dot(df, point[0:3]/linalg.norm(point[0:3]))) >= 1-1e-1:
+                break
+            tan = cross(point[0:3]/linalg.norm(point[0:3]), df)
+            tan = cross(df, tan)
+            iter_surface.update()
+            point[0:3] = point[0:3] + tan*meridian_step
+            model = self.select_model(point)
+            point = mathtools.curvepoint(model,
+                                         iter_surface,
+                                         point[0:3])
+
+        
+        #Going down
+        point = origin
+        iter_surface.find_iter(point)
+        iter_surface.coatingstep = -meridian_step
+        iter_surface.stopR = Rn0
+        while not iter_surface.criteria():
+            model = self.select_model(point)
+
+            df = model.df(point)
+            df = df/linalg.norm(df)
+            point[3:6] = df
+            meridian += [point]
+            if abs(dot(df, point[0:3]/linalg.norm(point[0:3]))) >= 1-1e-1:
+                break
+            tan = cross(point[0:3]/linalg.norm(point[0:3]), df)
+            tan = cross(df, tan)
+            iter_surface.update()
+            point[0:3] = point[0:3] + tan*meridian_step
+            model = self.select_model(point)
+            point = mathtools.curvepoint(model,
+                                         iter_surface,
+                                         point[0:3])
+                
+        return meridian
+        
+
+    def draw_meridians(self, parallel, meridian_step, parallel_step):
         
         meridians = []
         iter_surface = self.trajectory_iter_surface
@@ -538,52 +594,10 @@ class BladeModeling:
         Rn0 = iter_surface._Rn0
 
         for i in arange(0, len(parallel), parallel_step)[:-1]:
-            meridian = []
             point = parallel[i]
-            iter_surface.find_iter(point)
-            iter_surface.coatingstep = miridian_step
-            iter_surface.stopR = stopR
-            while iter_surface.criteria():
-                model = self.select_model(point)
-                df = model.df(point)
-                df = df/linalg.norm(df)
-                point[3:6] = df
-                meridian.append(point)
-                if abs(dot(df, point[0:3]/linalg.norm(point[0:3]))) >= 1-1e-1:
-                    break
-                tan = cross(point[0:3]/linalg.norm(point[0:3]), df)
-                tan = cross(df, tan)
-                iter_surface.update()
-                point[0:3] = point[0:3] + tan*miridian_step
-                model = self.select_model(point)
-                point = mathtools.curvepoint(model,
-                                             iter_surface,
-                                             point[0:3])
-
+            meridian = self.draw_meridian_by_point(point, meridian_step)
+            meridians += [meridian]
             
-
-            point = parallel[i]
-            iter_surface.find_iter(point)
-            iter_surface.coatingstep = -miridian_step
-            iter_surface.stopR = Rn0
-            while not iter_surface.criteria():
-                model = self.select_model(point)
-
-                df = model.df(point)
-                df = df/linalg.norm(df)
-                point[3:6] = df
-                meridian.append(point)
-                if abs(dot(df, point[0:3]/linalg.norm(point[0:3]))) >= 1-1e-1:
-                    break
-                tan = cross(point[0:3]/linalg.norm(point[0:3]), df)
-                tan = cross(df, tan)
-                iter_surface.update()
-                point[0:3] = point[0:3] + tan*miridian_step
-                model = self.select_model(point)
-                point = mathtools.curvepoint(model,
-                                             iter_surface,
-                                             point[0:3])
-            meridians.append(meridian)
         return meridians
         
 
