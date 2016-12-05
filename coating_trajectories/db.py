@@ -366,6 +366,31 @@ class DB:
             psa_db.append(inverse_set)
         return
 
+    def compute_bases_to_coat_points(self, trajectories):
+        db_points_to_num = self.load_db_points_to_num()
+        db = self.load_db()
+        db_bases_to_num = self.load_db_bases_to_num()
+
+        all_bases_tuple, all_bases_num = db_bases_to_num.keys(), db_bases_to_num.values()
+        del db_bases_to_num
+        all_bases_tuple = [x for (y,x) in sorted(zip(all_bases_num,all_bases_tuple))]
+        del all_bases_num
+
+        set_of_feasible_bases_num = self.get_bases(db)
+        set_of_feasible_bases_tuple = []
+
+        for trajectory in trajectories:
+            for point in trajectory:
+                try:
+                    set_of_feasible_bases_num &= db[db_points_to_num[tuple(point[0:3])]]
+                except KeyError:
+                    pass
+
+        for base in set_of_feasible_bases_num:
+            set_of_feasible_bases_tuple.append(all_bases_tuple[base])
+        return set_of_feasible_bases_tuple
+            
+
     def clear_db(self):
         db = self.load_db()
         for key, value in db.iteritems():
