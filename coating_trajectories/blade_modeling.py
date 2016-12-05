@@ -534,14 +534,12 @@ class BladeModeling:
         
         iter_surface = self.trajectory_iter_surface
         stopR = iter_surface.stopR
-        Rn0 = iter_surface._Rn0
         meridian = []
 
         # Going up
         point = array(origin)
         iter_surface.find_iter(point)
         iter_surface.coatingstep = meridian_step
-        iter_surface.stopR = stopR
         while iter_surface.criteria():
             model = self.select_model(point)
             df = model.df(point)
@@ -564,7 +562,7 @@ class BladeModeling:
         point = array(origin)
         iter_surface.find_iter(point)
         iter_surface.coatingstep = -meridian_step
-        iter_surface.stopR = Rn0
+        iter_surface.stopR = iter_surface._Rn0
         while not iter_surface.criteria():
             model = self.select_model(point)
 
@@ -582,6 +580,9 @@ class BladeModeling:
             point = mathtools.curvepoint(model,
                                          iter_surface,
                                          point[0:3])
+
+            
+        iter_surface.stopR = stopR
                 
         return meridian
         
@@ -589,9 +590,6 @@ class BladeModeling:
     def draw_meridians(self, parallel, meridian_step, parallel_step):
         
         meridians = []
-        iter_surface = self.trajectory_iter_surface
-        stopR = iter_surface.stopR
-        Rn0 = iter_surface._Rn0
 
         for i in arange(0, len(parallel), parallel_step)[:-1]:
             point = parallel[i]
