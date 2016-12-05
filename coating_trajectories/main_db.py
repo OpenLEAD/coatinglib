@@ -298,6 +298,14 @@ def get_first_right_meridian_point_index(parallel, sorted_parallel, meridian_poi
         if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
             return parallel.tolist().index(list(point))
 
+def compute_bases_to_coat_points(trajectories_in_grid):
+    DB = db.DB(directory)
+    bases = DB.compute_bases_to_coat_points(trajectories_in_grid)
+    print len(bases)
+    for base in bases:
+        vis.plot(rail_place.RailPlace(base).getXYZ(turb.config), 'bases',(0,1,0))
+    return bases
+
 if __name__ == '__main__':
 
     directory = 'new_db'
@@ -329,4 +337,5 @@ if __name__ == '__main__':
     #plot_points_covered_by_n(600,50)
 
     meridians, parallels = make_grid()
-    trajectories_in_grid = get_points_in_grid(meridians[-2], meridians[-1], parallels[1], parallels[2])
+    trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
+    compute_bases_to_coat_points(trajectories_in_grid)
