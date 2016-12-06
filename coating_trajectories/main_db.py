@@ -135,68 +135,54 @@ def generate_robot_positions():
     return       
 
 def create_db_with_blade():
-    xml_trajectories_path = join(blade_folder,"trajectory/trajectory.xml")
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-    blade.load_trajectory(xml_trajectories_path)
+    blade = load_blade(blade_folder)
     DB = db.DB(directory, blade)
     del blade
     return
 
-def make_grid():
-    DB = db.DB(directory)
-    points_to_num = DB.load_db_points_to_num()
+def load_meridians():
+    with open(join(directory,'fixed_db','meridians.pkl'), 'rb') as f:
+            return cPickle.load(f)
 
-    try:
-        with open(join(directory,'fixed_db','meridians.pkl'), 'rb') as f:
-            meridians = cPickle.load(f)
-    except:
-        xml_trajectories_path = join(blade_folder,"trajectory/trajectory.xml")
-        blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-        blade.load_trajectory(xml_trajectories_path)
-        T = array([[1,0,0,0],[0,0,1,0],[0,-1,0,0],[0,0,0,1]])
-        blade.trajectories = mathtools.rotate_trajectories(turb, blade.trajectories, T)
-        parallel = blade.trajectories[int(len(blade.trajectories)/2)]
-        T = array([[1,0,0,0],[0,0,-1,0],[0,1,0,0],[0,0,0,1]])
-        meridians = blade.draw_meridians(parallel, 1e-3, 5)
-        meridians = mathtools.rotate_trajectories(turb, meridians, T)
-##        with open(join(directory,'fixed_db','meridians.pkl'), 'wb') as f:
-##            cPickle.dump(meridians, f, cPickle.HIGHEST_PROTOCOL)
-        
-    for meridian in meridians:
-        vis.plot(meridian,'meridians')
+def save_meridians(meridians):
+    with open(join(directory,'fixed_db','meridians.pkl'), 'wb') as f:
+        cPickle.dump(meridians, f, cPickle.HIGHEST_PROTOCOL)
+    return
 
-    try:
-        with open(join(directory,'fixed_db','parallels.pkl'), 'rb') as f:
-            parallels = cPickle.load(f)
-    except:
-        xml_trajectories_path_full = join(blade_folder_full,"trajectory/trajectory.xml")
-        blade_full = blade_modeling.BladeModeling(turb, turb.blades[0])
-        blade_full.load_trajectory(xml_trajectories_path_full)
-        T = array([[1,0,0,0],[0,0,-1,0],[0,1,0,0],[0,0,0,1]])
-        blade_full.trajectories = mathtools.rotate_trajectories(turb, blade_full.trajectories, T)
+def load_parallels():
+    with open(join(directory,'fixed_db','parallels.pkl'), 'rb') as f:
+            return cPickle.load(f)
 
-        N = 5
-        parallels = []
-        step = len(blade_full.trajectories)/(N+1)
-        for i in arange(step,len(blade_full.trajectories),step):
-            parallels.append(blade_full.trajectories[i])
-        with open(join(directory,'fixed_db','parallels.pkl'), 'wb') as f:
-            cPickle.dump(parallels, f, cPickle.HIGHEST_PROTOCOL)
+def save_parallels(parallels):
+    with open(join(directory,'fixed_db','parallels.pkl'), 'wb') as f:
+        cPickle.dump(parallels, f, cPickle.HIGHEST_PROTOCOL)
+    return
 
+def load_blade(folder):
+    xml_trajectories_path = join(folder,"trajectory/trajectory.xml")
+    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
+    blade.load_trajectory(xml_trajectories_path)
+    return blade
 
-    for parallel in parallels:
-        vis.plot(parallel,'parallel')
+    
+def make_grid(number_of_meridians = 12, number_of_meridians = 5 ):
+
+    blade = load_blade(blade_folder)
+    parallel = blade.trajectories[int(len(blade.trajectories)/2)]
+    meridians = blade.draw_meridians_old(parallel, 1e-3, number_of_meridians)
+    
+    blade_full = load_blade(blade_folder_full)
+    
+    number_of_meridians = 5
+    parallels = []
+    step = len(blade_full.trajectories)/(number_of_meridians+1)
+    for i in arange(step,len(blade_full.trajectories),step):
+        parallels.append(blade_full.trajectories[i])
     
     return meridians, parallels
     
 def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
-    xml_trajectories_path = join(blade_folder,"trajectory/trajectory.xml")
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-    blade.load_trajectory(xml_trajectories_path)
-
-    T = array([[1,0,0,0],[0,0,-1,0],[0,1,0,0],[0,0,0,1]])
-    for model in blade.models:
-        model._points = array(mathtools.rotate_trajectories(turb, [model._points], T)[0])
+    blade = load_blade(blade_folder)
 
     parallel_index_1 = int((blade.trajectory_iter_surface._Rn -
                             linalg.norm(parallel1[0][0:3]))/
@@ -231,8 +217,7 @@ def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
             trajectory_in_grid += list(parallel[index_left:]) + list(parallel[:index_right+1])
             
         trajectory_in_grid += [p2]
-
-        
+    
         vis.plot(trajectory_in_grid,'traj_in_grid',color=(1,0,0))
         vis.plot(p2,'traj_in_grid',color=(0,1,0))
         vis.plot(p1,'traj_in_grid',color=(0,0,1))
