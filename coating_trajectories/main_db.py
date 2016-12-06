@@ -18,9 +18,6 @@ import mathtools
 from math import pi
 import mathtools
 
-def convert():
-    DB.convert_db_point_base_directory('db/servidor', 'db/converted')
-
 def merge():
     DB = db.DB(directory)
     DB.merge_db_directory(join(directory,'not_merged'))
@@ -64,9 +61,7 @@ def see_base_plot():
 
 def generate():
     turb.robot.GetLink('Flame').Enable(False)
-    xml_trajectories_path = join(blade_folder,"trajectory/trajectory.xml")
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-    blade.load_trajectory(xml_trajectories_path)
+    blade = load_blade(blade_folder)
     DB = db.DB(directory)
 
     path = join(directory,'not_merged')
@@ -117,31 +112,6 @@ def generate():
         print 'saving base local (x,y): ', name
         DB.save_db_pickle(database, join(path,name+'.pkl'))
     return
-
-def rename_files_by_base():
-    path = 'db/converted'
-    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-
-    db_bases_to_num = DB.load_db_bases_to_num()
-    all_bases_tuple, all_bases_num = db_bases_to_num.keys(), db_bases_to_num.values()
-    del db_bases_to_num
-    all_bases_tuple = [x for (y,x) in sorted(zip(all_bases_num,all_bases_tuple))]
-    del all_bases_num
-
-    for afile in onlyfiles:
-        db = DB.load_db_pickle(join(path,afile))
-        name = all_bases_tuple[db.values()[0].pop()]
-        rp = rail_place.RailPlace(name)
-        name = rp.getXYZ(turb.config)
-        name = [round(name[0],3), round(name[1],3), round(name[2],3)]
-        name = str(name)
-        name = name.replace(', ','_')
-        name = name.replace('[','')
-        name = name.replace(']','')
-        DB.save_db_pickle(db, join(path,name+'.pkl'))
-
-def plot_robot_in_base():
-    db = DB.load_db_bases_to_num()
 
 def generate_robot_positions():
     rp = rail_place.rand_rail(turb.config, 1000)
