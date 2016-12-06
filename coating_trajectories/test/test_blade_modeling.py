@@ -84,26 +84,6 @@ class TestBladeModeling(TestCase):
         self.assertTrue(shape == blade.points.shape, msg = 'samples were not loaded')
         
 
-    def test_filter_by_distance(self):
-        """
-        The test verifies if the distance between points are greater or equal a threshold.
-        """
-
-        blade = blade_modeling.BladeModeling(TestBladeModeling.turb, self.blade)
-        threshold = 1
-        points = random.uniform(-1,1,size=(100,6))
-        blade.points = points
-        points = blade.filter_by_distance(blade.points, threshold)
-        
-        for point in points:
-            dif = points[:,0:3]-point[0:3]
-            euclidean_distance = sum(dif*dif,1)
-            euclidean_distance = euclidean_distance[euclidean_distance>=1e-6] # excluding the evaluated point from list
-            nearer_point = argmin(euclidean_distance)
-            self.assertTrue(min(euclidean_distance)>=threshold**2,
-                        msg = "The points: "+str(point)+" and "+str(points[nearer_point])+" are too close"
-                            )
-
     def test_make_model(self):
         """
         The test verifies if the interpolation is right, using extra points of the cube (test object).
