@@ -44,8 +44,8 @@ def sampling_blade():
     #blade.points[:,0:3] = blade.points[:,0:3]+0.2*blade.points[:,3:6]
     #blade.points[:,0:3] = 2*blade.points[:,0:3]
 
-    blade.points = blade.filter_by_distance(blade.points, 0.02)
-    lip = blade.filter_by_distance(lip, 0.01)
+    blade.points = mathtools.filter_by_distance(blade.points, 0.02)
+    lip = mathtools.filter_by_distance(lip, 0.01)
 
     #blade.points[:,0:3] = 0.5*blade.points[:,0:3]
     #blade.points[:,0:3] = blade.points[:,0:3]-0.2*blade.points[:,3:6]
