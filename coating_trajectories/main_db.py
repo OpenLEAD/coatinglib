@@ -261,6 +261,34 @@ def compute_bases_to_coat_points(trajectories_in_grid):
         vis.plot(rail_place.RailPlace(base).getXYZ(turb.config), 'bases',(0,1,0))
     return bases
 
+def blade_borders():
+    blade = load_blade(blade_folder)
+    b1 = []; b2 = []; b3 = []; b4 = []
+    N = len(blade.trajectories)
+    for i in range(17, N-37):
+        rays1 =  mathtools.filter_by_distance(array(blade.trajectories[i]), None, 0.8, True)
+        rays2 =  mathtools.filter_by_distance(array(blade.trajectories[i]), None, 0.9, True)
+        if len(rays2)>4:
+            b4 += [rays2[-5]]
+        if len(rays2)>0:
+            b3 += [rays2[-1]]
+        if len(rays1)>0:
+            b1 += [rays1[0]]
+        if len(rays1)>0:
+            b2 += [rays1[-1]]
+    border = [b1, b2, b3, b4]
+    return border
+
+def blade_borders_full():
+    blade = load_blade(blade_folder_full)
+    N = len(blade.trajectories)
+    border = []
+    for i in range(17, N-37):
+        rays = mathtools.filter_by_distance(array(blade.trajectories[i]), None, 0.9995, True)
+        vis.plot(rays)
+        border.append(rays)
+    return border
+    
 if __name__ == '__main__':
 
     directory = 'new_db'
@@ -292,5 +320,24 @@ if __name__ == '__main__':
     #plot_points_covered_by_n(600,50)
 
     meridians, parallels = make_grid()
-##    trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
-##    compute_bases_to_coat_points(trajectories_in_grid)
+    #save_meridians(meridians)
+    #save_parallels(parallels)
+    #meridians, parallels = load_meridians(), load_parallels()
+
+    #borders = blade_borders()
+    #for border in borders:
+    #    vis.plot(border,'border',(1,0,0))
+
+    for meridian in meridians:
+        vis.plot(meridian)
+
+    for parallel in parallels:
+        vis.plot(parallel,'parallel')
+
+    #border = blade_borders_full()
+    #trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
+    #compute_bases_to_coat_points(trajectories_in_grid)
+
+
+
+    
