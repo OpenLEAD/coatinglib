@@ -340,7 +340,7 @@ class BladeModeling:
         self.min_distance_between_points = min_distance_between_points
         return             
    
-    def filter_by_distance(self, points, r):
+    def filter_by_distance(self, points, r = None, variation = 0.8):
         """
         The filter_by_distance method is an algorithm to delete the nearest neighbors
         points, inside a distance threshold. 
@@ -348,28 +348,37 @@ class BladeModeling:
         Keyword arguments:
         points -- points to be filtered array(array).
         r -- distance threshold. If r is None, points are sorted w.r.t. x axis.
+        variation -- min cossine of the angle between adjacent normals
         """
 
         points = points[argsort(points[:,0])]
-        if r < 0 or r is None:
-            return points
+
         
         Tree = KDTree(points[:,0:3])
         rays = []
         N = len(points)
-        i=0
-        I = ones((len(points), 1), dtype=bool)
-        while True:
-            if I[i]:
-                rays.append(points[i])
-                idx = Tree.query_ball_point(points[i,0:3],r)
-                idx = array(idx)
-                idx = idx[idx>i]
-                for j in idx:
-                    if dot(points[i,3:6],points[j,3:6])>=0.8:
-                        I[j]=False
-            i+=1
-            if i==len(points):break
+        I = ones((N, 1), dtype=bool)
+        
+        if r > 0 or r is not None:
+            i=0
+            while True:
+                if I[i]:
+                    rays.append(points[i])
+                    idx = Tree.query_ball_point(points[i,0:3],r)
+                    idx = array(idx)
+                    idx = idx[idx>i]
+                    for j in idx:
+                        if dot(points[i,3:6],points[j,3:6]) >= variation:
+                            I[j]=False
+                i+=1
+                if i == N:
+                    break
+        else:
+            for i in range(N-1):
+                if (dot(points[i,3:6],points[i-1,3:6]) < variation) or (dot(points[i,3:6],points[i+1,3:6]) < variation):
+                    rays += [points[i]]
+            
+        
         return array(rays)
         
     def make_model(self, model, model_iter_surface = None):
