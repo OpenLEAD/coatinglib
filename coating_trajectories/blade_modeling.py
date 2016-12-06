@@ -779,3 +779,9 @@ class BladeModeling:
             counter+=1
             print('iter %3i / %3i' % (counter,N))
         return new_trajectories
+
+    def rotate_models(self, T):
+        for model in self.models:
+            model._points = array(mathtools.rotate_trajectories(self.turbine, [model._points], T)[0])
+        return
+        
