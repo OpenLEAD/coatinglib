@@ -94,5 +94,26 @@ class Testmathtools(TestCase):
         self.assertTrue(abs(s.f(initial_point))<=1e-5, msg = 'point ='+str(abs(s.f(initial_point)))+' does not belong to sphere')
         self.assertTrue(abs(zp.f(initial_point))<=1e-5, msg = 'point ='+str(abs(s.f(initial_point)))+' does not belong to plane')
 
+
+    def test_filter_by_distance(self):
+        """
+        The test verifies if the distance between points are greater or equal a threshold.
+        """
+
+        threshold = 1
+        points = random.uniform(-1,1,size=(100,6))
+        points = mathtools.filter_by_distance(points, threshold)
+        
+        for point in points:
+            dif = points[:,0:3]-point[0:3]
+            euclidean_distance = sum(dif*dif,1)
+            euclidean_distance = euclidean_distance[euclidean_distance>=1e-6] # excluding the evaluated point from list
+            nearer_point = argmin(euclidean_distance)
+            self.assertTrue(min(euclidean_distance)>=threshold**2,
+                        msg = "The points: "+str(point)+" and "+str(points[nearer_point])+" are too close"
+                            )
+
+
+
 if __name__ == '__main__':
     unittest.main()
