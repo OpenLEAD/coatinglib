@@ -1,11 +1,11 @@
-from numpy import load, savez_compressed, zeros, ones, arange, r_, c_, outer, tile
-from numpy import meshgrid, array, shape, sum, eye, dot, argsort, concatenate, sqrt
+from numpy import load, savez_compressed, zeros, ones, arange
+from numpy import meshgrid, array, shape, sum, eye, dot, argsort
 from numpy import argmax, argmin, savetxt, mean, loadtxt, cross, linalg
+from numpy import r_, c_, outer, tile, concatenate, sqrt, linspace
 from os import makedirs
 from os.path import join
 import errno
 from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
-from scipy.spatial import KDTree
 import mathtools
 from math import pi, ceil, isnan
 from copy import copy, deepcopy
@@ -335,51 +335,11 @@ class BladeModeling:
                   newinfo[sum(rays[collision,3:6]*newinfo[:,3:6],1)>0,3:6] *= -1
                   self.points = r_[self.points,newinfo]
 
-        self.points = self.filter_by_distance(self.points, min_distance_between_points)
+        self.points = mathtools.filter_by_distance(self.points, min_distance_between_points)
         self.samples_delta = delta
         self.min_distance_between_points = min_distance_between_points
         return             
    
-    def filter_by_distance(self, points, r = None, variation = 0.8):
-        """
-        The filter_by_distance method is an algorithm to delete the nearest neighbors
-        points, inside a distance threshold. 
-
-        Keyword arguments:
-        points -- points to be filtered array(array).
-        r -- distance threshold. If r is None, points are sorted w.r.t. x axis.
-        variation -- min cossine of the angle between adjacent normals
-        """
-
-        points = points[argsort(points[:,0])]
-
-        
-        Tree = KDTree(points[:,0:3])
-        rays = []
-        N = len(points)
-        I = ones((N, 1), dtype=bool)
-        
-        if r > 0 or r is not None:
-            i=0
-            while True:
-                if I[i]:
-                    rays.append(points[i])
-                    idx = Tree.query_ball_point(points[i,0:3],r)
-                    idx = array(idx)
-                    idx = idx[idx>i]
-                    for j in idx:
-                        if dot(points[i,3:6],points[j,3:6]) >= variation:
-                            I[j]=False
-                i+=1
-                if i == N:
-                    break
-        else:
-            for i in range(N-1):
-                if (dot(points[i,3:6],points[i-1,3:6]) < variation) or (dot(points[i,3:6],points[i+1,3:6]) < variation):
-                    rays += [points[i]]
-            
-        
-        return array(rays)
         
     def make_model(self, model, model_iter_surface = None):
         """
