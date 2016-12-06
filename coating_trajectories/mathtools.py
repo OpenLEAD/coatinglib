@@ -1,12 +1,13 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt, ones
 from numpy import random, transpose, zeros, linalg, multiply, linspace, power
-from numpy import ndindex, linspace, power,  ceil, floor, einsum
+from numpy import ndindex, linspace, power,  ceil, floor, einsum, argsort
 from numpy import cos as npcos
 from numpy import sin as npsin
 from math import cos, sin, pi, isnan, acos, atan2
 from abc import ABCMeta, abstractmethod
 from copy import copy
 from collections import deque
+from scipy.spatial import KDTree
 
 class KinBodyError(Exception):    
     def __init__(self):
@@ -249,6 +250,50 @@ def isospherical_phi(xyz):
 def isospherical_radius(xyz):
     return sqrt(xyz[0]**2+xyz[1]**2+xyz[2]**2)
     
+
+def filter_by_distance(points, r = None, variation = 0.8, is_sorted = False):
+    """
+    The filter_by_distance method is an algorithm to delete the nearest neighbors
+    points, inside a distance threshold. 
+
+    Keyword arguments:
+    points -- points to be filtered array(array).
+    r -- distance threshold. If r is None, points are sorted w.r.t. x axis.
+    variation -- min cossine of the angle between adjacent normals
+    """
+
+    if not is_sorted:
+        points = points[argsort(points[:,0])]
+
+    
+    Tree = KDTree(points[:,0:3])
+    rays = []
+    N = len(points)
+    I = ones((N, 1), dtype=bool)
+    
+    if r > 0 or r is not None:
+        i=0
+        while True:
+            if I[i]:
+                rays.append(points[i])
+                idx = Tree.query_ball_point(points[i,0:3],r)
+                idx = array(idx)
+                idx = idx[idx>i]
+                for j in idx:
+                    if dot(points[i,3:6],points[j,3:6]) >= variation:
+                        I[j]=False
+            i+=1
+            if i == N:
+                break
+    else:
+        for i in range(N-1):
+            if (dot(points[i,3:6],points[i-1,3:6]) < variation) or (dot(points[i,3:6],points[i+1,3:6]) < variation):
+                rays += [points[i]]
+        
+    
+    return array(rays)
+
+
 class IterSurface:
     """ Inheritable class to surfaces that can be iterated and generate the coating
     trajectories.
