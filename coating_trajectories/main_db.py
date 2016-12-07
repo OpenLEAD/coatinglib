@@ -59,7 +59,7 @@ def see_base_plot():
         x = raw_input('wait')
         vis.remove_points('points_db')
 
-def generate():
+def generate_db():
     turb.robot.GetLink('Flame').Enable(False)
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
@@ -163,95 +163,11 @@ def load_blade(folder):
     blade = blade_modeling.BladeModeling(turb, turb.blades[0])
     blade.load_trajectory(xml_trajectories_path)
     return blade
-
-    
-def make_grid(number_of_meridians = 12, number_of_meridians = 5 ):
-
-    blade = load_blade(blade_folder)
-    parallel = blade.trajectories[int(len(blade.trajectories)/2)]
-    meridians = blade.draw_meridians_old(parallel, 1e-3, number_of_meridians)
-    
-    blade_full = load_blade(blade_folder_full)
-    
-    number_of_meridians = 5
-    parallels = []
-    step = len(blade_full.trajectories)/(number_of_meridians+1)
-    for i in arange(step,len(blade_full.trajectories),step):
-        parallels.append(blade_full.trajectories[i])
-    
-    return meridians, parallels
-    
-def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
-    blade = load_blade(blade_folder)
-
-    parallel_index_1 = int((blade.trajectory_iter_surface._Rn -
-                            linalg.norm(parallel1[0][0:3]))/
-                           blade.trajectory_iter_surface.coatingstep)
-    parallel_index_2 = int((blade.trajectory_iter_surface._Rn -
-                            linalg.norm(parallel2[0][0:3]))/
-                           blade.trajectory_iter_surface.coatingstep)
-    init = min(parallel_index_1,parallel_index_2)
-    end = max(parallel_index_1,parallel_index_2)+1
-
-    trajectories_in_grid = []
-
-    for i in range(init,end):
-        trajectory_in_grid = []
-        parallel = array(blade.trajectories[i])
-        blade.trajectory_iter_surface.find_iter(parallel[0])
-        p1, sorted_parallel1 = closest_meridian_point(meridian1, parallel, blade)
-        p2, sorted_parallel2 = closest_meridian_point(meridian2, parallel, blade)
-        parallel1 = mathtools.direction_in_halfplane(parallel,p1[3:6])
-        parallel2 = mathtools.direction_in_halfplane(parallel,p2[3:6])
-        p1, sorted_parallel1 = closest_meridian_point(meridian1, parallel1, blade)
-        p2, sorted_parallel2 = closest_meridian_point(meridian2, parallel2, blade)
-        index_left = get_first_left_meridian_point_index(parallel, sorted_parallel1, p1)
-        index_right = get_first_right_meridian_point_index(parallel, sorted_parallel2, p2)
-
-        trajectory_in_grid += [p1]
-        if abs(index_right - index_left)%(len(parallel)-1) == 1:
-            pass
-        elif index_left <= index_right:
-            trajectory_in_grid += list(parallel[index_left:index_right+1])
-        else:
-            trajectory_in_grid += list(parallel[index_left:]) + list(parallel[:index_right+1])
-            
-        trajectory_in_grid += [p2]
-    
-        vis.plot(trajectory_in_grid,'traj_in_grid',color=(1,0,0))
-        vis.plot(p2,'traj_in_grid',color=(0,1,0))
-        vis.plot(p1,'traj_in_grid',color=(0,0,1))
-    trajectories_in_grid.append(trajectory_in_grid)
-    return trajectories_in_grid   
-
-def closest_meridian_point(meridian, parallel, blade):
-    min_dist = 100
-    closest_meridian_point = []
-    sorted_parallel = []
-    for meridian_point in meridian:
-        dist = sum((parallel[:,0:3]-meridian_point[0:3])*
-                   (parallel[:,0:3]-meridian_point[0:3]),1)
-        if min(dist) <= min_dist:
-            closest_meridian_point = meridian_point
-            min_dist = min(dist)
-            sorted_parallel = [x for (y,x) in sorted(zip(dist,parallel))]
-    model = blade.select_model(closest_meridian_point)
-    return mathtools.curvepoint(model,blade.trajectory_iter_surface,closest_meridian_point[0:3]), sorted_parallel
-
-def get_first_left_meridian_point_index(parallel, sorted_parallel, meridian_point):
-    tan = cross(meridian_point[3:6],
-                meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
-    for point in sorted_parallel:
-        if sign(dot(tan,meridian_point[0:3]-point[0:3])) == 1:
-            return parallel.tolist().index(list(point))
-
-def get_first_right_meridian_point_index(parallel, sorted_parallel, meridian_point):
-    tan = cross(meridian_point[3:6],
-                meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
-
-    for point in sorted_parallel:
-        if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
-            return parallel.tolist().index(list(point))
+   
+def make_grid():
+    DB = db.DB(directory)
+    blade = load_blade(blade_folder_full)
+    return DB.make_grid(blade)
 
 def compute_bases_to_coat_points(trajectories_in_grid):
     DB = db.DB(directory)
@@ -279,16 +195,22 @@ def blade_borders():
     border = [b1, b2, b3, b4]
     return border
 
-def blade_borders_full():
+def blade_borders():
     blade = load_blade(blade_folder_full)
     N = len(blade.trajectories)
-    border = []
-    for i in range(17, N-37):
-        rays = mathtools.filter_by_distance(array(blade.trajectories[i]), None, 0.9995, True)
-        vis.plot(rays)
-        border.append(rays)
-    return border
+    neg_border, pos_border = blade.find_borders(17, N-37)
+    neg_meridian = []
+    pos_meridian = []
+    neg_merdian = reduce(lambda a,b: a+b,neg_border)
+    pos_meridian = reduce(lambda a,b: a+b,pos_meridian)
+    return neg_meridian, pos_meridian
+
+def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+    return DB.get_points_in_grid(blade, meridian1, meridian2, parallel1, parallel2)
     
+   
 if __name__ == '__main__':
 
     directory = 'new_db'
@@ -308,34 +230,32 @@ if __name__ == '__main__':
     #generate_robot_positions()
     #create_db_with_blade()
 
-    #rename_files_by_base()
-    #convert()
-    #vis = Visualizer(turb.env)
-    #generate()
+    #generate_db()
     #merge()
 
     vis = Visualizer(turb.env)
     #plot_gradient()
-    #blade_segmentation()
     #plot_points_covered_by_n(600,50)
 
-    meridians, parallels = make_grid()
+    #meridians, parallels = make_grid()
     #save_meridians(meridians)
     #save_parallels(parallels)
-    #meridians, parallels = load_meridians(), load_parallels()
+    meridians, parallels = load_meridians(), load_parallels()
 
-    #borders = blade_borders()
+    neg_meridian, pos_meridian = blade_borders()
     #for border in borders:
     #    vis.plot(border,'border',(1,0,0))
 
-    for meridian in meridians:
-        vis.plot(meridian)
+    #for meridian in meridians:
+    #    vis.plot(meridian)
 
-    for parallel in parallels:
-        vis.plot(parallel,'parallel')
+    #for parallel in parallels:
+    #    vis.plot(parallel,'parallel')
 
-    #border = blade_borders_full()
+
     #trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
+    #for traj in trajectories_in_grid:
+    #    vis.plot(traj,'traj_in_grid',color=(1,0,0))
     #compute_bases_to_coat_points(trajectories_in_grid)
 
 
