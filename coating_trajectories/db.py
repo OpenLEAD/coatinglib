@@ -275,11 +275,9 @@ class DB:
         db_points_to_num = self.load_db_points_to_num()
         db = dict()
 
-        #filtered_trajectories = side_filter(turbine,blade.trajectories)
         filtered_trajectories = filter_trajectories(turbine, blade.trajectories,2)
         for filtered_trajectory in filtered_trajectories:
             for filtered_trajectory_part in filtered_trajectory:
-        #for filtered_trajectory_part in filtered_trajectories:
                 evaluated_points = 0
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
@@ -292,7 +290,10 @@ class DB:
                         evaluated_points = len(filtered_trajectory_part)
                         continue
 
-                    joint_solutions = planning.compute_robot_joints(turbine, filtered_trajectory_part, evaluated_points, blade.trajectory_iter_surface)
+                    joint_solutions = planning.compute_robot_joints(turbine,
+                                                                    filtered_trajectory_part,
+                                                                    evaluated_points,
+                                                                    blade.trajectory_iter_surface)
                     upper = evaluated_points + len(joint_solutions)
                     if upper-evaluated_points > minimal_number_of_points_per_trajectory:
                         for point in filtered_trajectory_part[evaluated_points:upper]:
@@ -472,7 +473,31 @@ class DB:
             if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
                 
+    def bases_validation(self, parallels, bases, turbine, blade):
+        """
+        Validate bases for given parallels.
+        
+        Keyword arguments:
+        parallels -- list of rays (N,6)
+        bases -- [PSAlpha] (N,3), list of tuples
+        """
+        
+        feasible_bases = []
+        for base in bases:
+            rp = rail_place.RailPlace(base)
+            turbine.place_rail(rp)
+            turbine.place_robot(rp)
 
+            for parallel in parallels:
+                joint_solutions = planning.compute_robot_joints(
+                    turbine, parallel, 0, blade.trajectory_iter_surface)
+                if len(joint_solutions) != len(parallel):
+                    break
+            else:
+                feasible_bases.append(base)
+            continue
+        return feasible_bases
+            
     def clear_db(self):
         db = self.load_db()
         for key, value in db.iteritems():
