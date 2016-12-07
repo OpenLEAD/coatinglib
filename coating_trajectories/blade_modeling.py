@@ -560,7 +560,7 @@ class BladeModeling:
         
         meridians = []
 
-        for i in arange(0, len(parallel), parallel_step)[:-1]:
+        for i in linspace(0, len(parallel), parallel_step).astype(int)[:-1]:
             point = parallel[i]
             meridian = self.draw_meridian_by_point(point, meridian_step)
             meridians += [meridian]
@@ -784,4 +784,12 @@ class BladeModeling:
         for model in self.models:
             model._points = array(mathtools.rotate_trajectories(self.turbine, [model._points], T)[0])
         return
-        
+
+    def find_borders(self, init_parallel, end_parallel):
+        neg_border = []
+        pos_border = []
+        for i in range(init_parallel, end_parallel):
+            rays = mathtools.filter_by_distance(array(self.trajectories[i]), None, 0.9995, True)
+            neg_border.append(rays[rays[:,1]<0])
+            pos_border.append(rays[rays[:,1]>0])
+        return neg_border, pos_border
