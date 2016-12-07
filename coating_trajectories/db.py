@@ -1,12 +1,14 @@
 from path_filters import filter_trajectories, side_filter
 import planning
-from numpy import save, load, random, array
+from numpy import save, load, random, array, linspace, cross
+from numpy import sign, dot, linalg, sum
 from os.path import basename, splitext, join, exists, isfile
 from os import makedirs, listdir
 import copy
 import rail_place
 from colorsys import hls_to_rgb
 import cPickle
+import mathtools
 
 
 class NoDBFound(Exception):    
@@ -389,7 +391,87 @@ class DB:
         for base in set_of_feasible_bases_num:
             set_of_feasible_bases_tuple.append(all_bases_tuple[base])
         return set_of_feasible_bases_tuple
-            
+
+    def make_grid(self, blade, number_of_meridians = 12, number_of_parallels = 6, init_parallel = 17 ):
+
+        parallel = blade.trajectories[int(len(blade.trajectories)/2)]
+        meridians = blade.draw_meridians(parallel, 1e-3, number_of_meridians)
+        
+        parallels = []
+        list_index = linspace(init_parallel,len(blade.trajectories),number_of_parallels).astype(int)
+        list_index[-1] -= 2
+        for i in list_index:
+            parallels.append(blade.trajectories[i])
+        
+        return meridians, parallels
+
+    def get_points_in_grid(self, blade, meridian1, meridian2, parallel1, parallel2):
+
+        parallel_index_1 = int((blade.trajectory_iter_surface._Rn -
+                                linalg.norm(parallel1[0][0:3]))/
+                               blade.trajectory_iter_surface.coatingstep)
+        parallel_index_2 = int((blade.trajectory_iter_surface._Rn -
+                                linalg.norm(parallel2[0][0:3]))/
+                               blade.trajectory_iter_surface.coatingstep)
+        init = min(parallel_index_1,parallel_index_2)
+        end = max(parallel_index_1,parallel_index_2)+1
+
+        trajectories_in_grid = []
+
+        for i in range(init,end):
+            trajectory_in_grid = []
+            parallel = array(blade.trajectories[i])
+            blade.trajectory_iter_surface.find_iter(parallel[0])
+            p1, sorted_parallel1 = self._closest_meridian_point(meridian1, parallel, blade)
+            p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel, blade)
+            parallel1 = mathtools.direction_in_halfplane(parallel,p1[3:6])
+            parallel2 = mathtools.direction_in_halfplane(parallel,p2[3:6])
+            p1, sorted_parallel1 = self._closest_meridian_point(meridian1, parallel1, blade)
+            p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel2, blade)
+            index_left = self._get_first_left_meridian_point_index(parallel, sorted_parallel1, p1)
+            index_right = self._get_first_right_meridian_point_index(parallel, sorted_parallel2, p2)
+
+            trajectory_in_grid += [p1]
+            if abs(index_right - index_left)%(len(parallel)-1) == 1:
+                pass
+            elif index_left <= index_right:
+                trajectory_in_grid += list(parallel[index_left:index_right+1])
+            else:
+                trajectory_in_grid += list(parallel[index_left:]) + list(parallel[:index_right+1])    
+            trajectory_in_grid += [p2]
+        
+            trajectories_in_grid.append(trajectory_in_grid)
+        return trajectories_in_grid   
+
+    def _closest_meridian_point(self, meridian, parallel, blade):
+        min_dist = 100
+        closest_meridian_point = []
+        sorted_parallel = []
+        for meridian_point in meridian:
+            dist = sum((parallel[:,0:3]-meridian_point[0:3])*
+                       (parallel[:,0:3]-meridian_point[0:3]),1)
+            if min(dist) <= min_dist:
+                closest_meridian_point = meridian_point
+                min_dist = min(dist)
+                sorted_parallel = [x for (y,x) in sorted(zip(dist,parallel))]
+        model = blade.select_model(closest_meridian_point)
+        return mathtools.curvepoint(model,blade.trajectory_iter_surface,closest_meridian_point[0:3]), sorted_parallel
+
+    def _get_first_left_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
+        tan = cross(meridian_point[3:6],
+                    meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
+        for point in sorted_parallel:
+            if sign(dot(tan,meridian_point[0:3]-point[0:3])) == 1:
+                return parallel.tolist().index(list(point))
+
+    def _get_first_right_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
+        tan = cross(meridian_point[3:6],
+                    meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
+
+        for point in sorted_parallel:
+            if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
+                return parallel.tolist().index(list(point))
+                
 
     def clear_db(self):
         db = self.load_db()
