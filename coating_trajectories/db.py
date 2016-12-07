@@ -472,6 +472,14 @@ class DB:
         for point in sorted_parallel:
             if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
+
+    def get_num_to_base(self):
+        btn = self.load_db_bases_to_num()
+        return [ b for (v,b) in sorted(zip(btn.values(),btn.keys()))]
+
+    def get_num_to_point(self):
+        ptn = self.load_db_points_to_num()
+        return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
                 
     def bases_validation(self, parallels, bases, turbine, blade):
         """
