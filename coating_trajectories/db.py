@@ -480,6 +480,34 @@ class DB:
     def get_num_to_point(self):
         ptn = self.load_db_points_to_num()
         return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
+
+    def get_rays(self,blade, parallels, borders = None):
+        """
+        This function get a list of point numbers (parallel format) and create a list of rays (point-normal) with possible border points
+        blade - a blade_modeling
+        parallels - list of [ list of (point numbers)]
+        borders - If present, must be a list shape (N,2) with begin and end of each parallel
+        """
+        
+        rays = []
+        ntp = self.get_num_to_point()
+
+        def get_ray(model,point):
+            df = model.df(point)
+            df = df/linalg.norm(df)
+            return array(list(point)+list(df))
+            
+        if borders is None:
+            for parallel in parallels:
+                model = blade.select_model(ntp[parallel[0]])
+                rays += [ map( lambda x: get_ray(model,ntp[x]), parallel ) ]
+        else:
+            for i in range(len(parallels)):
+                model = blade.select_model(ntp[parallels[i][0]])
+                rays += [[get_ray(model,border[i][0])] + map( lambda x: get_ray(model,ntp[x]), parallels[i] )
+                         + [get_ray(model,border[i][1])]]
+
+        return rays
                 
     def bases_validation(self, parallels, bases, turbine, blade):
         """
