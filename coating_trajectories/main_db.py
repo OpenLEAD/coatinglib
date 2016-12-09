@@ -166,10 +166,15 @@ def blade_borders(meridians):
     blade = load_blade(blade_folder_full)
     N = len(blade.trajectories)
     neg_border, pos_border = blade.find_borders(17, N-37)
-    neg_meridian = reduce(lambda a,b: a+b, map(list,neg_border))
-    pos_meridian = reduce(lambda a,b: a+b, map(list,pos_border))
-    meridians = meridians[0:5]+[neg_meridian]+meridians[5:10]+\
-                [pos_meridian]+meridians[10:]
+    neg_1 = []; neg_2 = []; pos_1 = []; pos_2 = []
+    for neg_b in neg_border:
+        neg_1 += [neg_b[0][0:3]]
+        neg_2 += [neg_b[-1][0:3]]
+    for pos_b in pos_border:
+        pos_1 += [pos_b[0][0:3]]
+        pos_2 += [pos_b[-1][0:3]]   
+    meridians = meridians[0:5]+[neg_1]+[neg_2]+meridians[5:10]+\
+                [pos_1]+[pos_2]+meridians[10:]
     return meridians
 
 def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
