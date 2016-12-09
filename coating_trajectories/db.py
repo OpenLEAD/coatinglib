@@ -472,10 +472,10 @@ class DB:
         parallel1, parallel2 = parallel[0], parallel[1]
         db_points_to_num = self.load_db_points_to_num()
         
-        parallel_index_1 = int((blade.trajectory_iter_surface._Rn -
+        parallel_index_1 = int((blade.trajectory_iter_surface._Rn0 -
                                 linalg.norm(parallel1[0][0:3]))/
                                blade.trajectory_iter_surface.coatingstep)
-        parallel_index_2 = int((blade.trajectory_iter_surface._Rn -
+        parallel_index_2 = int((blade.trajectory_iter_surface._Rn0 -
                                 linalg.norm(parallel2[0][0:3]))/
                                blade.trajectory_iter_surface.coatingstep)
         init = min(parallel_index_1,parallel_index_2)
@@ -524,13 +524,15 @@ class DB:
         min_dist = 100
         closest_meridian_point = []
         sorted_parallel = []
+        dist_list = []
         for meridian_point in meridian:
             dist = sum((parallel[:,0:3]-meridian_point[0:3])*
                        (parallel[:,0:3]-meridian_point[0:3]),1)
             if min(dist) <= min_dist:
                 closest_meridian_point = meridian_point
                 min_dist = min(dist)
-                sorted_parallel = [x for (y,x) in sorted(zip(dist,parallel))]
+                dist_list = dist
+        sorted_parallel = [x for (y,x) in sorted(zip(dist_list,parallel))]
         model = blade.select_model(closest_meridian_point)
         return mathtools.curvepoint(model,blade.trajectory_iter_surface,closest_meridian_point[0:3]), sorted_parallel
 
