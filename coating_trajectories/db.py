@@ -128,6 +128,25 @@ class DB:
         path = join(self.path, 'fixed_db', 'db_points_to_num.pkl')
         return self.load_db_pickle(path)
 
+    def load_db_grid_to_mp(self):
+        """
+        Load grid_to_mp database num:[(m1,m2),(p1,p2)].
+        Grids are numbers and the mp are
+        meridian/parallels index.
+        """
+
+        path = join(self.path, 'fixed_db', 'grid_to_mp.pkl')
+        return self.load_db_pickle(path)
+
+    def load_db_grid_to_bases(self):
+        """
+        Load grid_to_bases database num:[bases].
+        Grids are numbers and the bases are lists of PSAlpha tuples.
+        """
+
+        path = join(self.path, 'fixed_db', 'grid_to_bases.pkl')
+        return self.load_db_pickle(path)
+
     def load_db_bases_to_num(self):
         """
         Load bases_to_num database bases:num. Bases are tuples railplace and
@@ -151,7 +170,6 @@ class DB:
         """
 
         path = join(self.path,'fixed_db','db_visited_bases.pkl')
-        
         return self.load_db_pickle(path)
 
     def get_bases(self, db):
