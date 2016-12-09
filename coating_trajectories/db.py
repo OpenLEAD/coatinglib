@@ -34,11 +34,26 @@ class DB:
             makedirs(self.path)
        
     def save_db_pickle(self, obj, name ):
+        """
+        Save a general file in pickle format.
+
+        Keyword arguments:
+        obj -- object to be saved.
+        name -- name of the file ('example/file.pkl').
+        """
+        
         with open(name, 'wb') as f:
             cPickle.dump(obj, f, cPickle.HIGHEST_PROTOCOL)
         return
 
     def load_db_pickle(self, name):
+        """
+        Load a general pickle file.
+
+        Keyword arguments:
+        name -- name of the file ('example/file.pkl').
+        """
+        
         with open(name, 'rb') as f:
             return cPickle.load(f)
 
@@ -47,7 +62,7 @@ class DB:
 
     def load_db(self):
         """
-        Load main database num:num. First num represents the points and
+        Load main database num:num. The first num represents the points and
         the second represents the bases.
         """
 
@@ -57,13 +72,17 @@ class DB:
     def create_db(self, blade):
         """
         Create the database.
+
+        Keyword argument:
+        blade -- the blade object. The database point should be created
+        with the parallel points.
         """
 
         if not exists(join(self.path,'fixed_db')):
             makedirs(join(self.path,'fixed_db'))
-            
         db = dict()
         db_points_to_num = dict()
+        
         try:
             db = self.load_db()
         except IOError:
@@ -78,7 +97,6 @@ class DB:
             self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
         del db
             
-
         try:
             db_points_to_num = self.load_db_points_to_num()
         except IOError:
@@ -108,8 +126,6 @@ class DB:
         """
         Load points_to_num database points:num. Points are tuples (x,y,z) and
         the num maps the points (counter to reduce database complexity).
-
-        keyword arguments:
         """
 
         path = join(self.path, 'fixed_db', 'db_points_to_num.pkl')
@@ -209,7 +225,7 @@ class DB:
 
         keyword arguments:
         db_file -- file to be merged;
-        db (optional) -- main database file;
+        main_db -- main database file;
         """
 
         for key, value in db_file.iteritems():
@@ -297,6 +313,16 @@ class DB:
         return db
 
     def plot_points_gradient(self, vis, scale = 1):
+        """
+        Method to plot points in a color gradient way regarding reachability by the bases.
+        Red -> point is not reachable by any base
+        Green -> point is well reachable.
+
+        keyword arguments:
+        vis -- visualizer object.
+        scale -- number_of_points/scale will be plotted.
+        """
+        
         N = 0
         db = self.load_db()
         for key, value in db.iteritems():
@@ -319,6 +345,17 @@ class DB:
 
     def plot_points_db(self, db, vis):
         index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/100)))
+    def plot_points_db(self, vis, scale):
+        """
+        Method to plot db points.
+
+        keyword arguments:
+        vis -- visualizer object.
+        scale -- number_of_points/scale will be plotted.
+        """
+
+        db = self.load_db()
+        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
         points_num = array(db.keys())[index]
 
         db_points_to_num = self.load_db_points_to_num()
@@ -332,9 +369,14 @@ class DB:
         return
 
     def plot_bases_db(self, vis, turbine):
-        bases = self.load_db_bases_to_num()
-        for key, value in bases.iteritems():
-            rp = rail_place.RailPlace(key)
+        """
+        Method to plot db bases.
+
+        keyword arguments:
+        vis -- visualizer object.
+        scale -- number_of_points/scale will be plotted.
+        """
+
             vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
         return
 
@@ -365,6 +407,17 @@ class DB:
         return
 
     def compute_bases_to_coat_points(self, trajectories):
+    def get_bases_trajectories(self, trajectories):
+        """
+        Method returns the robot bases (tuples PSAlpha)
+        that can coat all set of points in trajectories and db.
+        If a point in trajectories does not belong to the db, it is
+        skipped.
+
+        keyword arguments:
+        trajctories -- points to be coated
+        """
+
         db_points_to_num = self.load_db_points_to_num()
         db = self.load_db()
         db_bases_to_num = self.load_db_bases_to_num()
@@ -389,7 +442,19 @@ class DB:
         return set_of_feasible_bases_tuple
 
     def make_grid(self, blade, number_of_meridians = 12, number_of_parallels = 6, init_parallel = 17 ):
-
+        """
+        Make a grid in the blade with parallels and meridians.
+        Meridians and parallels are evenly spaced.
+        The parallel used to compute the meridians is in the middle.
+        
+        keyword arguments:
+        blade -- blade object.
+        number_of_meridians -- number of meridians to be computed.
+        number_of_parallels -- number of parallels.
+        init_parallel -- initial parallel. This argument is
+        important to remove the lip from the grid.
+        """
+        
         parallel = blade.trajectories[int(len(blade.trajectories)/2)]
         meridians = blade.draw_meridians(parallel, 1e-3, number_of_meridians)
         
@@ -398,11 +463,24 @@ class DB:
         list_index[-1] -= 2
         for i in list_index:
             parallels.append(blade.trajectories[i])
+        return meridians, parallels 
+
+    def get_points_in_grid(self, blade, meridian, parallel):
+        """
+        Get parallels that belong to a grid, between given meridians and
+        given parallels.
         
-        return meridians, parallels
+        keyword arguments:
+        blade -- blade object.
+        meridian -- tuple 1x2, First meridian must be on the right w.r.t. the second meridian.
+        It means that points[1] (y) of points meridian1 > points[1] (y) of points meridian2.  
+        parallel -- tuple 1x2. Not ordered.
+        """
 
-    def get_points_in_grid(self, blade, meridian1, meridian2, parallel1, parallel2):
-
+        meridian1, meridian2 = meridian[0], meridian[1]
+        parallel1, parallel2 = parallel[0], parallel[1]
+        db_points_to_num = self.load_db_points_to_num()
+        
         parallel_index_1 = int((blade.trajectory_iter_surface._Rn -
                                 linalg.norm(parallel1[0][0:3]))/
                                blade.trajectory_iter_surface.coatingstep)
@@ -477,11 +555,15 @@ class DB:
         return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
 
     def get_rays(self,blade, parallels, borders = None):
+    def compute_rays_from_parallels(self, blade, parallels, borders = None):
         """
-        This function get a list of point numbers (parallel format) and create a list of rays (point-normal) with possible border points
-        blade - a blade_modeling
-        parallels - list of [ list of (point numbers)]
-        borders - If present, must be a list shape (N,2) with begin and end of each parallel
+        This method gets a list of point numbers (parallel db format) and
+        create a list of rays (point-normal) with possible border points.
+
+        Keyword arguments:
+        blade -- a blade_modeling object.
+        parallels -- list of [ list of (point numbers)]
+        borders -- If present, must be a list shape (N,2) with begin and end of each parallel
         """
         
         rays = []
