@@ -24,10 +24,10 @@ class DB:
     blade -- BladeModeling object;
     """
 
-    def __init__(self, path, blade=None, db = None):
+    def __init__(self, path, blade=None):
 
         self.path = path
-        self.create_db(blade, db)
+        self.create_db(blade)
         del blade
         
         if not exists(self.path):
@@ -54,7 +54,7 @@ class DB:
         name = join(self.path,'fixed_db','db.pkl')
         return self.load_db_pickle(name)
 
-    def create_db(self, blade, db_in):
+    def create_db(self, blade):
         """
         Create the database.
         """
@@ -102,11 +102,6 @@ class DB:
                 raise
         del db_bases_to_num
            
-        if db_in is not None:
-            db = self.load_db()
-            db = self.merge_db(db_in, db)
-            self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
-            self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_points_to_num.pkl'))
         return
 
     def load_db_points_to_num(self):
