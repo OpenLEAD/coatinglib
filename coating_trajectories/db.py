@@ -135,7 +135,7 @@ class DB:
         meridian/parallels index.
         """
 
-        path = join(self.path, 'fixed_db', 'grid_to_mp.pkl')
+        path = join(self.path, 'fixed_db', 'db_grid_to_mp.pkl')
         return self.load_db_pickle(path)
 
     def load_db_grid_to_bases(self):
@@ -144,7 +144,9 @@ class DB:
         Grids are numbers and the bases are lists of PSAlpha tuples.
         """
 
-        path = join(self.path, 'fixed_db', 'grid_to_bases.pkl')
+        path = join(self.path, 'fixed_db', 'db_grid_to_bases.pkl')
+        return self.load_db_pickle(path)
+
         return self.load_db_pickle(path)
 
     def load_db_bases_to_num(self):
