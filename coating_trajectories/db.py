@@ -172,6 +172,22 @@ class DB:
         path = join(self.path,'fixed_db','db_visited_bases.pkl')
         return self.load_db_pickle(path)
 
+    def get_sorted_bases(self):
+        """
+        Return the sorted bases -- tuples PSAlpha.
+        """
+
+        btn = self.load_db_bases_to_num()
+        return [ b for (v,b) in sorted(zip(btn.values(),btn.keys()))]
+
+    def get_sorted_points(self):
+        """
+        Return the sorted points -- tuples (x,y,z).
+        """
+
+        ptn = self.load_db_points_to_num()
+        return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
+
     def get_bases(self, db):
         bases = set()
         for val in db.values():
