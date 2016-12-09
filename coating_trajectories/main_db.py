@@ -43,21 +43,6 @@ def plot_points_covered_by_n(n_max, n_min=0):
             points.append(all_points_tuple[key])
     vis.plot(points,'plot_points_covered_by_n')
     return
-            
-
-def trajectories_plot(trajectories):
-    for traj in trajectories:
-        vis.plot(traj, 'traj',(1,0,0))
-
-def see_base_plot():
-    path = 'db/converted'
-    vis = Visualizer(turb.env)
-    onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-
-    for afile in onlyfiles:
-        DB.plot_points_db(DB.load_db_pickle(join(path,afile)),vis)
-        x = raw_input('wait')
-        vis.remove_points('points_db')
 
 def generate_db():
     turb.robot.GetLink('Flame').Enable(False)
@@ -226,37 +211,20 @@ if __name__ == '__main__':
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
+    vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db_with_blade()
-
     #generate_db()
     #merge()
-
-    vis = Visualizer(turb.env)
     #plot_gradient()
-    #plot_points_covered_by_n(600,50)
 
     #meridians, parallels = make_grid()
     #save_meridians(meridians)
     #save_parallels(parallels)
-    meridians, parallels = load_meridians(), load_parallels()
-
-    neg_meridian, pos_meridian = blade_borders()
-    #for border in borders:
-    #    vis.plot(border,'border',(1,0,0))
-
-    #for meridian in meridians:
-    #    vis.plot(meridian)
-
-    #for parallel in parallels:
-    #    vis.plot(parallel,'parallel')
 
 
     #trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
-    #for traj in trajectories_in_grid:
-    #    vis.plot(traj,'traj_in_grid',color=(1,0,0))
-    #compute_bases_to_coat_points(trajectories_in_grid)
 
 
 
