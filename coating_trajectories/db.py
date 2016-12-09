@@ -562,9 +562,11 @@ class DB:
         return feasible_bases
 
     def clear_db(self):
+        """
+        Clear the db.
+        """
+
         db = self.load_db()
         for key, value in db.iteritems():
             db[key] = set()
-        name = join(self.path,'fixed_db','db.pkl')
-        self.save_db_pickle(db, name)
-        return
+        return db
