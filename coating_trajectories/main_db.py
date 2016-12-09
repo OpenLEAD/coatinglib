@@ -156,7 +156,7 @@ def make_grid():
 
 def compute_bases_to_coat_points(trajectories_in_grid):
     DB = db.DB(directory)
-    bases = DB.compute_bases_to_coat_points(trajectories_in_grid)
+    bases = DB.get_bases_trajectories(trajectories_in_grid)
     print len(bases)
     for base in bases:
         vis.plot(rail_place.RailPlace(base).getXYZ(turb.config), 'bases',(0,1,0))
@@ -220,11 +220,16 @@ if __name__ == '__main__':
     #plot_gradient()
 
     #meridians, parallels = make_grid()
+    meridians, parallels = load_meridians(), load_parallels()
+    #meridians = blade_borders(meridians)
     #save_meridians(meridians)
     #save_parallels(parallels)
-
+    vis.plot_lists(meridians,'meridians')
+    vis.plot_lists(parallels,'parallels')
 
     #trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
+    #vis.plot_lists(trajectories_in_grid,'traj_in_grid')
+    #bases = compute_bases_to_coat_points(trajectories_in_grid)
 
 
 
