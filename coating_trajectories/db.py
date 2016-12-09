@@ -342,6 +342,10 @@ class DB:
         scale -- number_of_points/scale will be plotted.
         """
 
+        db = self.load_db()
+        bases = self.get_bases(db)
+        for base in bases:
+            rp = rail_place.RailPlace(base)
             vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
         return
 
@@ -435,6 +439,13 @@ class DB:
 
         trajectories_in_grid = []
 
+        def get_point_value(point):
+            try:
+		return db_points_to_num[point]
+            except KeyError:
+		return None
+
+        borders = []
         for i in range(init,end):
             trajectory_in_grid = []
             parallel = array(blade.trajectories[i])
@@ -448,17 +459,22 @@ class DB:
             index_left = self._get_first_left_meridian_point_index(parallel, sorted_parallel1, p1)
             index_right = self._get_first_right_meridian_point_index(parallel, sorted_parallel2, p2)
 
-            trajectory_in_grid += [p1]
             if abs(index_right - index_left)%(len(parallel)-1) == 1:
                 pass
             elif index_left <= index_right:
-                trajectory_in_grid += list(parallel[index_left:index_right+1])
+                trajectory_in_grid += filter(lambda x: x is not None,
+                                             map(get_point_value,
+                                                 map(tuple, array(parallel)[index_left:index_right+1, 0:3].tolist())))
             else:
-                trajectory_in_grid += list(parallel[index_left:]) + list(parallel[:index_right+1])    
-            trajectory_in_grid += [p2]
-        
+                trajectory_in_grid += filter(lambda x: x is not None,
+                                             map(get_point_value,
+                                                 map(tuple, array(parallel)[index_left:, 0:3].tolist())))+\
+                                      filter(lambda x: x is not None,
+                                             map(get_point_value,
+                                                 map(tuple, array(parallel)[:index_right+1, 0:3].tolist())))   
             trajectories_in_grid.append(trajectory_in_grid)
-        return trajectories_in_grid   
+            borders.append([tuple(p1[0:3]),tuple(p2[0:3])])
+        return trajectories_in_grid, borders
 
     def _closest_meridian_point(self, meridian, parallel, blade):
         min_dist = 100
@@ -501,7 +517,7 @@ class DB:
         """
         
         rays = []
-        ntp = self.get_num_to_point()
+        ntp = self.get_sorted_points()
 
         def get_ray(model,point):
             df = model.df(point)
@@ -515,8 +531,8 @@ class DB:
         else:
             for i in range(len(parallels)):
                 model = blade.select_model(ntp[parallels[i][0]])
-                rays += [[get_ray(model,border[i][0])] + map( lambda x: get_ray(model,ntp[x]), parallels[i] )
-                         + [get_ray(model,border[i][1])]]
+                rays += [[get_ray(model,borders[i][0])] + map( lambda x: get_ray(model,ntp[x]), parallels[i] )
+                         + [get_ray(model,borders[i][1])]]
 
         return rays
                 
@@ -544,7 +560,7 @@ class DB:
                 feasible_bases.append(base)
             continue
         return feasible_bases
-            
+
     def clear_db(self):
         db = self.load_db()
         for key, value in db.iteritems():
