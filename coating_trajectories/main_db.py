@@ -181,7 +181,13 @@ def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
     return DB.get_points_in_grid(blade, [meridian1, meridian2], [parallel1, parallel2])
-    
+
+def create_db_grid():
+    blade = load_blade(blade_folder)
+    meridians, parallels = load_meridians(), load_parallels()
+    DB = db.DB(directory)
+    DB.create_db_grid(blade, meridians, parallels)
+    return
    
 if __name__ == '__main__':
 
@@ -207,17 +213,14 @@ if __name__ == '__main__':
     #plot_gradient()
 
     #meridians, parallels = make_grid()
-    meridians, parallels = load_meridians(), load_parallels()
+    #meridians, parallels = load_meridians(), load_parallels()
     #meridians = blade_borders(meridians)
     #save_meridians(meridians)
     #save_parallels(parallels)
-    vis.plot_lists(meridians,'meridians')
-    vis.plot_lists(parallels,'parallels')
+    #vis.plot_lists(meridians,'meridians')
+    #vis.plot_lists(parallels,'parallels')
 
-    #trajectories_in_grid = get_points_in_grid(meridians[6], meridians[7], parallels[4], parallels[5])
-    #vis.plot_lists(trajectories_in_grid,'traj_in_grid')
-    #bases = compute_bases_to_coat_points(trajectories_in_grid)
-
+    db_grid_to_mp, db_grid_to_bases, db_grid_to_trajectories = create_db_grid()
 
 
     
