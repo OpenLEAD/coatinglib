@@ -57,9 +57,6 @@ class DB:
         with open(name, 'rb') as f:
             return cPickle.load(f)
 
-    def load_db_npy(self, path):
-        return load(path).item()
-
     def load_db(self):
         """
         Load main database num:num. The first num represents the points and
@@ -162,62 +159,6 @@ class DB:
         for val in db.values():
             bases = val|bases
         return bases
-
-    def convert_db_point_base(self, db_file, db_points_to_num = None):
-        """
-        Method to convert a point:base dict file to dict num:num.
-
-        Keyword arguments:
-        db_file -- dict point:base
-        """
-
-        converted_db = dict()
-
-        if db_points_to_num is None:
-            db_points_to_num = self.load_db_points_to_num()
-
-        db_bases_to_num = self.load_db_bases_to_num() 
-        bases = self.get_bases(db_file)
-        for i in range(0,len(bases)):
-            base = bases.pop()
-            db_bases_to_num[base] = db_bases_to_num.get(base,set([len(db_bases_to_num)]))
-        self.save_db_pickle(db_bases_to_num, join(self.path,'fixed_db','db_bases_to_num.pkl'))
-        
-        for key, values in db_file.iteritems():
-            intkey = db_points_to_num[key]
-            for value in values:
-                converted_db[intkey] = db_bases_to_num[value]
-        return converted_db
-
-    def convert_db_point_base_directory(self, path, directory_to_save):
-        """
-        Method to convert all databases in a specific folder and
-        save the converted dbs to a given folder.
-
-        keyword arguments:
-        path -- where the databases are
-        directory_to_save -- where to save the converted databases
-        """
-
-        if not exists(directory_to_save):
-            makedirs(directory_to_save)
-
-        db_points_to_num = self.load_db_points_to_num()
-        onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-         
-        for afile in onlyfiles:
-            filename, file_extension = splitext(afile)
-            if file_extension == '.npy':
-                db_file = self.load_db_npy(join(path,afile))
-            elif file_extension == '.pkl':
-                db_file = self.load_db_pickle(join(path,afile))
-            else:
-                continue
-            print "Converting file: ", afile
-            self.save_db_pickle(self.convert_db_point_base(db_file, db_points_to_num),
-                                join(directory_to_save, filename+'.pkl'))
-        return
-
 
     def merge_db(self, db_file, main_db):
         """
@@ -380,18 +321,6 @@ class DB:
             vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
         return
 
-    def get_bases_from_region(self, db, region_points):
-    # Regions as list of points, db = { point_num : base_num }
-        psa_db = list()
-        db_points_to_num = self.load_db_points_to_num()
-        db_bases_to_num = self.load_db_bases_to_num()
-        base_nums = [ db[db_points_to_num[pt]] for pt in region_points ]
-
-        sorted_bases = [ set(base) for (num,base) in sorted(zip(db_base_to_num.values(),db_base_to_num.keys()))]
-
-        return reduce(lambda a,b: a & b,list(array(sorted_bases)[base_nums]))
-
-
     def invert_db(self, db, parallels, regions):
     # Regions as list of [list of tuple (parallel_index, begin_index, end_index)]
         psa_db = list()
@@ -406,7 +335,6 @@ class DB:
             psa_db.append(inverse_set)
         return
 
-    def compute_bases_to_coat_points(self, trajectories):
     def get_bases_trajectories(self, trajectories):
         """
         Method returns the robot bases (tuples PSAlpha)
@@ -546,15 +474,6 @@ class DB:
             if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
 
-    def get_num_to_base(self):
-        btn = self.load_db_bases_to_num()
-        return [ b for (v,b) in sorted(zip(btn.values(),btn.keys()))]
-
-    def get_num_to_point(self):
-        ptn = self.load_db_points_to_num()
-        return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
-
-    def get_rays(self,blade, parallels, borders = None):
     def compute_rays_from_parallels(self, blade, parallels, borders = None):
         """
         This method gets a list of point numbers (parallel db format) and
