@@ -147,6 +147,14 @@ class DB:
         path = join(self.path, 'fixed_db', 'db_grid_to_bases.pkl')
         return self.load_db_pickle(path)
 
+    def load_db_grid_to_trajectories(self):
+        """
+        Load grid_to_trajectories database num:[trajectories, borders].
+        Grids are numbers and the bases are lists of trajectories (num, db format)
+        and borders (tuples Nx3).
+        """
+
+        path = join(self.path, 'fixed_db', 'db_grid_to_trajectories.pkl')
         return self.load_db_pickle(path)
 
     def load_db_bases_to_num(self):
@@ -373,10 +381,9 @@ class DB:
         skipped.
 
         keyword arguments:
-        trajctories -- points to be coated
+        trajctories -- points_num (db format) to be coated
         """
 
-        db_points_to_num = self.load_db_points_to_num()
         db = self.load_db()
         bases_tuple = self.get_sorted_bases()
 
@@ -493,6 +500,10 @@ class DB:
         return mathtools.curvepoint(model,blade.trajectory_iter_surface,closest_meridian_point[0:3]), sorted_parallel
 
     def _get_first_left_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
+        """
+        This method assumes the use of spheres as iter_surface.
+        """
+        
         tan = cross(meridian_point[3:6],
                     meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
         for point in sorted_parallel:
@@ -500,6 +511,10 @@ class DB:
                 return parallel.tolist().index(list(point))
 
     def _get_first_right_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
+        """
+        This method assumes the use of spheres as iter_surface.
+        """
+        
         tan = cross(meridian_point[3:6],
                     meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
 
