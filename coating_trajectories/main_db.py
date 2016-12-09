@@ -180,20 +180,20 @@ def blade_borders():
     border = [b1, b2, b3, b4]
     return border
 
-def blade_borders():
+def blade_borders(meridians):
     blade = load_blade(blade_folder_full)
     N = len(blade.trajectories)
     neg_border, pos_border = blade.find_borders(17, N-37)
-    neg_meridian = []
-    pos_meridian = []
-    neg_merdian = reduce(lambda a,b: a+b,neg_border)
-    pos_meridian = reduce(lambda a,b: a+b,pos_meridian)
-    return neg_meridian, pos_meridian
+    neg_meridian = reduce(lambda a,b: a+b, map(list,neg_border))
+    pos_meridian = reduce(lambda a,b: a+b, map(list,pos_border))
+    meridians = meridians[0:5]+[neg_meridian]+meridians[5:10]+\
+                [pos_meridian]+meridians[10:]
+    return meridians
 
 def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
-    return DB.get_points_in_grid(blade, meridian1, meridian2, parallel1, parallel2)
+    return DB.get_points_in_grid(blade, [meridian1, meridian2], [parallel1, parallel2])
     
    
 if __name__ == '__main__':
