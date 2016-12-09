@@ -303,23 +303,17 @@ class DB:
         for key, value in db.iteritems():
             N = max(N,len(value))
 
-        db_points_to_num = self.load_db_points_to_num()
-        all_points_tuple, all_points_num = db_points_to_num.keys(), db_points_to_num.values()
-        del db_points_to_num
-        all_points_tuple = [x for (y,x) in sorted(zip(all_points_num,all_points_tuple))]
-        del all_points_num
+        points_tuple = self.get_sorted_points()
         
         index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
         points_num = array(db.keys())[index]
         bases_num = array(db.values())[index]
 
         for i in range(0,len(points_num)):
-            vis.plot(all_points_tuple[points_num[i]], 'points_gradient',
+            vis.plot(points_tuple[points_num[i]], 'points_gradient',
                      color = hls_to_rgb(len(bases_num[i])*1.0/(3*N),0.5,1))
         return
 
-    def plot_points_db(self, db, vis):
-        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/100)))
     def plot_points_db(self, vis, scale):
         """
         Method to plot db points.
@@ -333,14 +327,10 @@ class DB:
         index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
         points_num = array(db.keys())[index]
 
-        db_points_to_num = self.load_db_points_to_num()
-        all_points_tuple, all_points_num = db_points_to_num.keys(), db_points_to_num.values()
-        del db_points_to_num
-        all_points_tuple = [x for (y,x) in sorted(zip(all_points_num,all_points_tuple))]
-        del all_points_num
+        points_tuple = self.get_sorted_points()
         
         for i in points_num:
-            vis.plot(all_points_tuple[i], 'points_db')
+            vis.plot(points_tuple[i], 'points_db')
         return
 
     def plot_bases_db(self, vis, turbine):
@@ -382,27 +372,18 @@ class DB:
 
         db_points_to_num = self.load_db_points_to_num()
         db = self.load_db()
-        db_bases_to_num = self.load_db_bases_to_num()
-
-        all_bases_tuple, all_bases_num = db_bases_to_num.keys(), db_bases_to_num.values()
-        del db_bases_to_num
-        all_bases_tuple = [x for (y,x) in sorted(zip(all_bases_num,all_bases_tuple))]
-        del all_bases_num
+        bases_tuple = self.get_sorted_bases()
 
         set_of_feasible_bases_num = self.get_bases(db)
-        set_of_feasible_bases_tuple = []
-
+        
         for trajectory in trajectories:
             for point in trajectory:
                 try:
                     set_of_feasible_bases_num &= db[db_points_to_num[tuple(point[0:3])]]
                 except KeyError:
                     pass
-
-        for base in set_of_feasible_bases_num:
-            set_of_feasible_bases_tuple.append(all_bases_tuple[base])
-        return set_of_feasible_bases_tuple
-
+        return array(bases_tuple)[list(set_of_feasible_bases_num)].tolist()
+        
     def make_grid(self, blade, number_of_meridians = 12, number_of_parallels = 6, init_parallel = 17 ):
         """
         Make a grid in the blade with parallels and meridians.
