@@ -421,6 +421,40 @@ class DB:
             parallels.append(blade.trajectories[i])
         return meridians, parallels
 
+    def create_db_grid(self, blade, meridians, parallels):
+        db_grid_to_mp = dict()
+        db_grid_to_bases = dict()
+        db_grid_to_trajectories = dict()
+
+        counter = 0
+        for i in range(0,len(meridians)):
+            for j in range(0,len(parallels)-1):
+                grid = [(i, (i+1)%len(meridians)), (j,j+1)]
+                print('iter %3i ' % (counter))
+                trajectories_in_grid, borders = self.get_points_in_grid(
+                    blade, [meridians[grid[0][0]], meridians[grid[0][1]]],
+                    [parallels[grid[1][0]], parallels[grid[1][1]]])
+                bases = self.get_bases_trajectories(trajectories_in_grid)
+
+                db_grid_to_mp[counter] = grid
+                db_grid_to_bases[counter] = bases 
+                db_grid_to_trajectories[counter] = [trajectories_in_grid, borders]
+                counter+=1
+
+        try:
+            self.save_db_pickle(db_grid_to_mp, join(self.path,'fixed_db','db_grid_to_mp.pkl'))
+        except IOError: None
+
+        try:
+            self.save_db_pickle(db_grid_to_bases, join(self.path,'fixed_db','db_grid_to_bases.pkl'))
+        except IOError: None
+
+        try:
+            self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
+        except IOError: None
+       
+        return db_grid_to_mp, db_grid_to_bases, db_grid_to_trajectories
+                           
 
     def get_points_in_grid(self, blade, meridian, parallel):
         """
