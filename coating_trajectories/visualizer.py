@@ -35,7 +35,12 @@ class Visualizer:
             self.handles[key] = temp
         else:
             self.handles[key] = [self.env.plot3(points=points, pointsize=pointsize, colors=color)]
-        return            
+        return key         
+
+    def plot_lists(self, lists_of_points, key='point_'+str(random.uniform(1,10)), color=(0,0,0), pointsize = 5):
+        for list_of_points in lists_of_points:
+            self.plot(list_of_points, key, color, pointsize)
+        return key
 
     def plot_normal(self, points, key='normal_'+str(random.uniform(1,10)), color=(1,0,0), linewidth = 4):
         """
@@ -65,7 +70,7 @@ class Visualizer:
                                                              (2*len(points),3)),
                                               linewidth=linewidth,
                                               colors=color)]
-        return   
+        return key  
 
     def remove_points(self, key):
         """
