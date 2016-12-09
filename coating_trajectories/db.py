@@ -392,7 +392,7 @@ class DB:
         for trajectory in trajectories:
             for point in trajectory:
                 try:
-                    set_of_feasible_bases_num &= db[db_points_to_num[tuple(point[0:3])]]
+                    set_of_feasible_bases_num &= db[point]
                 except KeyError:
                     pass
         return array(bases_tuple)[list(set_of_feasible_bases_num)].tolist()
@@ -419,7 +419,8 @@ class DB:
         list_index[-1] -= 2
         for i in list_index:
             parallels.append(blade.trajectories[i])
-        return meridians, parallels 
+        return meridians, parallels
+
 
     def get_points_in_grid(self, blade, meridian, parallel):
         """
