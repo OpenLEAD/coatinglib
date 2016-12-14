@@ -18,7 +18,7 @@ def direction_in_halfplane(rays,direction):
     Filter points on the half plane defined by
     normal plane to direction ( dot(ray[3:6],direction) > 0 )
     """
-    return rays[ (dot(array(rays)[:,3:6],direction)) > 0 ]
+    return array(rays)[ (dot(array(rays)[:,3:6],direction)) > 0 ]
     
 
 def annulus_distribution(N,r,R, origin = None, dim = 2):
