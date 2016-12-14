@@ -9,7 +9,7 @@ from os.path import join, isfile, realpath
 from os import listdir
 import rail_place
 from numpy import array, random, zeros, dot, arange, linalg, sum
-from numpy import sign, cross
+from numpy import sign, cross, random
 from datetime import datetime
 from os import makedirs
 import cPickle
@@ -17,6 +17,8 @@ import errno
 import mathtools
 from math import pi
 import mathtools
+from copy import deepcopy
+import ast
 
 def merge():
     DB = db.DB(directory)
