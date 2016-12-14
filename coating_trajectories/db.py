@@ -500,7 +500,7 @@ class DB:
 
         def get_point_value(point):
             try:
-		return db_points_to_num[point]
+                return db_points_to_num[point]
             except KeyError:
 		return None
 
@@ -584,7 +584,7 @@ class DB:
         parallels -- list of [ list of (point numbers)]
         borders -- If present, must be a list shape (N,2) with begin and end of each parallel
         """
-        
+
         rays = []
         ntp = self.get_sorted_points()
 
@@ -599,10 +599,12 @@ class DB:
                 rays += [ map( lambda x: get_ray(model,ntp[x]), parallel ) ]
         else:
             for i in range(len(parallels)):
-                model = blade.select_model(ntp[parallels[i][0]])
-                rays += [[get_ray(model,borders[i][0])] + map( lambda x: get_ray(model,ntp[x]), parallels[i] )
+                try:
+                    model = blade.select_model(ntp[parallels[i][0]])
+                    rays += [[get_ray(model,borders[i][0])] + map( lambda x: get_ray(model,ntp[x]), parallels[i] )
                          + [get_ray(model,borders[i][1])]]
-
+                except IndexError:
+                    rays += [[]]
         return rays
                 
     def bases_validation(self, parallels, bases, turbine, blade):
@@ -619,7 +621,6 @@ class DB:
             rp = rail_place.RailPlace(base)
             turbine.place_rail(rp)
             turbine.place_robot(rp)
-
             for parallel in parallels:
                 joint_solutions = planning.compute_robot_joints(
                     turbine, parallel, 0, blade.trajectory_iter_surface)
