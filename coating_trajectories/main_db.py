@@ -31,21 +31,6 @@ def plot_gradient():
     DB.plot_bases_db(vis, turb)
     return
 
-def plot_points_covered_by_n(n_max, n_min=0):
-    DB = db.DB(directory)
-    points = []
-    data = DB.load_db()
-    db_points_to_num = DB.load_db_points_to_num()
-    all_points_tuple, all_points_num = db_points_to_num.keys(), db_points_to_num.values()
-    del db_points_to_num
-    all_points_tuple = [x for (y,x) in sorted(zip(all_points_num,all_points_tuple))]
-    del all_points_num
-    for key, value in data.iteritems():
-        if len(value) <= n_max and len(value) >= n_min:
-            points.append(all_points_tuple[key])
-    vis.plot(points,'plot_points_covered_by_n')
-    return
-
 def generate_db():
     turb.robot.GetLink('Flame').Enable(False)
     blade = load_blade(blade_folder)
@@ -127,18 +112,10 @@ def create_db_with_blade():
     del blade
     return
 
-def load_meridians():
-    with open(join(directory,'fixed_db','meridians.pkl'), 'rb') as f:
-            return cPickle.load(f)
-
 def save_meridians(meridians):
     with open(join(directory,'fixed_db','meridians.pkl'), 'wb') as f:
         cPickle.dump(meridians, f, cPickle.HIGHEST_PROTOCOL)
     return
-
-def load_parallels():
-    with open(join(directory,'fixed_db','parallels.pkl'), 'rb') as f:
-            return cPickle.load(f)
 
 def save_parallels(parallels):
     with open(join(directory,'fixed_db','parallels.pkl'), 'wb') as f:
@@ -186,9 +163,10 @@ def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
 
 def create_db_grid():
     blade = load_blade(blade_folder)
-    meridians, parallels = load_meridians(), load_parallels()
     DB = db.DB(directory)
-    DB.create_db_grid(blade, meridians, parallels)
+    DB.create_db_grid(blade)
+    return
+
     return
    
 if __name__ == '__main__':
