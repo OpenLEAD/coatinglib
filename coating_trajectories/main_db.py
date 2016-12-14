@@ -167,6 +167,97 @@ def create_db_grid():
     DB.create_db_grid(blade)
     return
 
+def grid_pick():
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+    db_grid_to_mp = DB.load_db_grid_to_mp()
+    db_grid_to_mp_copy = deepcopy(db_grid_to_mp)
+    db_grid_to_bases = DB.load_db_grid_to_bases()
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+    meridians = DB.load_grid_meridian()
+    parallels = DB.load_grid_parallel()
+    for key, value in db_grid_to_mp.iteritems():
+        rays = DB.compute_rays_from_parallels(blade, db_grid_to_trajectories[key][0],
+                                              db_grid_to_trajectories[key][1])
+        s = vis.plot(meridians[value[0][0]],'meridian')
+        s = vis.plot(meridians[value[0][1]],'meridian')
+        s = vis.plot(parallels[value[1][0]],'parallel')
+        s = vis.plot(parallels[value[1][1]],'parallel')
+        s = vis.plot_lists(rays,'points', color=(1,0,0))
+        print 'number of bases = ', len(db_grid_to_bases[key])
+        x = raw_input('Remove base ? (y,n)')
+        if x=='y':
+            db_grid_to_mp_copy.pop(key, None)
+            db_grid_to_bases.pop(key, None)
+            db_grid_to_trajectories.pop(key, None)
+            print "Grid removed"
+        vis.remove_points('meridian')
+        vis.remove_points('parallel')
+        vis.remove_points('points')
+
+    try:
+        DB.save_db_pickle(db_grid_to_mp_copy, join(DB.path,'fixed_db','db_grid_to_mp.pkl'))
+    except IOError: None
+
+    try:
+        DB.save_db_pickle(db_grid_to_bases, join(DB.path,'fixed_db','db_grid_to_bases.pkl'))
+    except IOError: None
+
+    try:
+        DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
+    except IOError: None
+
+    return
+
+def grid_add():
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+    
+    db_grid_to_mp = DB.load_db_grid_to_mp()
+    db_grid_to_bases = DB.load_db_grid_to_bases()
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+    meridians = DB.load_grid_meridian()
+    parallels = DB.load_grid_parallel()
+    
+    s = vis.plot_lists(meridians,'meridians')
+    s = vis.plot(meridians[0],'meridians',color=(0,1,0))
+    s = vis.plot(parallels[0],'parallels',color=(0,1,0))
+    s = vis.plot_lists(parallels,'parallels')
+    
+    for key, value in db_grid_to_mp.iteritems():
+        rays = DB.compute_rays_from_parallels(blade, db_grid_to_trajectories[key][0],
+                                              db_grid_to_trajectories[key][1])
+        s = vis.plot_lists(rays,'points', color=tuple(random.rand(3)))
+
+    while True:
+        db_grid_to_mp = DB.load_db_grid_to_mp()
+        db_grid_to_bases = DB.load_db_grid_to_bases()
+        db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+        
+        x = raw_input('Add: [(m1,m2),(p1,p2)]')
+        grid = ast.literal_eval(x)
+        key = max(db_grid_to_mp.keys())+1
+        trajectories_in_grid, border = DB.get_points_in_grid(
+            blade,[meridians[grid[0][0]],meridians[grid[0][1]]],
+            [parallels[grid[1][0]],parallels[grid[1][1]]])
+        rays = DB.compute_rays_from_parallels(blade, trajectories_in_grid,border)
+        vis.plot_lists(rays,'rays',color=(0,0,0))
+        x = raw_input('Save ? (y,n)')
+        if x == 'y':
+            bases = DB.get_bases_trajectories(trajectories_in_grid)
+            db_grid_to_mp[key] = grid
+            db_grid_to_bases[key] = bases 
+            db_grid_to_trajectories[key] = [trajectories_in_grid, border]
+            try:
+                DB.save_db_pickle(db_grid_to_mp, join(DB.path,'fixed_db','db_grid_to_mp.pkl'))
+            except IOError: None
+            try:
+                DB.save_db_pickle(db_grid_to_bases, join(DB.path,'fixed_db','db_grid_to_bases.pkl'))
+            except IOError: None
+            try:
+                DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
+            except IOError: None
+
     return
    
 if __name__ == '__main__':
