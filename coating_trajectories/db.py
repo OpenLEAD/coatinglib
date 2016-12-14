@@ -161,9 +161,6 @@ class DB:
         """
         Load bases_to_num database bases:num. Bases are tuples railplace and
         the num maps the bases (counter to reduce database complexity).
-
-        keyword arguments:
-        path -- (optional) The path of the db, if it exists.
         """
 
         if not exists(join(self.path,'fixed_db')):
@@ -180,6 +177,22 @@ class DB:
         """
 
         path = join(self.path,'fixed_db','db_visited_bases.pkl')
+        return self.load_db_pickle(path)
+
+    def load_grid_meridian(self):
+        """
+        Load grid_meridians. The meridians used to make the grid.
+        """
+
+        path = join(self.path, 'fixed_db', 'meridians.pkl')
+        return self.load_db_pickle(path)
+
+    def load_grid_parallel(self):
+        """
+        Load grid_parallel. The parallels used to make the grid.
+        """
+
+        path = join(self.path, 'fixed_db', 'parallels.pkl')
         return self.load_db_pickle(path)
 
     def get_sorted_bases(self):
@@ -421,10 +434,12 @@ class DB:
             parallels.append(blade.trajectories[i])
         return meridians, parallels
 
-    def create_db_grid(self, blade, meridians, parallels):
+    def create_db_grid(self, blade):
         db_grid_to_mp = dict()
         db_grid_to_bases = dict()
         db_grid_to_trajectories = dict()
+        meridians = self.load_grid_meridian()
+        parallels = self.load_grid_parallel()
 
         counter = 0
         for i in range(0,len(meridians)):
@@ -453,7 +468,7 @@ class DB:
             self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
         except IOError: None
        
-        return db_grid_to_mp, db_grid_to_bases, db_grid_to_trajectories
+        return 
                            
 
     def get_points_in_grid(self, blade, meridian, parallel):
