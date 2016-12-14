@@ -640,3 +640,13 @@ class DB:
         for key, value in db.iteritems():
             db[key] = set()
         return db
+
+    def clear_db_visited_bases(self):
+        """
+        Clear the db_visited_bases.
+        """
+
+        db = self.load_db_visited_bases()
+        for key, value in db.iteritems():
+            db[key] = False
+        return db
