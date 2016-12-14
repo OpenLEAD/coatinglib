@@ -258,11 +258,32 @@ def grid_add():
                 DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
             except IOError: None
 
+def grid_validation(grid_num):
+    turb.robot.GetLink('Flame').Enable(False)
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+    bases = DB.load_db_grid_to_bases()[grid_num]
+    parallel, border = DB.load_db_grid_to_trajectories()[grid_num]
+    rays = DB.compute_rays_from_parallels(blade, parallel, border)
+    feasible_bases = DB.bases_validation(rays, bases, turb, blade)
+    return feasible_bases
+
+def plot_grid_no_base():
+    DB = db.DB(directory)
+    blade = load_blade(blade_folder)
+    db_grid_to_bases = DB.load_db_grid_to_bases()
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+    db_grid_to_mp = DB.load_db_grid_to_mp()
+    for key, value in db_grid_to_bases.iteritems():
+        if len(value)==0:
+            print 'grid: ', db_grid_to_mp[key]
+            rays = DB.compute_rays_from_parallels(blade, db_grid_to_trajectories[key][0], db_grid_to_trajectories[key][1])
+            s = vis.plot_lists(rays,'grid_no_base',(1,0,0))
     return
    
 if __name__ == '__main__':
 
-    directory = 'new_db'
+    directory = 'new_db_backup'
     blade_folder = "jiraublade_hd_filtered"
     blade_folder_full = "jiraublade_hd"
     try:
@@ -284,14 +305,18 @@ if __name__ == '__main__':
     #plot_gradient()
 
     #meridians, parallels = make_grid()
-    #meridians, parallels = load_meridians(), load_parallels()
     #meridians = blade_borders(meridians)
     #save_meridians(meridians)
     #save_parallels(parallels)
     #vis.plot_lists(meridians,'meridians')
     #vis.plot_lists(parallels,'parallels')
 
-    db_grid_to_mp, db_grid_to_bases, db_grid_to_trajectories = create_db_grid()
+    #create_db_grid()
+    #grid_pick()
+    grid_add()
+    #feasible_bases = grid_validation(1)
+
+    #plot_grid_no_base()
 
 
     
