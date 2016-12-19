@@ -629,6 +629,47 @@ class DB:
             continue
         return feasible_bases
 
+    def remove_point(self, point):
+        """
+        Remove given point from db, db_points_to_num and
+        db_grid_to_trajectories.
+        
+        Keyword arguments:
+        point (or ray) -- point to be removed
+        """
+        
+        key_point = tuple(point[0:3]) 
+        db_points_to_num = self.load_db_points_to_num()
+        try:
+            key_num = db_points_to_num[key_point]
+        except KeyError:
+            return False
+
+        db_points_to_num.pop(key_point,None)
+        try:
+            self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_points_to_num.pkl'))
+        except IOError: None
+
+        db = self.load_db()
+        db.pop(key_num,None)
+        try:
+            self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db.pkl'))
+        except IOError: None
+
+        try:
+            db_grid_to_trajectories = self.load_db_grid_to_trajectories()
+        except IOError:
+            return True
+        for key, value in db_grid_to_trajectories.iteritems():
+            trajectories, border = value
+            for trajectory in trajectories:
+                if key_num in trajectory:
+                    trajectory.remove(key_num)
+        try:
+            self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
+        except IOError: None
+        return True
+                
     def clear_db(self):
         """
         Clear the db.
