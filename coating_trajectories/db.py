@@ -400,6 +400,16 @@ class DB:
         return meridians, parallels
 
     def create_db_grid(self, blade):
+        """
+        Autonomously create the db_grid after the make_grid process.
+        The method will get adjacent meridians and parallels, building
+        the grids. Some of the grids may not make sense, thus the user
+        should analyse, add and remove grids.
+        
+        keyword arguments:
+        blade -- blade object.
+        """
+        
         db_grid_to_mp = dict()
         db_grid_to_bases = dict()
         db_grid_to_trajectories = dict()
@@ -433,7 +443,8 @@ class DB:
             self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
         except IOError: None
        
-        return 
+        return
+
                            
 
     def get_points_in_grid(self, blade, meridian, parallel):

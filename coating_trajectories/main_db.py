@@ -21,17 +21,29 @@ from copy import deepcopy
 import ast
 
 def merge():
+    """
+    Function to call merge method in db.py.
+    It will merge the db files in 'not_merged' folder.
+    """
     DB = db.DB(directory)
     DB.merge_db_directory(join(directory,'not_merged'))
     return
 
 def plot_gradient():
+    """
+    Function to call plot_points_gradient in db.py.
+    """
     DB = db.DB(directory)
     DB.plot_points_gradient(vis)
     DB.plot_bases_db(vis, turb)
     return
 
 def generate_db():
+    """
+    Function to generate the db. It can be called multiple times
+    by different process.
+    """
+    
     turb.robot.GetLink('Flame').Enable(False)
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
@@ -85,8 +97,12 @@ def generate_db():
         DB.save_db_pickle(database, join(path,name+'.pkl'))
     return
 
-def generate_robot_positions():
-    rp = rail_place.rand_rail(turb.config, 1000)
+def generate_robot_positions(number_of_positions=1000):
+    """
+    Function to generate random positions for the base of the robot.
+    The positions will be saved and a db_visited_bases will be saved (False to everything).
+    """
+    rp = rail_place.rand_rail(turb.config, number_of_positions)
     keys = [ tuple(p.getPSAlpha()) for p in rp]
     
     psalpha_dict = dict(zip(keys, range(0,len(keys))))
@@ -107,6 +123,10 @@ def generate_robot_positions():
     return       
 
 def create_db_with_blade():
+    """
+    Funciton uses the blade points to create an empty db.
+    """
+    
     blade = load_blade(blade_folder)
     DB = db.DB(directory, blade)
     del blade
@@ -123,12 +143,19 @@ def save_parallels(parallels):
     return
 
 def load_blade(folder):
+    """
+    Function to load blade model given folder.
+    """
     xml_trajectories_path = join(folder,"trajectory/trajectory.xml")
     blade = blade_modeling.BladeModeling(turb, turb.blades[0])
     blade.load_trajectory(xml_trajectories_path)
     return blade
    
 def make_grid():
+    """
+    See make_grid method in db.py.
+    """
+    
     DB = db.DB(directory)
     blade = load_blade(blade_folder_full)
     return DB.make_grid(blade)
@@ -142,6 +169,11 @@ def compute_bases_to_coat_points(trajectories_in_grid):
     return bases
 
 def blade_borders(meridians):
+    """
+    After the grid creation,
+    Find borders of the jiraublade and add it to meridians.
+    """
+    
     blade = load_blade(blade_folder_full)
     N = len(blade.trajectories)
     neg_border, pos_border = blade.find_borders(17, N-37)
@@ -162,12 +194,22 @@ def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
     return DB.get_points_in_grid(blade, [meridian1, meridian2], [parallel1, parallel2])
 
 def create_db_grid():
+    """
+    After the grid creation, borders and analysis if it makes sense,
+    a db_grid must be created. See create_db_grid in db.py.
+    """
+    
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
     DB.create_db_grid(blade)
     return
 
 def grid_pick():
+    """
+    After the db_grid creation, some grids may not make sense.
+    Iteractive remove those grids with this function.
+    """
+    
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
     db_grid_to_mp = DB.load_db_grid_to_mp()
@@ -210,6 +252,10 @@ def grid_pick():
     return
 
 def grid_add():
+    """
+    After db_grid creation, some grids may be added.
+    """
+    
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
     
@@ -241,7 +287,7 @@ def grid_add():
             blade,[meridians[grid[0][0]],meridians[grid[0][1]]],
             [parallels[grid[1][0]],parallels[grid[1][1]]])
         rays = DB.compute_rays_from_parallels(blade, trajectories_in_grid,border)
-        vis.plot_lists(rays,'rays',color=(0,0,0))
+        vis.plot_lists(rays,'rays')
         x = raw_input('Save ? (y,n)')
         if x == 'y':
             bases = DB.get_bases_trajectories(trajectories_in_grid)
@@ -259,6 +305,11 @@ def grid_add():
             except IOError: None
 
 def grid_validation(grid_num):
+    """
+    The base computation does not include the borders, thus a validation
+    should be done.
+    """
+    
     turb.robot.GetLink('Flame').Enable(False)
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
