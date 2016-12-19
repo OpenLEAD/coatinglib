@@ -1,7 +1,7 @@
 from path_filters import filter_trajectories, side_filter
 import planning
 from numpy import save, load, random, array, linspace, cross
-from numpy import sign, dot, linalg, sum
+from numpy import sign, dot, linalg, sum, zeros
 from os.path import basename, splitext, join, exists, isfile
 from os import makedirs, listdir
 import copy
@@ -9,6 +9,7 @@ import rail_place
 from colorsys import hls_to_rgb
 import cPickle
 import mathtools
+import errno
 
 
 class NoDBFound(Exception):    
@@ -310,68 +311,6 @@ class DB:
                     evaluated_points = upper+1
         return db
 
-    def plot_points_gradient(self, vis, scale = 1):
-        """
-        Method to plot points in a color gradient way regarding reachability by the bases.
-        Red -> point is not reachable by any base
-        Green -> point is well reachable.
-
-        keyword arguments:
-        vis -- visualizer object.
-        scale -- number_of_points/scale will be plotted.
-        """
-        
-        N = 0
-        db = self.load_db()
-        for key, value in db.iteritems():
-            N = max(N,len(value))
-
-        points_tuple = self.get_sorted_points()
-        
-        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
-        points_num = array(db.keys())[index]
-        bases_num = array(db.values())[index]
-
-        for i in range(0,len(points_num)):
-            vis.plot(points_tuple[points_num[i]], 'points_gradient',
-                     color = hls_to_rgb(len(bases_num[i])*1.0/(3*N),0.5,1))
-        return
-
-    def plot_points_db(self, vis, scale):
-        """
-        Method to plot db points.
-
-        keyword arguments:
-        vis -- visualizer object.
-        scale -- number_of_points/scale will be plotted.
-        """
-
-        db = self.load_db()
-        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
-        points_num = array(db.keys())[index]
-
-        points_tuple = self.get_sorted_points()
-        
-        for i in points_num:
-            vis.plot(points_tuple[i], 'points_db')
-        return
-
-    def plot_bases_db(self, vis, turbine):
-        """
-        Method to plot db bases.
-
-        keyword arguments:
-        vis -- visualizer object.
-        scale -- number_of_points/scale will be plotted.
-        """
-
-        db = self.load_db()
-        bases = self.get_bases(db)
-        for base in bases:
-            rp = rail_place.RailPlace(base)
-            vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
-        return
-
     def invert_db(self, db, parallels, regions):
     # Regions as list of [list of tuple (parallel_index, begin_index, end_index)]
         psa_db = list()
@@ -650,3 +589,74 @@ class DB:
         for key, value in db.iteritems():
             db[key] = False
         return db
+
+    def plot_points_gradient(self, vis, scale = 1):
+        """
+        Method to plot points in a color gradient way regarding reachability by the bases.
+        Red -> point is not reachable by any base
+        Green -> point is well reachable.
+
+        keyword arguments:
+        vis -- visualizer object.
+        scale -- number_of_points/scale will be plotted.
+        """
+        
+        N = 0
+        db = self.load_db()
+        for key, value in db.iteritems():
+            N = max(N,len(value))
+
+        points_tuple = self.get_sorted_points()
+        
+        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
+        points_num = array(db.keys())[index]
+        bases_num = array(db.values())[index]
+
+        for i in range(0,len(points_num)):
+            vis.plot(points_tuple[points_num[i]], 'points_gradient',
+                     color = hls_to_rgb(len(bases_num[i])*1.0/(3*N),0.5,1))
+        return
+
+    def plot_points_db(self, vis, scale=1):
+        """
+        Method to plot db points.
+
+        keyword arguments:
+        vis -- visualizer object.
+        scale -- number_of_points/scale will be plotted.
+        """
+
+        db = self.load_db()
+        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
+        points_num = array(db.keys())[index]
+
+        points_tuple = self.get_sorted_points()
+        
+        for i in points_num:
+            vis.plot(points_tuple[i], 'points_db')
+        return
+
+    def plot_bases_db(self, vis, turbine):
+        """
+        Method to plot db bases.
+
+        keyword arguments:
+        vis -- visualizer object.
+        scale -- number_of_points/scale will be plotted.
+        """
+
+        db = self.load_db()
+        db_bases = self.get_sorted_bases()
+        bases = self.get_bases(db)
+        for base in bases:
+            rp = rail_place.RailPlace(db_bases[base])
+            vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
+        return
+
+    def plot_grid(self, blade, grid_num, vis):
+        db_grid_to_trajectories = self.load_db_grid_to_trajectories()
+        trajectories, borders = db_grid_to_trajectories[grid_num]
+        rays = self.compute_rays_from_parallels(blade, trajectories, borders)
+        vis.plot_lists(rays, 'rays', color=(1,0,0))
+        return
+        
