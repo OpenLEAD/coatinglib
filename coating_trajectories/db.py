@@ -348,6 +348,32 @@ class DB:
                 except KeyError:
                     pass
         return array(bases_tuple)[list(set_of_feasible_bases_num)].tolist()
+
+    def get_best_bases_trajectories(self, trajectories):
+        """
+        Method returns the bases that can coat not all, but almost
+        all of points in side the grid. This is important to know
+        because some points should not be coated (as points on top of
+        the blade)
+
+        keyword arguments:
+        trajctories -- points_num (db format) to be coated
+        """
+
+        db = self.load_db()
+        bases_tuple = self.get_sorted_bases()
+        score = zeros(len(bases_tuple))
+        N = 0
+        
+        for trajectory in trajectories:
+            N+=len(trajectory)
+            for point in trajectory:
+                try:
+                    score[list(db[point])]-=1
+                except KeyError:
+                    pass
+        best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
+        return best_bases, -array(sorted(score))*1.0/N
         
     def make_grid(self, blade, number_of_meridians = 12, number_of_parallels = 6, init_parallel = 17 ):
         """
