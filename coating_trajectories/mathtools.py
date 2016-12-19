@@ -5,7 +5,7 @@ from numpy import cos as npcos
 from numpy import sin as npsin
 from math import cos, sin, pi, isnan, acos, atan2
 from abc import ABCMeta, abstractmethod
-from copy import copy
+from copy import copy, deepcopy
 from collections import deque
 from scipy.spatial import KDTree
 
@@ -209,6 +209,28 @@ def rotate_trajectories(turbine, trajectories, T=[]):
         
         trajectories[i] = Ra.tolist()
     return trajectories
+
+def rotate_points(trajectories, T=[]):
+    """
+    Rotate all points in trajectories and return the trajectories.
+
+    Keyword arguments:
+    T -- the homogeneous transform matrix 4x4.
+    """
+
+    rtrajectories = deepcopy(trajectories)
+    if len(T)==0:
+        return rtrajectories
+    
+    R = T[0:3,0:3]
+    for i in range(0,len(rtrajectories)):
+        traj = array(rtrajectories[i])
+        Ra = zeros(traj.shape)
+        
+        Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
+        
+        rtrajectories[i] = Ra.tolist()
+    return rtrajectories
         
     
 
