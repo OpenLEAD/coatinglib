@@ -122,7 +122,7 @@ class Turbine:
         secondary_extent = self.secondary.GetLinks()[0].GetGeometries()[0].GetBoxExtents()
         #Resizing 
         secondary_extent[2] = abs(rail_place.s)/2.0 + self.config.environment.secondary_safe_margin
-        self.env.RemoveKinBody(self.secondary)
+        self.env.Remove(self.secondary)
         self.secondary.InitFromBoxes(array([concatenate([zeros(3),secondary_extent])]),True)
         self.env.AddKinBody(self.secondary)
         #
