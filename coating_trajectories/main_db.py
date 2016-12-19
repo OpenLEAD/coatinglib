@@ -160,14 +160,6 @@ def make_grid():
     blade = load_blade(blade_folder_full)
     return DB.make_grid(blade)
 
-def compute_bases_to_coat_points(trajectories_in_grid):
-    DB = db.DB(directory)
-    bases = DB.get_bases_trajectories(trajectories_in_grid)
-    print len(bases)
-    for base in bases:
-        vis.plot(rail_place.RailPlace(base).getXYZ(turb.config), 'bases',(0,1,0))
-    return bases
-
 def blade_borders(meridians):
     """
     After the grid creation,
@@ -187,11 +179,6 @@ def blade_borders(meridians):
     meridians = meridians[0:5]+[neg_1]+[neg_2]+meridians[5:10]+\
                 [pos_1]+[pos_2]+meridians[10:]
     return meridians
-
-def get_points_in_grid(meridian1, meridian2, parallel1, parallel2):
-    blade = load_blade(blade_folder)
-    DB = db.DB(directory)
-    return DB.get_points_in_grid(blade, [meridian1, meridian2], [parallel1, parallel2])
 
 def create_db_grid():
     """
@@ -318,23 +305,10 @@ def grid_validation(grid_num):
     rays = DB.compute_rays_from_parallels(blade, parallel, border)
     feasible_bases = DB.bases_validation(rays, bases, turb, blade)
     return feasible_bases
-
-def plot_grid_no_base():
-    DB = db.DB(directory)
-    blade = load_blade(blade_folder)
-    db_grid_to_bases = DB.load_db_grid_to_bases()
-    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
-    db_grid_to_mp = DB.load_db_grid_to_mp()
-    for key, value in db_grid_to_bases.iteritems():
-        if len(value)==0:
-            print 'grid: ', db_grid_to_mp[key]
-            rays = DB.compute_rays_from_parallels(blade, db_grid_to_trajectories[key][0], db_grid_to_trajectories[key][1])
-            s = vis.plot_lists(rays,'grid_no_base',(1,0,0))
-    return
-   
+  
 if __name__ == '__main__':
 
-    directory = 'new_db_backup'
+    directory = 'db'
     blade_folder = "jiraublade_hd_filtered"
     blade_folder_full = "jiraublade_hd"
     try:
@@ -364,10 +338,9 @@ if __name__ == '__main__':
 
     #create_db_grid()
     #grid_pick()
-    grid_add()
+    #grid_add()
     #feasible_bases = grid_validation(1)
 
-    #plot_grid_no_base()
 
 
     
