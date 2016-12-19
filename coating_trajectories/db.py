@@ -445,6 +445,28 @@ class DB:
        
         return
 
+    def create_db_grid_to_bases(self, db_grid_to_trajectories=None):
+        """
+        Compute bases to coat the grids
+        
+        keyword arguments:
+        blade -- blade object.
+        T -- homogenous transform matrix to rotate the blade.
+        """
+
+        if db_grid_to_trajectories is None:
+            db_grid_to_trajectories = self.load_db_grid_to_trajectories()
+        db_grid_to_bases = dict()
+
+        for key, value in db_grid_to_trajectories.iteritems():
+            trajectories, borders = value
+            bases = self.get_bases_trajectories(trajectories)
+            db_grid_to_bases[key] = bases 
+
+        try:
+            self.save_db_pickle(db_grid_to_bases, join(self.path,'fixed_db','db_grid_to_bases.pkl'))
+        except IOError: None
+        return
                            
 
     def get_points_in_grid(self, blade, meridian, parallel):
@@ -493,7 +515,7 @@ class DB:
             p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel2, blade)
             index_left = self._get_first_left_meridian_point_index(parallel, sorted_parallel1, p1)
             index_right = self._get_first_right_meridian_point_index(parallel, sorted_parallel2, p2)
-
+            
             if abs(index_right - index_left)%(len(parallel)-1) == 1:
                 pass
             elif index_left <= index_right:
