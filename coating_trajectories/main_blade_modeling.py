@@ -7,17 +7,15 @@ from turbine_config import TurbineConfig, ConfigFileError
 from visualizer import Visualizer
 from os.path import join, exists
 from os import makedirs, environ
+from openravepy import matrixFromAxisAngle
+from math import pi
 
 def load_samples():
-    blade.load_samples(name+'/samples/samples.xml')
+    blade.load_samples(join(name,'samples','samples.xml'))
     return
 
 def save_samples():
     blade.save_samples(join(name,'samples'), name)
-    return
-
-def plot_samples():
-    vis.plot(blade.points, 'sampling', ((1,0,0)))
     return
 
 def sampling_blade():
@@ -40,24 +38,21 @@ def sampling_blade():
     # --------------------------
     # Filtering
     # --------------------------
-    # Moving through normal
-    #blade.points[:,0:3] = blade.points[:,0:3]+0.2*blade.points[:,3:6]
-    #blade.points[:,0:3] = 2*blade.points[:,0:3]
-
     blade.points = mathtools.filter_by_distance(blade.points, 0.02)
     lip = mathtools.filter_by_distance(lip, 0.01)
-
-    #blade.points[:,0:3] = 0.5*blade.points[:,0:3]
-    #blade.points[:,0:3] = blade.points[:,0:3]-0.2*blade.points[:,3:6]
-
     blade.points = concatenate((blade.points, lip))
     return 
+
+def plot_samples():
+    load_samples()
+    vis.plot(blade.points, 'sampling', ((1,0,0)))
+    return
 
 # ------------------------------------------------------------------------------------------------
 # RBF Model
 # ------------------------------------------------------------------------------------------------
 def load_model():
-    blade.load_model(name+'/model/model.xml')
+    blade.load_model(join(name,'model','model.xml'))
     return
 
 def save_model():
@@ -78,11 +73,12 @@ def load_trajectories():
 
 
 def save_trajectories():
-    blade.save_trajectory(join(name,'model/model.xml'),
+    blade.save_trajectory(join(name,'model','model.xml'),
                           join(name,'trajectory'), name)
     return
 
 def plot_trajectories():
+    load_trajectories()
     for trajectory in blade.trajectories:
         vis.plot(trajectory, 'trajectories', ((0,0,1)))
     return
@@ -98,10 +94,11 @@ def generate_trajectories():
         raise
 
 def filter_trajectories():
-    return blade.filter_trajectory_opt()
+    load_trajectories()
+    blade.trajectories = blade.filter_trajectory_opt()
+    return 
 
-def save_filtered_trajectories():
-    blade.trajectories = trajectories
+def save_filtered_trajectories(trajectories):
     blade.save_trajectory(join(name,'model','model.xml'),
 			  join(name+'_filtered','trajectory'),
 			  name)
@@ -111,9 +108,18 @@ def load_filtered_trajectories():
     blade.load_trajectory(join(name+'_filtered','trajectory','trajectory.xml'))
     return
 
+def rotate_blade(T, directory):
+    load_trajectories()
+    blade.rotate_models(T)
+    blade.trajectories = mathtools.rotate_trajectories(turb, blade.trajectories, T)
+    blade.save_model(join(directory,'model'), directory)
+    blade.save_trajectory(join(directory,'model','model.xml'),
+                          join(directory,'trajectory'), directory)
+    return
+    
 if __name__ == "__main__":
     
-    name = 'jiraublade_hd_filtered'
+    name = 'jiraublade_hd'
     turbconf = TurbineConfig.load("turbine_unittest.cfg", 'test/')
     environ['OPENRAVE_DATA'] = '/home/renan/git/planning-coating_trajectories/coating_trajectories/test'
     turb = Turbine(turbconf)
@@ -125,22 +131,20 @@ if __name__ == "__main__":
 
     #sampling_blade()
     #save_samples()
-    #load_samples()
     
     #make_model()
     #save_model()
-    #load_model()
 
     #generate_trajectories()
     #save_trajectories()
-    load_trajectories()
 
-    #trajectories = filter_trajectories()
+    #filter_trajectories()
     #save_filtered_trajectories()
-    #load_filtered_trajectories()
+
+    rotate_blade(matrixFromAxisAngle([-pi/4, 0, 0]), 'jiraublade_hd_-45')
 
     # Visualizer
-    vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
     #plot_samples()
-    plot_trajectories()
+    #plot_trajectories()
     
