@@ -500,7 +500,7 @@ class DB:
             try:
                 return db_points_to_num[point]
             except KeyError:
-		return None
+                return None
 
         borders = []
         for i in range(init,end):
@@ -576,6 +576,8 @@ class DB:
         """
         This method gets a list of point numbers (parallel db format) and
         create a list of rays (point-normal) with possible border points.
+        It removes empty borders and empty parallels, but if both are empty,
+        it will return an empty list.
 
         Keyword arguments:
         blade -- a blade_modeling object.
@@ -593,16 +595,28 @@ class DB:
             
         if borders is None:
             for parallel in parallels:
+                if len(parallel)==0:
+                    rays+=[[]]
+                    continue
                 model = blade.select_model(ntp[parallel[0]])
                 rays += [ map( lambda x: get_ray(model,ntp[x]), parallel ) ]
+
         else:
             for i in range(len(parallels)):
-                try:
+                traj = []
+                if len(borders[i][0])>0:
+                    model = blade.select_model(borders[i][0])
+                    traj.append(get_ray(model,borders[i][0]))
+
+                if len(parallels[i])>0:
                     model = blade.select_model(ntp[parallels[i][0]])
-                    rays += [[get_ray(model,borders[i][0])] + map( lambda x: get_ray(model,ntp[x]), parallels[i] )
-                         + [get_ray(model,borders[i][1])]]
-                except IndexError:
-                    rays += [[]]
+                    traj += map( lambda x: get_ray(model,ntp[x]), parallels[i])
+                    
+                if len(borders[i][1])>0:
+                    model = blade.select_model(borders[i][1])
+                    traj.append(get_ray(model,borders[i][1]))
+                    
+                rays.append(traj)
         return rays
                 
     def bases_validation(self, parallels, bases, turbine, blade):
