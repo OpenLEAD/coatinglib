@@ -5,11 +5,13 @@ import os
 from turbine import Turbine
 from turbine_config import TurbineConfig, ConfigFileError
 from visualizer import Visualizer
-from numpy import ones, array, dot
+from numpy import ones, array, dot, linspace
 from openravepy import matrixFromAxisAngle
 import rail_place
 import mathtools
 import blade_modeling
+import planning
+from copy import deepcopy
 
 def base_for_grid_coating(grid_num):
     
@@ -21,13 +23,7 @@ def base_for_grid_coating(grid_num):
         base, score = value.get_best_bases_trajectories(trajectories)
         bases.append(base)
         scores.append(score)
-    return bases, scores
 
-def plot_base_for_grid_coating(grid_num, bases, scores):
-
-    db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
-    trajectories, borders = db_grid_to_trajectories[grid_num]
-    
     angles_1 = []
     bases_1 = []
     scores_1 = []
@@ -36,11 +32,14 @@ def plot_base_for_grid_coating(grid_num, bases, scores):
         bases_1 += list(bases[i])
         scores_1 += list(scores[i])
     sorted_bases = sorted(zip(-array(scores_1),bases_1,angles_1))
+    
+    return sorted_bases, trajectories, borders
+
+def plot_base_for_grid_coating(sorted_bases, trajectories, borders):
 
     counter = 0
     while counter<len(sorted_bases):
         score, base, angle = sorted_bases[counter]
-        print 'score: ', -score, '\t angle: ', angle
         
         blade = dict_angle_blade[angle]
         rborders = mathtools.rotate_points(borders, matrixFromAxisAngle([angle,0,0]))
@@ -53,14 +52,16 @@ def plot_base_for_grid_coating(grid_num, bases, scores):
         rp = rail_place.RailPlace(base)
         turb.place_rail(rp)
         turb.place_robot(rp)
+        print 'score: ', -score, '\t rotor angle: ', angle, '\t robot position:', rp.getXYZ(cfg)
 
         x = raw_input('next ? (y,n)')
-        if x=='n':
-            return score, base, angle
 
-        vis.remove_points('rays')
         for blade in turb.blades:
             blade.SetTransform(matrixFromAxisAngle([-angle,0,0]))
+
+        if x=='n':
+            return score, base, angle
+        vis.remove_points('rays')
 
         counter+=1
         
