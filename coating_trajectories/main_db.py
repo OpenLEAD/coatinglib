@@ -292,13 +292,45 @@ def grid_add():
                 DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
             except IOError: None
 
-def grid_validation(grid_num):
-    """
-    The base computation does not include the borders, thus a validation
-    should be done.
-    """
+def compute_points_to_remove(grid_num):
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+    trajectories, borders = db_grid_to_trajectories[grid_num]
+    rays = DB.compute_rays_from_parallels(blade, trajectories, borders)
+    rays_traj = DB.compute_rays_from_parallels(blade, trajectories)
+
+    def get_ray(point):
+        model = blade.select_model(point)
+        df = model.df(point)
+        df = df/linalg.norm(df)
+        return array(list(point)+list(df))
     
-    turb.robot.GetLink('Flame').Enable(False)
+    points_to_remove = []
+    border_to_remove = []
+    for i in range(0,len(rays_traj)):
+        
+        if len(borders[i][0])>=0:
+            if dot(get_ray(borders[i][0])[3:6],[0,0,1])>=0.45:
+                border_to_remove.append(borders[i][0])
+                borders[i][0] = []
+
+        if len(borders[i][-1])>=0:
+            if dot(get_ray(borders[i][-1])[3:6],[0,0,1])>=0.45:
+                border_to_remove.append(borders[i][-1])
+                borders[i][-1] = []
+
+        if len(rays_traj[i])==0:
+            continue
+        for ray in rays_traj[i]:
+            if dot(ray[3:6],[0,0,1])>=0.45:
+                points_to_remove.append(tuple(ray[0:3]))
+                
+    vis.plot_lists(rays, color=(1,0,0))
+    vis.plot(border_to_remove)
+    vis.plot(points_to_remove)
+    return borders, points_to_remove
+
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
     bases = DB.load_db_grid_to_bases()[grid_num]
