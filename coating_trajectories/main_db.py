@@ -331,14 +331,19 @@ def compute_points_to_remove(grid_num):
     vis.plot(points_to_remove)
     return borders, points_to_remove
 
+def remove_points_from_db(grid_num, new_border, points_to_remove):
     blade = load_blade(blade_folder)
     DB = db.DB(directory)
-    bases = DB.load_db_grid_to_bases()[grid_num]
-    parallel, border = DB.load_db_grid_to_trajectories()[grid_num]
-    rays = DB.compute_rays_from_parallels(blade, parallel, border)
-    feasible_bases = DB.bases_validation(rays, bases, turb, blade)
-    return feasible_bases
-  
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+    trajectories, _ = db_grid_to_trajectories[grid_num]
+    db_grid_to_trajectories[grid_num] = [trajectories, new_border]
+    try:
+        DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
+    except IOError: None
+    DB.remove_point(points_to_remove)
+    return 
+    	
+
 if __name__ == '__main__':
 
     directory = 'db'
@@ -373,6 +378,9 @@ if __name__ == '__main__':
     #grid_pick()
     #grid_add()
     #feasible_bases = grid_validation(1)
+
+    borders, points_to_remove = compute_points_to_remove(24)
+    remove_points_from_db(24, borders, points_to_remove)
 
 
 
