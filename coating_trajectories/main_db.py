@@ -205,6 +205,7 @@ def grid_pick():
     db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
     meridians = DB.load_grid_meridian()
     parallels = DB.load_grid_parallel()
+    
     for key, value in db_grid_to_mp.iteritems():
         rays = DB.compute_rays_from_parallels(blade, db_grid_to_trajectories[key][0],
                                               db_grid_to_trajectories[key][1])
@@ -224,17 +225,17 @@ def grid_pick():
         vis.remove_points('parallel')
         vis.remove_points('points')
 
-    try:
-        DB.save_db_pickle(db_grid_to_mp_copy, join(DB.path,'fixed_db','db_grid_to_mp.pkl'))
-    except IOError: None
+        try:
+            DB.save_db_pickle(db_grid_to_mp_copy, join(DB.path,'fixed_db','db_grid_to_mp.pkl'))
+        except IOError: None
 
-    try:
-        DB.save_db_pickle(db_grid_to_bases, join(DB.path,'fixed_db','db_grid_to_bases.pkl'))
-    except IOError: None
+        try:
+            DB.save_db_pickle(db_grid_to_bases, join(DB.path,'fixed_db','db_grid_to_bases.pkl'))
+        except IOError: None
 
-    try:
-        DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
-    except IOError: None
+        try:
+            DB.save_db_pickle(db_grid_to_trajectories, join(DB.path,'fixed_db','db_grid_to_trajectories.pkl'))
+        except IOError: None
 
     return
 
