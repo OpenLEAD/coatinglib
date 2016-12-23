@@ -188,26 +188,24 @@ def Raxis(a,theta):
     R = eye(3)*cos(theta) + hat(a)*sin(theta) + (1-cos(theta))*outer(a, a)
     return R
 
-def rotate_trajectories(turbine, trajectories, T=[]):
+def rotate_trajectories(trajectories, T):
     """
     Rotate all points in trajectories and return the trajectories.
 
     Keyword arguments:
     T -- the homogeneous transform matrix 4x4.
     """
-    
-    if len(T)==0:
-        T = turbine.blades[0].GetTransform()
 
     R = T[0:3,0:3]
     for i in range(0,len(trajectories)):
-        traj = array(trajectories[i])
-        Ra = zeros(traj.shape)
-        
-        Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
-        Ra[:,3:6] = dot(traj[:,3:6], transpose(R))
-        
-        trajectories[i] = Ra.tolist()
+        if len(trajectories[i])>0:
+            traj = array(trajectories[i])
+            Ra = zeros(traj.shape)
+            
+            Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
+            Ra[:,3:6] = dot(traj[:,3:6], transpose(R))
+            
+            trajectories[i] = Ra.tolist()
     return trajectories
 
 def rotate_points(trajectories, T=[]):

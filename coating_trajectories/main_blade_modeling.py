@@ -111,7 +111,7 @@ def load_filtered_trajectories():
 def rotate_blade(T, directory):
     load_trajectories()
     blade.rotate_models(T)
-    blade.trajectories = mathtools.rotate_trajectories(turb, blade.trajectories, T)
+    blade.trajectories = mathtools.rotate_trajectories(blade.trajectories, T)
     blade.save_model(join(directory,'model'), directory)
     blade.save_trajectory(join(directory,'model','model.xml'),
                           join(directory,'trajectory'), directory)

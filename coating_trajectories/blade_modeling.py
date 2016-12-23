@@ -782,7 +782,7 @@ class BladeModeling:
 
     def rotate_models(self, T):
         for model in self.models:
-            model._points = array(mathtools.rotate_trajectories(self.turbine, [model._points], T)[0])
+            model._points = array(mathtools.rotate_trajectories([model._points], T)[0])
         return
 
     def find_borders(self, init_parallel, end_parallel):
