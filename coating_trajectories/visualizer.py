@@ -28,6 +28,9 @@ class Visualizer:
         if len(points.shape)==3:
             points = [item for sublist in points for item in sublist]
             points = array(points)[:,0:3]
+
+        if len(points)==0:
+            return
         
         if key in self.handles:
             temp = self.handles[key]
@@ -40,7 +43,8 @@ class Visualizer:
     def plot_lists(self, lists_of_points, key='point_'+str(random.uniform(1,10)), color=(0,0,0), pointsize = 5):
         for list_of_points in lists_of_points:
             if len(list_of_points)>0:
-                self.plot(list_of_points, key, color, pointsize)
+                for list_of_point in list_of_points:
+                    self.plot(list_of_points, key, color, pointsize)
         return key
 
     def plot_normal(self, points, key='normal_'+str(random.uniform(1,10)), color=(1,0,0), linewidth = 4):
