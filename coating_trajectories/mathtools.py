@@ -222,12 +222,19 @@ def rotate_points(trajectories, T=[]):
     
     R = T[0:3,0:3]
     for i in range(0,len(rtrajectories)):
-        traj = array(rtrajectories[i])
+        traj = [x for x in rtrajectories[i] if x]
+        traj = array(traj)
         Ra = zeros(traj.shape)
         
         Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
-        
-        rtrajectories[i] = Ra.tolist()
+
+        counter = 0
+        for j in range(len(rtrajectories[i])):
+            if rtrajectories[i][j]:
+                rtrajectories[i][j] = Ra[counter]
+                counter+=1
+            else:
+                continue
     return rtrajectories
         
     
