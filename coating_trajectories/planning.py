@@ -111,6 +111,42 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
             return joint_solutions
     return joint_solutions
 
+def compute_robot_joints_opt(turbine, trajectory, trajectory_index, iter_surface = None):
+    """
+    Iterates points of the trajectories, computing optimal robot's joints
+    (minimizing orientation error). 
+
+    Keyword arguments:
+    turbine -- turbine object
+    trajectory -- trajectory to coat
+    trajectory_index -- where to begin. Index of a feasible point in the trajectory.
+    joint_solutions -- initial joint_solutions
+    """
+
+    joint_solutions = []
+    robot = turbine.robot
+    iksol, _ = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
+    best_joint_solutions = []
+
+    for ik in iksol:
+        robot.SetDOFValues(ik)
+        joint_solutions = []
+        joint_solutions.append(ik)
+        for index in range(trajectory_index+1, len(trajectory)):
+            res = orientation_error_optimization(turbine, trajectory[index])
+            if res.success:
+                if trajectory_constraints(turbine, res.x, trajectory[index]):
+                    joint_solutions.append(res.x)
+                    robot.SetDOFValues(res.x)
+                else: break
+            else: break
+        else:
+            return joint_solutions
+        if len(joint_solutions)>len(best_joint_solutions):
+            best_joint_solutions = joint_solutions
+    return best_joint_solutions
+
+
 def compute_first_feasible_point(turbine, trajectory, iter_surface = None):
     """
     Method to compute the first feasible point in the trajectory: where to start.
