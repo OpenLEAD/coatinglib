@@ -105,9 +105,12 @@ def base_grid_validation(blade_angle, rays):
             organized_rays += rotated_rays[i]
         else:
             organized_rays += reversed(rotated_rays[i])
+    organized_rays = [x for x in organized_rays if x != []]
+    organized_rays = organized_rays[-1:-len(organized_rays):-1]
 
     turb.robot.GetLink('Flame').Enable(False)
-    joint_solutions = planning.compute_robot_joints(turb, organized_rays, 0,
+
+    joint_solutions = planning.compute_robot_joints_opt(turb, organized_rays, 0,
                                                     blade.trajectory_iter_surface)
     score = len(joint_solutions)*1.0/len(organized_rays)
     
@@ -121,9 +124,10 @@ def tolerance_test(sorted_base, trajectories, borders):
     rp = rail_place.RailPlace(base)
     turb.place_rail(rp)
     turb.place_robot(rp)
+    print 'expected score: ', -score
     
     for ang in linspace(angle-5*pi/180,angle+5*pi/180,11):
-        x = raw_input('ang: '+str(ang*180/pi))
+        print 'ang: '+ str(ang*180/pi)
         joint_solutions, score = base_grid_validation(ang, rays)
         print 'score: ', score, '\n'
     return
@@ -153,7 +157,7 @@ if __name__ == '__main__':
     vis = Visualizer(turb.env)
 
     # Grid input
-    grid_num = 0
+    grid_num = 80
     sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
     #plot_base_for_grid_coating(sorted_bases, trajectories, borders)
     tolerance_test(sorted_bases[0], trajectories, borders)
