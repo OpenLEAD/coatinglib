@@ -75,7 +75,7 @@ def sensibility(turbine, point_normal, w, alpha):
 def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = None):
     """
     Iterates points of the trajectories, computing optimal robot's joints
-    (minimizing orientation error).
+    (minimizing orientation error). For the first point, it uses ikfast.
 
     Keyword arguments:
     turbine -- turbine object
@@ -88,12 +88,18 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
     robot = turbine.robot
     
     # Compute inverse kinematics and find a solution
-    ans, joint_solution, _ = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
-    
-    if not ans:
-        return []
+    iksol, tolerance = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
+    if len(iksol)>0:
+        turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(
+            iksol, tolerance, turbine.robot))
+        res = orientation_error_optimization(turbine, point)
+        if not res.success:
+            return []
+        if(trajectory_constraints(turbine, res, point)):
+            joint_solutions.append(res.x)
+        else: return []
+    else: return []
 
-    joint_solutions.append(joint_solution)
     # Find solutions for next points
     robot.SetDOFValues(joint_solution)
     for index in range(trajectory_index+1, len(trajectory)):
@@ -117,11 +123,9 @@ def compute_first_feasible_point(turbine, trajectory, iter_surface = None):
     robot = turbine.robot
     with robot:
         for i in range(0,len(trajectory)):
-            ans, sol, tolerance = compute_feasible_point(turbine, trajectory[i], iter_surface)
-            if ans:
-                logging.info('Feasible point found: '+str(trajectory[i]))
-                return i, sol, tolerance
-        logging.info('Feasible point not found.')
+            sols, tolerances = compute_feasible_point(turbine, trajectory[i], iter_surface)
+            if len(sol)>0:
+               return i, sols, tolerances
         raise ValueError('No solution for given trajectory')
 
 def compute_feasible_point(turbine, point, iter_surface = None):
@@ -135,13 +139,13 @@ def compute_feasible_point(turbine, point, iter_surface = None):
 
     with turbine.robot:
         iksol, tolerance = ik_angle_tolerance_normal_plane(turbine, point, iter_surface)
-        if len(iksol)>0:
-            turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(
-                iksol, tolerance, turbine.robot))
-            res = orientation_error_optimization(turbine, point)
-            if(trajectory_constraints(turbine, res, point)):
-                return True, res.x, tolerance
-        return False, [], []
+        feasible_iksol = []
+        feasible_tolerance = []
+        for i in range(0,len(iksol)):
+            if(trajectory_constraints(turbine, iksol[i], point)):
+                feasible_iksol.append(iksol[i])
+                feasible_tolerance.append(tolerance[i])
+        return feasible_iksol, feasible_tolerance
 
 def orientation_error_optimization(turbine, point, tol=1e-3):
     """
@@ -478,7 +482,7 @@ def best_joint_solution_regarding_manipulability(joint_solutions, tolerance, rob
             raise IndexError('There is no solution for the given trajectory.')
     return temp_q
 
-def trajectory_constraints(turbine, res, point):
+def trajectory_constraints(turbine, iksol, point):
     """
     Check robot self and environment collision, optimization result,
     and angle tolerance.
@@ -486,13 +490,9 @@ def trajectory_constraints(turbine, res, point):
 
     robot = turbine.robot
 
-    # Verifying optimization solution
-    if not res.success:
-        return False
-
     # Verifying environment and self collision
     with robot:
-        robot.SetDOFValues(res.x)
+        robot.SetDOFValues(iksol)
         if turbine.check_robot_collision():
             return False
         if robot.CheckSelfCollision():
