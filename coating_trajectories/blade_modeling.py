@@ -286,11 +286,6 @@ class BladeModeling:
         to generate an uniformly sampling on the object (filtering data by distance).
 
         This is a data-intensive computing and might freeze your computer.
-
-        Keyword arguments:
-        delta -- uniform distance between the cube's samples.
-        min_distance_between_points -- uniform distance between the object's samples.
-        min_distance_between_points >= delta
         """
 
         delta = self.samples_delta
@@ -313,8 +308,8 @@ class BladeModeling:
         sides = array((
                      (e[0],0,0,-1,0,0,0,e[1],0,0,0,e[2]), #x
                      (-e[0],0,0,1,0,0,0,e[1],0,0,0,e[2]), #-x
-                     (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0), #z
                      (0,0,-e[2],0,0,1,e[0],0,0,0,e[1],0), #-z
+                     (0,0,e[2],0,0,-1,e[0],0,0,0,e[1],0), #z
                      (0,e[1],0,0,-1,0,e[0],0,0,0,0,e[2]), #y
                      (0,-e[1],0,0,1,0,e[0],0,0,0,0,e[2])  #-y
                      ))
@@ -324,10 +319,11 @@ class BladeModeling:
             ex = sqrt(sum(side[6:9]**2))
             ey = sqrt(sum(side[9:12]**2))
             XX,YY = meshgrid(r_[arange(-ex,-0.25*delta,delta),0,arange(delta,ex,delta)],
-                                  r_[arange(-ey,-0.25*delta,delta),0,arange(delta,ey,delta)])
+                             r_[arange(-ey,-0.25*delta,delta),0,arange(delta,ey,delta)])
             localpos = outer(XX.flatten(),side[6:9]/ex)+outer(YY.flatten(),side[9:12]/ey)
             N = localpos.shape[0]
-            rays = c_[tile(p+side[0:3],(N,1))+localpos,maxlen*tile(side[3:6],(N,1))]
+            rays = c_[tile(p+side[0:3],(N,1))+localpos,
+                      maxlen*tile(side[3:6],(N,1))]
             collision, info = self.turbine.env.CheckCollisionRays(rays, self._blade)
             # make sure all normals are the correct sign: pointing outward from the object)
             newinfo = info[collision,:]
@@ -338,8 +334,7 @@ class BladeModeling:
         self.points = mathtools.filter_by_distance(self.points, min_distance_between_points)
         self.samples_delta = delta
         self.min_distance_between_points = min_distance_between_points
-        return             
-   
+        return 
         
     def make_model(self, model, model_iter_surface = None):
         """
@@ -362,7 +357,7 @@ class BladeModeling:
         models_index = []
         models = []
         
-        if len(self.points)>7000:
+        if len(self.points)>7300:
             if model_iter_surface is None:
                 raise ValueError("The number of points is "+str(len(self.points))+""", which is
                                 bigger than 9000. It is not safe to make an unique model this big.
