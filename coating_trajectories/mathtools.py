@@ -87,7 +87,112 @@ def fast_poisson_disk(r, limits, k = 30, points = None):
         if not placed:
             del activelist[activelist.index(i)]
     return x
+
+def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_bases = 'db_visited_bases.pkl', distance = None, density = None, extra_points = None):
+    """
+    cfg = TurbineConfig with new intended limits (should be a higher limit)
+    db_bases_to_num, db_visited_bases = name/location of the data bases to be updated
+    
+    distance, density, extra_points = Information about sampled data points in order of priority
+                                    (if one info is provided the others are ignored)
+
+    distance = expected distance between base points
+    density  = expected density of base point (points per area squared)
+    extra_points = number of desired extra points
+    If None is given, it tries to estimate the actual distance between points and use it.
+    
+    """
+    fl = None
+    with open(db_bases_to_num, 'rb') as f:
+            fl = cPickle.load(f)
             
+    points = [rail_place.RailPlace(base).getXYZ()[0:2] for base in fl.keys()]
+    limits = array([[cfg.environment.x_min, cfg.environment.x_max],
+                   [cfg.environment.y_min, cfg.environment.y_max]])
+    
+    if distance is None:
+        if density is None:
+            if extra_points is None:
+                from scipy.spatial import distance.pdist
+                dists = distance.pdist(points)
+                def sqr2cond(i, j, n): # i != j - Square to Condensated Matrix
+                    if i < j:
+                        i, j = j, i
+                    return n*j - j*(j+1)/2 + i - 1 - j
+
+                dist_cum = 0
+                N = len(points)
+                
+                for n,item in enumerate(k):
+                    inx = map(lambda x: sqr2cond(x,n,N), range(n)+range(n+1,N))
+                    dist_cum += min(dists[inx])
+
+                density = (N*1./dist_cum)**2/sqrt(2)
+
+            else:
+                delta_x, delta_y = dot(limits, [-1,1])
+                density = (len(points)+extra_points)*1./(delta_x*delta_y)
+                
+        distance = sqrt(1./(density*sqrt(2)))
+
+    
+    full_points = fast_poisson_disk(distance,limits,30,points)
+
+    alpha_min = cfg.environment.rail_angle_mean - cfg.environment.rail_angle_limit
+    alpha_max = cfg.environment.rail_angle_mean + cfg.environment.rail_angle_limit
+
+
+    x,y = transpose(expoints)
+    y_max = (cfg.environment.x_max - x)/tan(alpha_min)
+    y_min = (cfg.environment.x_min - x)/tan(alpha_min)
+    y_max = minimum(y_max,cfg.environment.y_max)
+    y_min = maximum(y_min,cfg.environment.y_min)
+    x = x[(y<y_max) & (y>y_min)]
+    y = y[(y<y_max) & (y>y_min)]
+
+
+    spoints = set([tuple(points) for points in points])
+    sfullpoints = set([tuple(xpoints) for xpoints in zip(x,y)])
+
+
+    diffpoints = sfullpoints - spoints
+    if len(diffpoints)==0:
+        raise ValueError('config file generate no new points.')
+    rdiffpoints = array([d for d in diffpoints])
+
+    xdif = transpose(rdiffpoints)[0]
+    ydif = transpose(rdiffpoints)[1]
+
+    random.seed(int(time()+int((time()-int(time()))*10000)))
+    alpha = random.rand(len(xdif))
+
+    alpha = rail_place._rand_angle(cfg, xdif, ydif, alpha)
+
+    S = ydif/cos(alpha)
+    P = xdif + S*sin(alpha)
+
+    raildif = [rail_place.RailPlace((p,s,a)) for p,s,a in zip(P,S,alpha)]
+
+    for rail in raildif:
+	fl[tuple(rail.getPSAlpha())] = len(fl)
+
+    with open(db_bases_to_num, 'wb') as f:
+	cPickle.dump(fl, f, cPickle.HIGHEST_PROTOCOL)
+
+	
+    with open(db_visited_bases, 'rb') as f:
+            visi = cPickle.load(f)
+
+           
+    for rail in raildif:
+	visi[fl[tuple(rail.getPSAlpha())]] = False
+
+	
+    with open(db_visited_bases, 'wb') as f:
+	cPickle.dump(visi, f, cPickle.HIGHEST_PROTOCOL)
+
+
+
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
