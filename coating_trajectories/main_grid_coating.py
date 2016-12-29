@@ -12,6 +12,7 @@ import mathtools
 import blade_modeling
 import planning
 from copy import deepcopy
+import csv
 
 def base_for_grid_coating(grid_num):
     
@@ -106,7 +107,6 @@ def base_grid_validation(blade_angle, rays):
         else:
             organized_rays += reversed(rotated_rays[i])
     organized_rays = [x for x in organized_rays if x != []]
-    organized_rays = organized_rays[-1:-len(organized_rays):-1]
 
     turb.robot.GetLink('Flame').Enable(False)
 
@@ -116,30 +116,46 @@ def base_grid_validation(blade_angle, rays):
     
     return joint_solutions, score
 
-def tolerance_test(sorted_base, trajectories, borders):
-    score, base, angle = sorted_base
+def tolerance_test(sorted_bases, trajectories, borders, score_threshold=0.9, init=0):
+    
     blade = dict_angle_blade[0]
     rays = dict_angle_db[0].compute_rays_from_parallels(blade, trajectories, borders)
 
-    rp = rail_place.RailPlace(base)
-    turb.place_rail(rp)
-    turb.place_robot(rp)
-    print 'expected score: ', -score
+    table = ['Grid', 'Rotor Angle', 'Expected Score', 'Score', 'Base Position']
+    table_num = []
+
+    counter = 0
+    for i in range(init,len(sorted_bases)):
+
+        expected_score, base, angle = sorted_bases[i]
+        if -expected_score < score_threshold: break
+
+        rp = rail_place.RailPlace(base)
+        turb.place_rail(rp)
+        turb.place_robot(rp)
+        base_num = (db.DB(db_directories[0])).load_db_bases_to_num()[base]
+
+        for ang in linspace(angle - 10*pi/180, angle + 10*pi/180, 21):
+            joint_solutions, score = base_grid_validation(ang, rays)
+            table_num.append([grid_num, round(ang*180/pi), -expected_score, score, base_num])
+
+        print('iter %3i ' % (counter))
+        counter+=1
+        with open(str(grid_num)+'_'+'db'+'.csv','w') as f:
+            writer = csv.writer(f)
+            writer.writerow(table)
+            writer.writerows(table_num)
     
-    for ang in linspace(angle-5*pi/180,angle+5*pi/180,11):
-        print 'ang: '+ str(ang*180/pi)
-        joint_solutions, score = base_grid_validation(ang, rays)
-        print 'score: ', score, '\n'
     return
 
 if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
     # DB inputs
-    db_directories = ['db', 'db_45', 'db_-45']
-    db_angles = [0, pi/4, -pi/4]
-    blade_folder = ['jiraublade_hd_filtered', 'jiraublade_hd_filtered_45',
-                    'jiraublade_hd_filtered_-45']
+    db_directories = ['db']#, 'db_45', 'db_-45']
+    db_angles = [0]#, pi/4, -pi/4]
+    blade_folder = ['jiraublade_hd_filtered']#, 'jiraublade_hd_filtered_45',
+                   # 'jiraublade_hd_filtered_-45']
     #-----------------------------------------------------------------------
     
     dir_test = join(realpath('.'),'test')
@@ -154,10 +170,10 @@ if __name__ == '__main__':
     for i in range(0,len(blade_folder)):
         dict_angle_blade[db_angles[i]]=load_blade(blade_folder[i])
     
-    vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
 
     # Grid input
-    grid_num = 80
+    grid_num = 0
     sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
     #plot_base_for_grid_coating(sorted_bases, trajectories, borders)
-    tolerance_test(sorted_bases[0], trajectories, borders)
+    tolerance_test(sorted_bases, trajectories, borders, init=11)
