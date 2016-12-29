@@ -10,4 +10,4 @@
 !/coating_trajectories/test/template/*
 *~
 .*.sw?
-
+*.pkl
