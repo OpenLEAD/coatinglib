@@ -1,8 +1,9 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt, ones
+from numpy import array, dot, cross, outer, eye, sum, sqrt, ones, maximum, minimum
 from numpy import random, transpose, zeros, linalg, multiply, linspace, power
 from numpy import ndindex, linspace, power,  ceil, floor, einsum, argsort
 from numpy import cos as npcos
 from numpy import sin as npsin
+from numpy import tan as nptan
 from math import cos, sin, pi, isnan, acos, atan2
 from abc import ABCMeta, abstractmethod
 from copy import copy, deepcopy
@@ -102,11 +103,14 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
     If None is given, it tries to estimate the actual distance between points and use it.
     
     """
+    from time import time
+    import cPickle
+    from rail_place import RailPlace, _rand_angle
     fl = None
     with open(db_bases_to_num, 'rb') as f:
             fl = cPickle.load(f)
             
-    points = [rail_place.RailPlace(base).getXYZ()[0:2] for base in fl.keys()]
+    points = [RailPlace(base).getXYZ()[0:2] for base in fl.keys()]
     limits = array([[cfg.environment.x_min, cfg.environment.x_max],
                    [cfg.environment.y_min, cfg.environment.y_max]])
     
@@ -143,8 +147,8 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
 
 
     x,y = transpose(expoints)
-    y_max = (cfg.environment.x_max - x)/tan(alpha_min)
-    y_min = (cfg.environment.x_min - x)/tan(alpha_min)
+    y_max = (cfg.environment.x_max - x)/nptan(alpha_min)
+    y_min = (cfg.environment.x_min - x)/nptan(alpha_min)
     y_max = minimum(y_max,cfg.environment.y_max)
     y_min = maximum(y_min,cfg.environment.y_min)
     x = x[(y<y_max) & (y>y_min)]
@@ -166,12 +170,12 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
     random.seed(int(time()+int((time()-int(time()))*10000)))
     alpha = random.rand(len(xdif))
 
-    alpha = rail_place._rand_angle(cfg, xdif, ydif, alpha)
+    alpha = _rand_angle(cfg, xdif, ydif, alpha)
 
-    S = ydif/cos(alpha)
-    P = xdif + S*sin(alpha)
+    S = ydif/npcos(alpha)
+    P = xdif + S*npsin(alpha)
 
-    raildif = [rail_place.RailPlace((p,s,a)) for p,s,a in zip(P,S,alpha)]
+    raildif = [RailPlace((p,s,a)) for p,s,a in zip(P,S,alpha)]
 
     for rail in raildif:
 	fl[tuple(rail.getPSAlpha())] = len(fl)
