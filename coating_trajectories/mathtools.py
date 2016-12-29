@@ -339,8 +339,9 @@ class IterSurface:
         self.stopR = stopR
         self.coatingstep = coatingstep
 
+    @abstractmethod
     def update(self):
-        self._Rn = self._Rn-self.coatingstep
+        pass
 
     @abstractmethod
     def f(self, p):
@@ -384,6 +385,9 @@ class Sphere(IterSurface):
     def __init__(self, Rn0=3.770, stopR=1.59, coatingstep = 0.003, center = [0,0,0]):
         IterSurface.__init__(self, Rn0, stopR, coatingstep)
         self.center = center
+
+    def update(self):
+        self._Rn = self._Rn-self.coatingstep
         
     def f(self, p):
         return ((p[0]-self.center[0])**2 +
@@ -424,41 +428,105 @@ class Sphere(IterSurface):
 class Plane(IterSurface):
     """ Plane surface class. An object of this class can be
     a surface to be iterated and generate the coating trajectories.
-
     Keyword arguments:
     Rn0 -- height of the plane (z)
     stopR -- stop parameter of the iteration
     coatingstep -- iter step
     """
 
-    def __init__(self, Rn0=1, stopR=-4, coatingstep = 0.003):
+    def __init__(self, Rn0=1, stopR=-4, coatingstep = 0.003, k=0):
         IterSurface.__init__(self, Rn0, stopR, coatingstep)
+        self.k = k
+
+    def update(self):
+        self._Rn = self._Rn-self.coatingstep
 
     def f(self, p):
-        return p[2]-self._Rn
+        return p[self.k]-self._Rn
 
     def df(self, p):
-        return array([0, 0, 1])
+        n = array([0, 0, 0])
+        n[self.k] = 1
+        return n
 
     def f_array(self, p):
         if len(p)==1: return self.f(p[0])
         p = array(p)
-        return p[:,2]-self._Rn
+        return p[:,self.k]-self._Rn
 
     def find_iter(self, p0):
-        self._Rn = p0[2]
+        self._Rn = p0[self.k]
 
     def criteria(self):
         return self._Rn>self.stopR
 
     def findnextparallel(self, p):
-        d = p[2]
+        d = p[self.k]
         n = ceil((d-self.stopR)/self.coatingstep)
         self._Rn = min(self.stopR+n*self.coatingstep, self._Rn)
         return
 
     def name(self):
         return 'Plane'
+
+
+class Plane2(IterSurface):
+    """ Plane surface class. An object of this class can be
+    a surface to be iterated and generate the coating trajectories.
+    plane: ax+by+cz+d=0
+    normal_plane = [a,b,c]
+    
+    Keyword arguments:
+    Rn0 -- d
+    stopR -- stop parameter of the iteration
+    coatingstep -- iter step
+    normal_plane -- [a,b,c]
+    """
+
+    def __init__(self, Rn0=1, stopR=-4, coatingstep = 0.003, normal_plane=array([0,1,0])):
+        IterSurface.__init__(self, Rn0, stopR, coatingstep)
+        self.normal_plane = normal_plane
+
+    def update(self):
+        self._Rn = self._Rn-self.coatingstep
+
+    def f(self, p):
+        return (dot(self.normal_plane, p[0:3])+self._Rn)/linalg.norm(self.normal_plane)
+
+    def df(self, p):
+        return array(self.normal_plane)
+
+    def f_array(self, p):
+        if len(p)==1: return self.f(p[0])
+        p = array(p)
+        return (dot(p[:,0:3],self.normal_plane)+self._Rn)/linalg.norm(self.normal_plane)
+
+    def find_iter(self, p0):
+        self._Rn = -dot(self.normal_plane,p0[0:3])
+
+    def criteria(self):
+        return self._Rn>self.stopR
+
+    def findnextparallel(self, p):
+        self.find_iter(p)
+        self.update()
+        return
+
+    def name(self):
+        return 'Plane2'
+
+class _PlaneRotation(Plane2): #incompleto
+
+    def __init__(self, stopR=-4, coatingstep = 0.003, normal_plane=array([0,1,0]), rotation_axis=array([1,0,0])):
+        IterSurface.__init__(self, 0, stopR, coatingstep)
+        self.normal_plane = normal_plane
+        self.raxis = Raxis(rotation_axis,self.coatingstep/3.)
+
+    def update(self):
+        self._Rn = self._Rn
+        
+    def criteria(self):
+        return self._Rn>self.stopR
 
 _backdif2 = array([[1.0, -1.0],
                    [0,    0  ]])
