@@ -346,9 +346,9 @@ def remove_points_from_db(grid_num, new_border, points_to_remove):
 
 if __name__ == '__main__':
 
-    directory = 'db'
-    blade_folder = "jiraublade_hd_filtered"
-    blade_folder_full = "jiraublade_hd"
+    directory = 'db_lip'
+    blade_folder = "lip_filtered"
+    blade_folder_full = "lip"
     try:
         makedirs(directory)
     except OSError as exception:
@@ -359,7 +359,7 @@ if __name__ == '__main__':
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db_with_blade()
@@ -379,8 +379,8 @@ if __name__ == '__main__':
     #grid_add()
     #feasible_bases = grid_validation(1)
 
-    borders, points_to_remove = compute_points_to_remove(24)
-    remove_points_from_db(24, borders, points_to_remove)
+    #borders, points_to_remove = compute_points_to_remove(24)
+    #remove_points_from_db(24, borders, points_to_remove)
 
 
 

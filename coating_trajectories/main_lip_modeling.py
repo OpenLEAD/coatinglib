@@ -196,7 +196,7 @@ def rotate_blade(T, directory):
     
 if __name__ == "__main__":
     
-    name = 'lip'
+    name = 'lip_filtered'
     dir_test = join(realpath('.'),'test')
     environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
@@ -204,13 +204,16 @@ if __name__ == "__main__":
     turb.env.Remove(turb.primary)
     turb.env.Remove(turb.secondary)
 
+    rbf_model = RBF('r3')
+    blade = blade_modeling.BladeModeling(turb, turb.blades[1])
+
     # Visualizer
     vis = Visualizer(turb.env)
     #plot_samples()
+    load_trajectories()
     #plot_trajectories()
 
-    rbf_model = RBF('r3')
-    blade = blade_modeling.BladeModeling(turb, turb.blades[1])
+
 
     #sampling_blade()
     #save_samples()
