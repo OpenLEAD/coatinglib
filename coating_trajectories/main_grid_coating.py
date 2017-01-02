@@ -148,6 +148,15 @@ def tolerance_test(sorted_bases, trajectories, borders, score_threshold=0.9, ini
     
     return
 
+def non_coatable_grids():
+    non_coatable = []
+    for grid, trajs in dict_angle_db[0].load_db_grid_to_trajectories().iteritems():
+        sorted_bases, trajectories, borders = base_for_grid_coating(grid)
+        expected_score, base, angle = sorted_bases[0]
+        if -expected_score != 1:
+            non_coatable.append(grid)
+    return non_coatable
+
 if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
@@ -173,7 +182,7 @@ if __name__ == '__main__':
     #vis = Visualizer(turb.env)
 
     # Grid input
-    grid_num = 0
+    grid_num = 75
     sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
     #plot_base_for_grid_coating(sorted_bases, trajectories, borders)
-    tolerance_test(sorted_bases, trajectories, borders, init=11)
+    #tolerance_test(sorted_bases, trajectories, borders, init=63)
