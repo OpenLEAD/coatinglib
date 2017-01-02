@@ -92,19 +92,19 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
     if len(iksol)>0:
         turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(
             iksol, tolerance, turbine.robot))
-        res = orientation_error_optimization(turbine, point)
+        res = orientation_error_optimization(turbine, trajectory[trajectory_index])
         if not res.success:
             return []
-        if(trajectory_constraints(turbine, res, point)):
+        if(trajectory_constraints(turbine, res.x, trajectory[trajectory_index])):
             joint_solutions.append(res.x)
         else: return []
     else: return []
 
     # Find solutions for next points
-    robot.SetDOFValues(joint_solution)
+    robot.SetDOFValues(res.x)
     for index in range(trajectory_index+1, len(trajectory)):
         res = orientation_error_optimization(turbine, trajectory[index])
-        if trajectory_constraints(turbine, res, trajectory[index]):
+        if trajectory_constraints(turbine, res.x, trajectory[index]):
             joint_solutions.append(res.x)
             robot.SetDOFValues(res.x)
         else:
@@ -160,7 +160,7 @@ def compute_first_feasible_point(turbine, trajectory, iter_surface = None):
     with robot:
         for i in range(0,len(trajectory)):
             sols, tolerances = compute_feasible_point(turbine, trajectory[i], iter_surface)
-            if len(sol)>0:
+            if len(sols)>0:
                return i, sols, tolerances
         raise ValueError('No solution for given trajectory')
 
