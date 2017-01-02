@@ -9,6 +9,7 @@ from abc import ABCMeta, abstractmethod
 from copy import copy, deepcopy
 from collections import deque
 from scipy.spatial import KDTree
+from scipy.spatial.distance import pdist
 
 class KinBodyError(Exception):    
     def __init__(self):
@@ -89,7 +90,7 @@ def fast_poisson_disk(r, limits, k = 30, points = None):
             del activelist[activelist.index(i)]
     return x
 
-def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_bases = 'db_visited_bases.pkl', distance = None, density = None, extra_points = None):
+def update_rail_region(cfg, db_bases_to_num, db_visited_bases, distance = None, density = None, extra_points = None):
     """
     cfg = TurbineConfig with new intended limits (should be a higher limit)
     db_bases_to_num, db_visited_bases = name/location of the data bases to be updated
@@ -106,19 +107,15 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
     from time import time
     import cPickle
     from rail_place import RailPlace, _rand_angle
-    fl = None
-    with open(db_bases_to_num, 'rb') as f:
-            fl = cPickle.load(f)
-            
-    points = [RailPlace(base).getXYZ()[0:2] for base in fl.keys()]
+
+    points = [RailPlace(base).getXYZ()[0:2] for base in db_bases_to_num.keys()]
     limits = array([[cfg.environment.x_min, cfg.environment.x_max],
                    [cfg.environment.y_min, cfg.environment.y_max]])
     
     if distance is None:
         if density is None:
             if extra_points is None:
-                from scipy.spatial import distance.pdist
-                dists = distance.pdist(points)
+                dists = pdist(points)
                 def sqr2cond(i, j, n): # i != j - Square to Condensated Matrix
                     if i < j:
                         i, j = j, i
@@ -127,7 +124,7 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
                 dist_cum = 0
                 N = len(points)
                 
-                for n,item in enumerate(k):
+                for n,item in enumerate(extra_points):
                     inx = map(lambda x: sqr2cond(x,n,N), range(n)+range(n+1,N))
                     dist_cum += min(dists[inx])
 
@@ -146,7 +143,7 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
     alpha_max = cfg.environment.rail_angle_mean + cfg.environment.rail_angle_limit
 
 
-    x,y = transpose(expoints)
+    x,y = transpose(full_points)
     y_max = (cfg.environment.x_max - x)/nptan(alpha_min)
     y_min = (cfg.environment.x_min - x)/nptan(alpha_min)
     y_max = minimum(y_max,cfg.environment.y_max)
@@ -157,7 +154,6 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
 
     spoints = set([tuple(points) for points in points])
     sfullpoints = set([tuple(xpoints) for xpoints in zip(x,y)])
-
 
     diffpoints = sfullpoints - spoints
     if len(diffpoints)==0:
@@ -178,25 +174,12 @@ def update_rail_region(cfg, db_bases_to_num = 'db_bases_to_num.pkl', db_visited_
     raildif = [RailPlace((p,s,a)) for p,s,a in zip(P,S,alpha)]
 
     for rail in raildif:
-	fl[tuple(rail.getPSAlpha())] = len(fl)
+	db_bases_to_num[tuple(rail.getPSAlpha())] = len(db_bases_to_num)
 
-    with open(db_bases_to_num, 'wb') as f:
-	cPickle.dump(fl, f, cPickle.HIGHEST_PROTOCOL)
-
-	
-    with open(db_visited_bases, 'rb') as f:
-            visi = cPickle.load(f)
-
-           
     for rail in raildif:
-	visi[fl[tuple(rail.getPSAlpha())]] = False
+	db_visited_bases[db_bases_to_num[tuple(rail.getPSAlpha())]] = False
 
-	
-    with open(db_visited_bases, 'wb') as f:
-	cPickle.dump(visi, f, cPickle.HIGHEST_PROTOCOL)
-
-
-
+    return db_bases_to_num, db_visited_bases
 
 def central_difference(turbine, joints_trajectory, trajectory_index):
 
