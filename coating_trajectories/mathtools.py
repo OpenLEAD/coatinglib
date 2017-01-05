@@ -1,6 +1,6 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt, ones, maximum, minimum
-from numpy import random, transpose, zeros, linalg, multiply, linspace, power
-from numpy import ndindex, linspace, power,  ceil, floor, einsum, argsort
+from numpy import array, dot, cross, outer, eye, sum, sqrt, ones, maximum, minimum, round
+from numpy import random, transpose, zeros, linalg, multiply, linspace, power, arange
+from numpy import ndindex, linspace, power,  ceil, floor, einsum, argsort, argmin, argmax
 from numpy import cos as npcos
 from numpy import sin as npsin
 from numpy import tan as nptan
@@ -9,11 +9,115 @@ from abc import ABCMeta, abstractmethod
 from copy import copy, deepcopy
 from collections import deque
 from scipy.spatial import KDTree
-from scipy.spatial.distance import pdist
+
+_base_module_precision = 0.2
+_p_step = 0.1
 
 class KinBodyError(Exception):    
     def __init__(self):
         Exception.__init__(self, "object is not a KinBody.")
+
+def csv_compute_hull(csv_file, bases):
+    import csv
+    from rail_place import RailPlace
+    from scipy.spatial import ConvexHull
+    positions = []
+    angles = []
+    
+    with open(csv_file, 'rb') as csvfile:
+	spamreader = csv.reader(csvfile)
+	titles = spamreader.next()
+	rotor_col = titles.index('Rotor Angle')
+	base_col = titles.index('Base Position')
+	for row in spamreader:
+            positions += [int(row[base_col])]
+            angles += [float(row[rotor_col])]
+    
+    regions = {}
+    for position,angle in zip(positions,angles):
+	regions[angle] = regions.get(angle,[]) + [position]
+                       
+    onipositions = reduce(lambda x,y: set(x) & set(y), regions.values())
+    onixy = [ RailPlace(bases[psa]).getXYZ()[0:2] for psa in onipositions ]
+    hull2D = ConvexHull(onixy)
+    points2D = array(onixy)
+
+    return points2D, hull2D
+
+def base_points_by_angle( points2D, angle, turb ):
+    from rail_place import xya2ps, RailPlace
+    from itertools import repeat
+    step = _base_module_precision * cos(angle)
+    y = round(points2D[:,1]/step) * step
+    p,s = xya2ps(points2D[:,0], y, angle)
+
+    viable = []
+    for psa in zip(p,s,repeat(angle)):
+        rp = RailPlace(psa)
+        turb.place_rail(rp)
+        turb.place_robot(rp)
+        viable += [not( turb.check_rail_collision() &
+                   turb.check_robotbase_collision())]
+
+
+    return viable
+    
+    
+
+
+def plot_hull(points2D, hull2D):
+    import matplotlib.pyplot as plt
+    rndhull = list(hull2D)+ [hull2D[0]]
+
+    plt.scatter(points2D[:,0],points2D[:,1])
+    plt.plot(points2D[rndhull,0], points2D[rndhull,1], 'r--', lw=2)
+    plt.plot(points2D[rndhull[:-1],0], points2D[rndhull[:-1],1], 'ro')
+    plt.show()
+
+def secondary_positions_by_angle(points2D, angle):
+    step = _base_module_precision * cos(angle)
+    points = array(points2D)
+    near = min(points[:,1])
+    far = max(points[:,1])
+
+    p0 = ceil(near/step)
+    pf = floor(far/step)
+        
+
+    return max(int(pf-p0),0)
+    
+
+    
+def base_region_by_angle( polygon_vertex2D, angle, turb = None ):
+    
+    pv = array(polygon_vertex2D)
+    
+    if all(pv[-1] == pv[0]):
+        pv = pv[:-1]
+        
+    step = _base_module_precision * cos(angle)
+    near = min(pv[:,1])
+    far = max(pv[:,1])
+
+    p0 = ceil(near/step)
+    pf = floor(far/step)
+
+    H = array( [ array([[1,0],pv[n]-pv[n-1]]).T for n in range(len(pv)) ] )
+    
+    
+    for sy in arange(p0*step, (pf+1)*step, step):
+        O = array([0,sy])
+        dt = linalg.solve(H, pv - O)
+        hits = dt[(dt[:,1]>=0) & (dt[:,1]<=1)]
+        hits = sorted(hits[:,0])
+
+        for segment in zip(hits[0::2],hits[1::2]):
+            #simulate
+            pass
+            
+        
+        
+    
 
 def direction_in_halfplane(rays,direction):
     """
@@ -93,7 +197,7 @@ def fast_poisson_disk(r, limits, k = 30, points = None):
 def update_rail_region(cfg, db_bases_to_num, db_visited_bases, distance = None, density = None, extra_points = None):
     """
     cfg = TurbineConfig with new intended limits (should be a higher limit)
-    db_bases_to_num, db_visited_bases = name/location of the data bases to be updated
+    db_bases_to_num, db_visited_bases = the data bases to be updated (std dictionary format)
     
     distance, density, extra_points = Information about sampled data points in order of priority
                                     (if one info is provided the others are ignored)
@@ -106,6 +210,7 @@ def update_rail_region(cfg, db_bases_to_num, db_visited_bases, distance = None, 
     """
     from time import time
     import cPickle
+    from scipy.spatial.distance import pdist
     from rail_place import RailPlace, _rand_angle
 
     points = [RailPlace(base).getXYZ()[0:2] for base in db_bases_to_num.keys()]
