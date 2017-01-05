@@ -342,13 +342,21 @@ def remove_points_from_db(grid_num, new_border, points_to_remove):
     except IOError: None
     DB.remove_point(points_to_remove)
     return 
-    	
+
+def grid_verticalization(grid_num):
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
+
+    trajectories, borders = db_grid_to_trajectories[grid_num]
+    rays = DB.compute_rays_from_parallels(blade, trajectories, borders)
+    return mathtools.trajectory_verticalization(rays)
 
 if __name__ == '__main__':
 
-    directory = 'db_lip'
-    blade_folder = "lip_filtered"
-    blade_folder_full = "lip"
+    directory = 'db'
+    blade_folder = "jiraublade_hd_filtered"
+    blade_folder_full = "jiraublade_hd"
     try:
         makedirs(directory)
     except OSError as exception:
@@ -359,7 +367,7 @@ if __name__ == '__main__':
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db_with_blade()

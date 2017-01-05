@@ -156,17 +156,8 @@ def reorganize_trajectories():
             (dot(blade.trajectories[i][:,3:6],[0,0,1])>0.5)&(Rs>maxRs))|(
             (dot(blade.trajectories[i][:,3:6],[1,0,0])>0.5)&(Rs>3.775))]
 
-    new_blade_trajectories = []
-    counter = 0
-    while counter+1:
-        new_blade_trajectory = []
-        for i in range(0,len(blade.trajectories)):
-            if len(blade.trajectories[i])>counter:
-                new_blade_trajectory.append(blade.trajectories[i][counter])
-        if len(new_blade_trajectory)>0:
-            new_blade_trajectories.append(new_blade_trajectory)
-            counter+=3
-        else: counter=-1
+    new_blade_trajectories = mathtools.trajectory_verticalization(
+        blade.trajectories, step = 3)
     blade.trajectories = new_blade_trajectories
         
 def filter_trajectories():
