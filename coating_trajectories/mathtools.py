@@ -329,7 +329,19 @@ def rotate_points(trajectories, T=[]):
                 continue
     return rtrajectories
         
-    
+def trajectory_verticalization(rays, step = 1):
+    counter = 0
+    new_rays = []
+    while True:
+        new_ray = [] 
+        for i in range(0,len(rays)):
+            if len(rays[i])>counter:
+                new_ray.append(rays[i][counter])
+        if len(new_ray)>0:
+            new_rays.append(new_ray)
+            counter+=step
+        else: break
+    return new_rays
 
 def compute_perpendicular_vector(vector_1):
     """
