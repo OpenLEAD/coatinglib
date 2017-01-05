@@ -250,8 +250,12 @@ class DB:
             filename, file_extension = splitext(afile)
             if file_extension == '.pkl':
                 index+=1
-                print('iter %3i\tfile = %s' % (index, filename)) 
-                db = self.merge_db(self.load_db_pickle(join(path,afile)), db)
+                print('iter %3i\tfile = %s' % (index, filename))
+                try: 
+                    db_file = self.load_db_pickle(join(path,afile))
+                except EOFError:
+                    db_file = dict()
+                db = self.merge_db(db_file, db)        
         self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
         return
 
