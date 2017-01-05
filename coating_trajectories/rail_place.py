@@ -78,12 +78,17 @@ def rand_rail(cfg, N = 1, equidistant = True):
 
     alpha = _rand_angle(cfg, x, y, alpha)
 
-    # S/P conversion
-    S = y/cos(alpha)
-    P = x + S*sin(alpha)
+    P,S = xya2ps(x,y,alpha)
     
     return [RailPlace((p,s,a)) for p,s,a in zip(P,S,alpha)]
-    
+
+def xya2ps(x,y,alpha):
+    """
+    Compute primary (p) and secoundary (s) from (x,y) and angle (alpha).
+    """
+    S = y/cos(alpha)
+    P = x + S*sin(alpha)
+    return P,S
 
 class RailPlace:
     """
