@@ -20,8 +20,8 @@ def base_for_grid_coating(grid_num):
     scores = []
     db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
     trajectories, borders = db_grid_to_trajectories[grid_num]
-    for key, value in dict_angle_db.iteritems():
-        base, score = value.get_best_bases_trajectories(trajectories)
+    for angle, DB in dict_angle_db.iteritems():
+        base, score = DB.get_best_bases_trajectories(trajectories)
         bases.append(base)
         scores.append(score)
 
@@ -116,16 +116,30 @@ def base_grid_validation(blade_angle, rays):
     
     return joint_solutions, score
 
-def tolerance_test(sorted_bases, trajectories, borders, score_threshold=0.9, init=0):
+def tolerance_test(sorted_bases, trajectories, borders, score_threshold=0.9):
     
     blade = dict_angle_blade[0]
     rays = dict_angle_db[0].compute_rays_from_parallels(blade, trajectories, borders)
 
-    table = ['Grid', 'Rotor Angle', 'Expected Score', 'Score', 'Base Position']
-    table_num = []
+    table = ['Rotor Angle', 'Base Position', 'Expected Score', 'Score']
+    tolerance_list = []
 
+    try:
+        with open(join('tolerance_db',str(grid_num)+'_db.csv'),'rb') as f:
+            reader = csv.reader(f)
+            next(reader,None)
+            tolerance_list = list(reader)
+    except IOError:
+        with open(join('tolerance_db',str(grid_num)+'_db.csv'),'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(table)
+
+    for i in range(0,len(tolerance_list)):
+        tolerance_list[i] = map(float,tolerance_list[i])
+        tolerance_list[i][0:2] = map(int,tolerance_list[i][0:2])
+    
     counter = 0
-    for i in range(init,len(sorted_bases)):
+    for i in range(0,len(sorted_bases)):
 
         expected_score, base, angle = sorted_bases[i]
         if -expected_score < score_threshold: break
@@ -135,16 +149,20 @@ def tolerance_test(sorted_bases, trajectories, borders, score_threshold=0.9, ini
         turb.place_robot(rp)
         base_num = (db.DB(db_directories[0])).load_db_bases_to_num()[base]
 
+        if len(tolerance_list)>0:
+            if base_num in (array(tolerance_list)[:,1]).tolist():
+                continue
+
         for ang in linspace(angle - 10*pi/180, angle + 10*pi/180, 21):
             joint_solutions, score = base_grid_validation(ang, rays)
-            table_num.append([grid_num, round(ang*180/pi), -expected_score, score, base_num])
+            tolerance_list.append([round(ang*180/pi), base_num, -expected_score, score])
 
         print('iter %3i ' % (counter))
         counter+=1
-        with open(str(grid_num)+'_'+'db'+'.csv','w') as f:
+        with open(join('tolerance_db',str(grid_num)+'_db.csv'),'w') as f:
             writer = csv.writer(f)
             writer.writerow(table)
-            writer.writerows(table_num)
+            writer.writerows(tolerance_list)
     
     return
 
