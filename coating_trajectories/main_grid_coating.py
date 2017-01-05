@@ -167,22 +167,53 @@ def tolerance_test(sorted_bases, trajectories, borders, score_threshold=0.9):
     return
 
 def non_coatable_grids():
+    non_coatable_one_base = []
     non_coatable = []
-    for grid, trajs in dict_angle_db[0].load_db_grid_to_trajectories().iteritems():
-        sorted_bases, trajectories, borders = base_for_grid_coating(grid)
+    for grid, traj_border in dict_angle_db[0].load_db_grid_to_trajectories().iteritems():
+        sorted_bases, trajectories, _ = base_for_grid_coating(grid)
         expected_score, base, angle = sorted_bases[0]
         if -expected_score != 1:
-            non_coatable.append(grid)
+            non_coatable_one_base.append(grid)
+            for angle, DB in dict_angle_db.iteritems():
+                main_db = DB.load_db()
+                for trajectory in trajectories:
+                    for point in trajectory:
+                        if len(main_db[point])==0:
+                            break
+                    else: continue
+                    break
+                else: break
+                continue
+            else:
+                non_coatable.append(grid)
+    return non_coatable_one_base, non_coatable
+
+def plot_non_coatable_points_grid(grid_num):
+    non_coatable = []
+    _, trajectories, _ = base_for_grid_coating(grid_num)
+    main_dbs = []
+    for angle, DB in dict_angle_db.iteritems():
+        main_dbs.append(DB.load_db())
+    counter = 0
+    for trajectory in trajectories:
+        for point in trajectory:
+            for i in range(0,len(main_dbs)):     
+                if len(main_dbs[i][point])>0:
+                    break
+            else:
+                non_coatable.append(dict_angle_db[0].get_sorted_points()[point])
+            continue            
+    vis.plot(non_coatable,'noncoat',color=(1,0,0))              
     return non_coatable
 
 if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
     # DB inputs
-    db_directories = ['db']#, 'db_45', 'db_-45']
-    db_angles = [0]#, pi/4, -pi/4]
-    blade_folder = ['jiraublade_hd_filtered']#, 'jiraublade_hd_filtered_45',
-                   # 'jiraublade_hd_filtered_-45']
+    db_directories = ['db', 'db_45', 'db_-45']
+    db_angles = [0, pi/4,-pi/4]
+    blade_folder = ['jiraublade_hd_filtered', 'jiraublade_hd_filtered_45',
+                    'jiraublade_hd_filtered_-45']
     #-----------------------------------------------------------------------
     
     dir_test = join(realpath('.'),'test')
@@ -197,10 +228,12 @@ if __name__ == '__main__':
     for i in range(0,len(blade_folder)):
         dict_angle_blade[db_angles[i]]=load_blade(blade_folder[i])
     
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
 
     # Grid input
-    grid_num = 75
-    sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
+    grid_num = 34
+    #sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
     #plot_base_for_grid_coating(sorted_bases, trajectories, borders)
-    #tolerance_test(sorted_bases, trajectories, borders, init=63)
+    #tolerance_test(sorted_bases, trajectories, borders)
+    #non_coatable_one_base, non_coatable = non_coatable_grids()
+    non_coatable = plot_non_coatable_points_grid(grid_num)
