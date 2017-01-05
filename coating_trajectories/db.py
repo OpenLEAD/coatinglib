@@ -16,6 +16,16 @@ class NoDBFound(Exception):
     def __init__(self, value):
         Exception.__init__(self,"No DataBase named " + value + " found.")
 
+def get_b2n(filename):
+    with open(filename,'rb') as f:
+        b2n = cPickle.load(f)
+    return b2n
+
+def get_bases(filename):
+    b2n = get_b2n(filename)
+    return [ b for (v,b) in sorted(zip(b2n.values(),b2n.keys()))]
+    
+
 class DB:
     """
     DB for robot's base position and coated points.
