@@ -343,15 +343,6 @@ def remove_points_from_db(grid_num, new_border, points_to_remove):
     DB.remove_point(points_to_remove)
     return 
 
-def grid_verticalization(grid_num):
-    blade = load_blade(blade_folder)
-    DB = db.DB(directory)
-    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
-
-    trajectories, borders = db_grid_to_trajectories[grid_num]
-    rays = DB.compute_rays_from_parallels(blade, trajectories, borders)
-    return mathtools.trajectory_verticalization(rays)
-
 if __name__ == '__main__':
 
     directory = 'db'
