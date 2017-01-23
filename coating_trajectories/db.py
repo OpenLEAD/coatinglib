@@ -149,6 +149,15 @@ class DB:
         path = join(self.path, 'fixed_db', 'db_grid_to_mp.pkl')
         return self.load_db_pickle(path)
 
+    def load_db_nums_to_joints(self):
+        """
+        Load nums_to_joints database (base_num,point_num):[joints].
+        Grids are numbers and the bases are lists of PSAlpha tuples.
+        """
+
+        path = join(self.path, 'fixed_db', 'db_nums_to_joints.pkl')
+        return self.load_db_pickle(path)
+
     def load_db_grid_to_bases(self):
         """
         Load grid_to_bases database num:[bases].
@@ -458,6 +467,35 @@ class DB:
         except IOError: None
        
         return
+
+    def create_db_nums_to_joints(self, turb, blade):
+        """
+        Compute joints for coating
+        
+        """
+
+        db_bases_to_num = self.load_db_bases_to_num()
+        db_points_to_num = self.load_db_points_to_num()
+        db_nums_to_joints = dict()
+        
+        turb.robot.GetLink('Flame').Enable(False)
+
+        for base in db_bases_to_num:
+            for trajectory in blade.trajectories:
+                joints_solutions = planning.compute_robot_joints(turb,
+                                                                trajectory, 0,
+                                                                blade.trajectory_iter_surface)
+                #maybe wrong?
+                for point, joints in trajectory, joints_solutions:
+                    db_nums_to_joints[(db_bases_to_num[base],
+                                       db_points_to_num[point])] = joints
+
+        try:
+            self.save_db_pickle(db_nums_to_joints, join(self.path,'fixed_db','db_nums_to_joints.pkl'))
+        except IOError:
+            raise 'Error saving db_nums_to_joints.pkl'
+
+        return db_nums_to_joints
 
     def create_db_grid_to_bases(self, db_grid_to_trajectories=None):
         """
