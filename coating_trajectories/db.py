@@ -468,34 +468,76 @@ class DB:
        
         return
 
-    def create_db_nums_to_joints(self, turb, blade):
+    def create_dbs_segs_and_joints(self, turb, blade):
         """
-        Compute joints for coating
+        Compute joints for coating HARD COMPUTATION time
         
         """
 
         db_bases_to_num = self.load_db_bases_to_num()
         db_points_to_num = self.load_db_points_to_num()
-        db_nums_to_joints = dict()
+        # db_base_to_joints = { base: { point_num: joints } }
+        db_base_to_joints = dict()
+        #  db_base_to_segs = { base: [trajectory1, trajectory2, ...] }
+        #  trajectory = [part1, part2,...]
+        #  part = [point1_num, point2_num, ...]
+        db_base_to_segs = dict()
         
         turb.robot.GetLink('Flame').Enable(False)
-
+        # iterate over bases
         for base in db_bases_to_num:
-            for trajectory in blade.trajectories:
-                joints_solutions = planning.compute_robot_joints(turb,
-                                                                trajectory, 0,
-                                                                blade.trajectory_iter_surface)
-                #maybe wrong?
-                for point, joints in trajectory, joints_solutions:
-                    db_nums_to_joints[(db_bases_to_num[base],
-                                       db_points_to_num[point])] = joints
+            filtered_trajectories = filter_trajectories(turbine, blade.trajectories,2)
+            base_num =db_bases_to_num[base]
+            db_base_to_joints[base_num] = dict()
+            db_base_to_seg[base_num] = list()
+
+            # iterate each (filtered) parallel
+            for filtered_trajectory in filtered_trajectories:
+                db_base_to_seg[base_num] += [[]]
+                # iterate each part of trajectory
+                for filtered_trajectory_part in filtered_trajectory:
+                    evaluated_points = 0
+                    while evaluated_points < len(filtered_trajectory_part):
+                        try:
+                            lower, _, _ = planning.compute_first_feasible_point(
+                                turbine,
+                                filtered_trajectory_part[evaluated_points:],
+                                blade.trajectory_iter_surface)
+                            evaluated_points = evaluated_points + lower
+                        except ValueError: 
+                            evaluated_points = len(filtered_trajectory_part)
+                            continue
+
+                        joint_solutions = planning.compute_robot_joints(turbine,
+                                                                        filtered_trajectory_part,
+                                                                        evaluated_points,
+                                                                        blade.trajectory_iter_surface)
+                            
+                        upper = evaluated_points + len(joint_solutions)
+                        
+                        if len(joint_solutions) > minimal_number_of_points_per_trajectory:
+                            db_base_to_seg[base_num][-1] += [[]]
+                            # save point_num in each dictionary 
+                            for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joints_solutions):
+                                point_num = db_points_to_num[tuple(point[0:3])]
+                                db_base_to_joints[base_num][point_num] = joints
+                                db_base_to_seg[base_num][-1][-1] += [point_num]
+
+                        # restart at end point
+                        evaluated_points = upper
+
 
         try:
-            self.save_db_pickle(db_nums_to_joints, join(self.path,'fixed_db','db_nums_to_joints.pkl'))
+            self.save_db_pickle(db_base_to_joints, join(self.path,'fixed_db','db_base_to_joints.pkl'))
         except IOError:
-            raise 'Error saving db_nums_to_joints.pkl'
+            raise 'Error saving db_base_to_joints.pkl'
+        
+        try:
+            self.save_db_pickle(db_base_to_seg, join(self.path,'fixed_db','db_base_to_seg.pkl'))
+        except IOError:
+            raise 'Error saving db_base_to_seg.pkl'
 
-        return db_nums_to_joints
+        return db_base_to_joints, db_base_to_seg
 
     def create_db_grid_to_bases(self, db_grid_to_trajectories=None):
         """
