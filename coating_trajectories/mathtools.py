@@ -340,7 +340,8 @@ def curvepoint(s1, s2, p0, tol=1e-4):
             p1 = array([p1[0],p1[1],p1[2],
                         grad[0],grad[1],grad[2]])
             return p1
-        else: p0=p1
+        else:
+            p0=p1
 
 def surfaces_tangent(ray, s2):
     """ Find the tangent of two surfaces in point/normal ray 
@@ -487,7 +488,7 @@ def isospherical_radius(xyz):
     return sqrt(xyz[0]**2+xyz[1]**2+xyz[2]**2)
     
 
-def filter_by_distance(points, r = None, variation = 0.8, is_sorted = False):
+def filter_by_distance(points, r = None, variation = 0.9, is_sorted = False):
     """
     The filter_by_distance method is an algorithm to delete the nearest neighbors
     points, inside a distance threshold. 
