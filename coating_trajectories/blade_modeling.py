@@ -481,14 +481,15 @@ class BladeModeling:
                                                           trajectory[-1][0:3]-tan*step)
             dP = abs(next_point_on_surfaces[0:3]-initial_point[0:3])
             if counter==0:
-                if max(dP)<=step:counter+=1
+                if max(dP)<=step:
+                    counter+=1      
             else:
                 if max(dP)<=step:
                     try:
-                        p0 = trajectory[0][0:3]; p1 = trajectory[1][0:3]; p2 = trajectory[2][0:3]
-                        if (max(abs(p0-p1))<=step) and (max(abs(p0-p2))>=step):
-                            trajectory.append(next_point_on_surfaces)
-                            return trajectory
+                        #p0 = trajectory[0][0:3]; p1 = trajectory[1][0:3]; p2 = trajectory[2][0:3]
+                        #if (max(abs(p0-p1))<=step) and (max(abs(p0-p2))>=step):
+                        trajectory.append(next_point_on_surfaces)
+                        return trajectory
                     except IndexError:
                         raise IndexError('Step is too big and the function terminated soon.')
             trajectory.append(next_point_on_surfaces)
@@ -653,7 +654,6 @@ class BladeModeling:
 
         point_on_surfaces = self.compute_initial_point(iter_surface, trajectories)
         self.trajectory_iter_surface = iter_surface
- 
         while iter_surface.criteria():
             model = self.select_model(point_on_surfaces)
             trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
