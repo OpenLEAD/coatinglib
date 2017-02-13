@@ -330,7 +330,6 @@ class BladeModeling:
             if len(newinfo) > 0:
                   newinfo[sum(rays[collision,3:6]*newinfo[:,3:6],1)>0,3:6] *= -1
                   self.points = r_[self.points,newinfo]
-
         self.points = mathtools.filter_by_distance(self.points, min_distance_between_points)
         self.samples_delta = delta
         self.min_distance_between_points = min_distance_between_points
@@ -413,18 +412,18 @@ class BladeModeling:
         model_points.append(points[0:number_of_points_per_part])
         model_index = [(iter_surface.f(points[0]),
                         iter_surface.f(points[number_of_points_per_part-1]))]
-        counter = 1
+        counter = 0
         while True:
-            k = (1-intersection_between_divisions)*number_of_points_per_part*counter
-            if int(k+number_of_points_per_part) >= number_of_points:
-                model_points.append(points[int(k):])
-                model_index.append((iter_surface.f(points[int(k)]),
+            k = int((1-intersection_between_divisions)*number_of_points_per_part*counter)
+            if k+number_of_points_per_part >= number_of_points:
+                model_points.append(points[k:])
+                model_index.append((iter_surface.f(points[k]),
                                     iter_surface.f(points[-1])))
                 return model_points, model_index    
             else:
-                model_points.append(points[int(k):int(k+number_of_points_per_part)])
-                model_index.append((iter_surface.f(points[int(k)]),
-                                    iter_surface.f(points[int(k+number_of_points_per_part)-1])))
+                model_points.append(points[k:k+number_of_points_per_part])
+                model_index.append((iter_surface.f(points[k]),
+                                    iter_surface.f(points[k+number_of_points_per_part-1])))
             counter += 1
 
     def compute_initial_point(self, iter_surface, trajectories):
