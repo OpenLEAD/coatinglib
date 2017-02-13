@@ -14,7 +14,6 @@ from datetime import datetime
 from os import makedirs
 import cPickle
 import errno
-import mathtools
 from math import pi
 import mathtools
 from copy import deepcopy
@@ -95,6 +94,83 @@ def generate_db():
         name = name.replace(']','')
         print 'saving base local (x,y): ', name
         DB.save_db_pickle(database, join(path,name+'.pkl'))
+    return
+
+def generate_db_joints():
+    """
+    Function to generate the trajectory_db and joints_db.
+    It can be called multiple times by different process.
+    """
+    
+    turb.robot.GetLink('Flame').Enable(False)
+    blade = load_blade(blade_folder)
+    DB = db.DB(directory)
+
+    path = join(directory,'not_merged')
+    path_joints = join(path,'joints')
+    path_seg = join(path,'seg')
+
+    try:
+        makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+    try:
+        makedirs(path_joints)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+    try:
+        makedirs(path_seg)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+    
+    while True:
+        with open(join(directory,'fixed_db','db_visited_bases.pkl'), 'rb') as f:
+            db_visited_bases = cPickle.load(f)
+        base_num = None
+        for key, value in db_visited_bases.iteritems():
+            if value == False:
+                db_visited_bases[key] = True
+                base_num = key
+                break
+        if base_num is None:
+            break
+        with open(join(directory,'fixed_db','db_visited_bases.pkl'), 'wb') as f:
+            cPickle.dump(db_visited_bases, f, cPickle.HIGHEST_PROTOCOL)
+        del db_visited_bases
+
+        db_bases_to_num = DB.load_db_bases_to_num()
+        for key, value in db_bases_to_num.iteritems():
+            if value == base_num:
+                base = key
+                break
+        del db_bases_to_num
+
+        rp = rail_place.RailPlace(base)
+        turb.place_rail(rp)
+        turb.place_robot(rp)
+
+        if turb.check_rail_collision():
+            continue
+        if turb.check_robotbase_collision():
+            continue
+
+        db_base_to_joints, db_base_to_seg = DB.generate_db_joints(turb, blade, base_num)
+        print 'saving base_num: ', base_num
+
+        try:
+            DB.save_db_pickle(db_base_to_joints, join(path_joints,str(base_num)+'.pkl'))
+        except IOError:
+            raise 'Error saving db_base_to_joints.pkl'
+        
+        try:
+            DB.save_db_pickle(db_base_to_seg, join(path_seg,str(base_num)+'.pkl'))
+        except IOError:
+            raise 'Error saving db_base_to_seg.pkl'
     return
 
 def generate_robot_positions(number_of_positions=1000):
@@ -343,6 +419,11 @@ def remove_points_from_db(grid_num, new_border, points_to_remove):
     DB.remove_point(points_to_remove)
     return 
 
+def clear_db_visited_bases():
+    DB = db.DB(directory)
+    DB.clear_db_visited_bases()
+    return
+
 if __name__ == '__main__':
 
     directory = 'db'
@@ -362,7 +443,9 @@ if __name__ == '__main__':
     
     #generate_robot_positions()
     #create_db_with_blade()
+    #clear_db_visited_bases
     #generate_db()
+    generate_db_joints()
     #merge()
     #plot_gradient()
 
