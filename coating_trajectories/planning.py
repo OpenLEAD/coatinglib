@@ -90,18 +90,15 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
     # Compute inverse kinematics and find a solution
     iksol, tolerance = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
     if len(iksol)>0:
-        turbine.robot.SetDOFValues(best_joint_solution_regarding_manipulability(
-            iksol, tolerance, turbine.robot))
-        res = orientation_error_optimization(turbine, trajectory[trajectory_index])
-        if not res.success:
-            return []
-        if(trajectory_constraints(turbine, res.x, trajectory[trajectory_index])):
-            joint_solutions.append(res.x)
+        sol = best_joint_solution_regarding_manipulability(
+            iksol, tolerance, turbine.robot)
+        turbine.robot.SetDOFValues(sol)
+        if(trajectory_constraints(turbine, sol, trajectory[trajectory_index])):
+            joint_solutions.append(sol)
         else: return []
     else: return []
 
     # Find solutions for next points
-    robot.SetDOFValues(res.x)
     for index in range(trajectory_index+1, len(trajectory)):
         res = orientation_error_optimization(turbine, trajectory[index])
         if trajectory_constraints(turbine, res.x, trajectory[index]):
