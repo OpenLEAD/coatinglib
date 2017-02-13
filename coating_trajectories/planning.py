@@ -347,10 +347,17 @@ def ik_angle_tolerance_normal_plane(turbine, point, iter_surface, angle_discreti
 def Fcost(turbine, start, actual_ik_cells, actual_tolerance_cells, goal):
 
     robot = turbine.robot
+    manip = robot.GetActiveManipulator()
+
+    with robot:
+        robot.SetDOFValues(goal)
+        goal_p = manip.GetTransform()[0:3,3]
+        robot.SetDOFValues(start)
+        start_p = manip.GetTransform()[0:3,3]
+        delta_t = linalg.norm(start_p-goal_p)/turbine.config.coating.coating_speed
 
     actual_ik_cells = array(actual_ik_cells)
     actual_tolerance_cells = array(actual_tolerance_cells)   
-    delta_t = turbine.config.model.trajectory_step/turbine.config.coating.coating_speed
 
     # Verifying joint velocities consistency from start and goal
     joint_distance_from_start = actual_ik_cells - start
