@@ -35,10 +35,10 @@ def torque_computation(turbine, joints, w, alpha):
             return True
     return torques
 
-def sensibility(turbine, point_normal, w, alpha):
+def sensibility(turbine, ray, w, alpha):
     
-    normal_vec = point_normal[3:6]
-    tangent_vec = cross(point_normal[0:3],normal_vec)
+    normal_vec = ray[3:6]
+    tangent_vec = cross(ray[0:3],normal_vec)
     tangent_vec = tangent_vec/sqrt(dot(tangent_vec,tangent_vec))
     perp_vec = cross(normal_vec,tangent_vec)
     
