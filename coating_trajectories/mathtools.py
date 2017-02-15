@@ -802,3 +802,40 @@ def update_backward_difference(turbine, actual_joint, w_part, alpha_part, size):
         
 
     return w_alpha[:,:,0],w_alpha[:,:,1]
+
+def general_finite_difference(time, joints, times):
+    """
+    Compute finite difference for uneven grid
+    """
+    
+    if len(joints) < 3 or len(times) < 3:
+        raise ValueError('Too short segment')
+    if len(joints) != len(times):
+        raise ValueError('Unequal length of times and joints')
+
+    N = len(times)
+    M=2
+    s = zeros((M+1,N)) #the coeficients of finite difference for up to second derivative
+    s_temp = array(s)
+    s[0,0] = 1.
+    
+    dtN = 1. #maximum power of dt
+    for n in range(1,N):
+        dtn = 1. #powers of dt
+        for v in range(n):
+            dt = times[n]-times[v]
+            dtn *= dt
+            for m in range(min(n,M)+1):
+                s_temp[m,v] = ((times[n]-time)*s[m,v] - m*s[m-1,v])/dt
+                
+        for m in range(min(n,M)+1):
+            s_temp[m,n] = ( m*s[m-1,n-1] - (times[n-1]-time)*s[m,n-1])*(dtN/dtn)
+
+        s = array(s_temp)
+
+        dtN = dtn
+
+    df = dot(s,joints)
+    return df[0],df[1],df[2] #joint, w, alpha
+    
+    
