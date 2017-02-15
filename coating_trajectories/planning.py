@@ -21,6 +21,21 @@ def compute_angular_velocities(turbine, joints_trajectory, trajectory_index):
     if (trajectory_index>2) and ((len(joints_trajectory)-trajectory_index)>3):
         return central_difference(turbine, joints_trajectory, trajectory_index)
     else: return None
+    
+def compute_general_velocities(turbine, joints_trajectory, rays):
+    """
+    0)Compute times based on h and distances calculated from rays
+    
+    Loop joints_trajectory/rays
+    1)Take at most 7 points of the rays per joints, the optimal case is centering the actual ray
+    2)Order elements for best approximation like: 0,1,-1,2,-2..
+    3)Use general_finite_difference(time, joints, times) to compute difference, it outputs the estimated joint, w , alpha
+    """
+    
+    
+    h = turbine.config.coating.coating_speed
+
+    return
 
 def torque_computation(turbine, joints, w, alpha):
     # INVERSE DYNAMICS ComputeInverseDynamics
