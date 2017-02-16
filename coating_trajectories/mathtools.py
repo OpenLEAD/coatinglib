@@ -62,9 +62,6 @@ def base_points_by_angle( points2D, angle, turb ):
 
     return viable
     
-    
-
-
 def plot_hull(points2D, hull2D):
     import matplotlib.pyplot as plt
     rndhull = list(hull2D)+ [hull2D[0]]
@@ -82,11 +79,8 @@ def secondary_positions_by_angle(points2D, angle):
 
     p0 = ceil(near/step)
     pf = floor(far/step)
-        
-
     return max(int(pf-p0),0)
     
-
     
 def base_region_by_angle( polygon_vertex2D, angle, turb = None ):
     
@@ -116,9 +110,6 @@ def base_region_by_angle( polygon_vertex2D, angle, turb = None ):
             pass
             
         
-        
-    
-
 def direction_in_halfplane(rays,direction):
     """
     Filter points on the half plane defined by
@@ -529,7 +520,6 @@ def filter_by_distance(points, r = None, variation = 0.9, is_sorted = False):
         
     
     return array(rays)
-
 
 class IterSurface:
     """ Inheritable class to surfaces that can be iterated and generate the coating
