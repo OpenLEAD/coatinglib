@@ -439,13 +439,13 @@ if __name__ == '__main__':
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db_with_blade()
-    #clear_db_visited_bases
+    #clear_db_visited_bases()
     #generate_db()
-    generate_db_joints()
+    #generate_db_joints()
     #merge()
     #plot_gradient()
 
