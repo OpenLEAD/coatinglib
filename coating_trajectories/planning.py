@@ -107,7 +107,7 @@ def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = N
     if len(iksol)>0:
         sol = best_joint_solution_regarding_manipulability(
             iksol, tolerance, turbine.robot)
-        turbine.robot.SetDOFValues(sol)
+        robot.SetDOFValues(sol)
         if(trajectory_constraints(turbine, sol, trajectory[trajectory_index])):
             joint_solutions.append(sol)
         else: return []
