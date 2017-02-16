@@ -776,9 +776,12 @@ class DB:
         """
 
         db = self.load_db_visited_bases()
-        for key, value in db.iteritems():
+        for key in db:
             db[key] = False
-        return db
+        try:
+            self.save_db_pickle(db, join(self.path,'fixed_db','db_visited_bases.pkl'))
+        except IOError: raise
+        return
 
     def plot_points_gradient(self, vis, scale = 1):
         """
