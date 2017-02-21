@@ -97,7 +97,8 @@ def base_region_by_angle( polygon_vertex2D, angle, turb = None ):
     pf = floor(far/step)
 
     H = array( [ array([[1,0],pv[n]-pv[n-1]]).T for n in range(len(pv)) ] )
-    
+
+    border = []
     
     for sy in arange(p0*step, (pf+1)*step, step):
         O = array([0,sy])
@@ -106,8 +107,19 @@ def base_region_by_angle( polygon_vertex2D, angle, turb = None ):
         hits = sorted(hits[:,0])
 
         for segment in zip(hits[0::2],hits[1::2]):
-            #simulate
-            pass
+            segborder = []
+            first, last = True, False
+            for point in range(segment[0],segment[1]+_p_step,_p_step):
+                p,s = xya2ps(point, sy, angle)
+                rp = RailPlace((p,s,angle))
+                turb.place_rail(rp)
+                turb.place_robot(rp)
+                viable = not( turb.check_rail_collision() &
+                           turb.check_robotbase_collision())
+                if viable and first:
+                    segborder += [(point,sy)]
+                    first = False
+                #if not#CONTINUE
             
         
 def direction_in_halfplane(rays,direction):
