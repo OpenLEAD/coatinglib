@@ -1,5 +1,6 @@
-from numpy import sqrt, dot, concatenate, arange, array, abs
+from numpy import sqrt, dot, concatenate, arange, array, abs, zeros
 from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
+from numpy.linalg import norm
 from openravepy import IkFilterOptions, Ray
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize, linprog
@@ -22,8 +23,9 @@ def compute_angular_velocities(turbine, joints_trajectory, trajectory_index):
         return central_difference(turbine, joints_trajectory, trajectory_index)
     else: return None
     
-def compute_general_velocities(turbine, joints_trajectory, rays):
+def compute_general_velocities(turbine, joints_trajectory, points):
     """
+    points = rays[:,0:3]
     0)Compute times based on h and distances calculated from rays
     
     Loop joints_trajectory/rays
@@ -31,11 +33,37 @@ def compute_general_velocities(turbine, joints_trajectory, rays):
     2)Order elements for best approximation like: 0,1,-1,2,-2..
     3)Use general_finite_difference(time, joints, times) to compute difference, it outputs the estimated joint, w , alpha
     """
-    
-    
     h = turbine.config.coating.coating_speed
 
-    return
+    dpoints = points[1:]-points[:-1]
+    times = array([0.]+list(norm(dpoints,axis=1)))/h
+
+    N = len(times)
+
+    w_list = []
+    alpha_list = []
+
+
+    for i,time in enumerate(times):
+        order = []
+        past = range(i)[::-1]
+        future = range(i,N)
+
+        for el in range(N/2):
+            if el == len(past):
+                order += future[el:]
+                break
+            if el == len(future):
+                order += past[el:]
+                break
+            order += [future[el],past[el]]
+
+        _,w,alpha = general_finite_difference(time, joints_trajectory[order], times[order])
+
+        w_list += [w]
+        alpha_list += [alpha]
+
+    return w_list, alpha_list
 
 def torque_computation(turbine, joints, w, alpha):
     # INVERSE DYNAMICS ComputeInverseDynamics
