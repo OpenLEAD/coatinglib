@@ -16,13 +16,13 @@ class NoDBFound(Exception):
     def __init__(self, value):
         Exception.__init__(self,"No DataBase named " + value + " found.")
 
-def get_b2n(filename):
+def load_pickle(filename):
     with open(filename,'rb') as f:
         b2n = cPickle.load(f)
     return b2n
 
-def get_bases(filename):
-    b2n = get_b2n(filename)
+def get_sorted(filename):
+    b2n = load_db_pickle(filename)
     return [ b for (v,b) in sorted(zip(b2n.values(),b2n.keys()))]
     
 
