@@ -35,15 +35,14 @@ def compute_general_velocities(turbine, joints_trajectory, points):
     """
     h = turbine.config.coating.coating_speed
 
-    dpoints = points[1:]-points[:-1]
+    dpoints = array(points[1:])-array(points[:-1])
     times = array([0.]+list(norm(dpoints,axis=1)))/h
 
     N = len(times)
 
     w_list = []
     alpha_list = []
-
-
+    
     for i,time in enumerate(times):
         order = []
         past = range(i)[::-1]
@@ -58,7 +57,7 @@ def compute_general_velocities(turbine, joints_trajectory, points):
                 break
             order += [future[el],past[el]]
 
-        _,w,alpha = general_finite_difference(time, joints_trajectory[order], times[order])
+        _,w,alpha = mathtools.general_finite_difference(time, array(joints_trajectory)[order], times[order])
 
         w_list += [w]
         alpha_list += [alpha]
