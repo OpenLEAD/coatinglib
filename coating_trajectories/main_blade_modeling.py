@@ -5,7 +5,7 @@ from numpy import dot, sqrt, sum, concatenate, array
 import mathtools
 from turbine_config import TurbineConfig, ConfigFileError
 from visualizer import Visualizer
-from os.path import join, exists
+from os.path import join, exists, realpath
 from os import makedirs, environ
 from openravepy import matrixFromAxisAngle
 from math import pi
@@ -120,9 +120,11 @@ def rotate_blade(T, directory):
 if __name__ == "__main__":
     
     name = 'jiraublade_hd'
-    turbconf = TurbineConfig.load("turbine_unittest.cfg", 'test/')
-    environ['OPENRAVE_DATA'] = '/home/renan/git/planning-coating_trajectories/coating_trajectories/test'
-    turb = Turbine(turbconf)
+    dir_test = join(realpath('.'),'test')
+    os.environ['OPENRAVE_DATA'] = str(dir_test)
+    cfg = TurbineConfig.load('turbine_unittest.cfg','test')
+    turb = Turbine(cfg)
+    
     turb.env.Remove(turb.primary)
     turb.env.Remove(turb.secondary)
 
