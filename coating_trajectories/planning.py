@@ -1,4 +1,4 @@
-from numpy import sqrt, dot, concatenate, arange, array, abs, zeros
+from numpy import sqrt, dot, concatenate, arange, array, abs, zeros, cumsum
 from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, Ray
@@ -9,7 +9,6 @@ from path_filters import filter_trajectories
 from mathtools import central_difference
 import mathtools
 import time
-import logging
 from openravepy import databases, IkParameterization
 
 """
@@ -36,7 +35,7 @@ def compute_general_velocities(turbine, joints_trajectory, points):
     h = turbine.config.coating.coating_speed
 
     dpoints = array(points[1:])-array(points[:-1])
-    times = array([0.]+list(norm(dpoints,axis=1)))/h
+    times = cumsum(array([0.]+list(norm(dpoints,axis=1)))/h)
 
     N = len(times)
 
@@ -44,25 +43,14 @@ def compute_general_velocities(turbine, joints_trajectory, points):
     alpha_list = []
     
     for i,time in enumerate(times):
-        order = []
         past = range(i)[::-1]
         future = range(i,N)
-
-        for el in range(N/2):
-            if el == len(past):
-                order += future[el:]
-                break
-            if el == len(future):
-                order += past[el:]
-                break
-            order += [future[el],past[el]]
-
+        order = list(mathtools.roundrobin(future,past))
+        order = order[:min(len(order),7)]
         _,w,alpha = mathtools.general_finite_difference(time, array(joints_trajectory)[order], times[order])
-
         w_list += [w]
         alpha_list += [alpha]
-
-    return w_list, alpha_list
+    return w_list, alpha_list, times
 
 def torque_computation(turbine, joints, w, alpha):
     # INVERSE DYNAMICS ComputeInverseDynamics
