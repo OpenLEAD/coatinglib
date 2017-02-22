@@ -9,6 +9,7 @@ from abc import ABCMeta, abstractmethod
 from copy import copy, deepcopy
 from collections import deque
 from scipy.spatial import KDTree
+from itertools import cycle, islice
 
 _base_module_precision = 0.2
 _p_step = 0.1
@@ -840,4 +841,15 @@ def general_finite_difference(time, joints, times):
     df = dot(s,joints)
     return df[0],df[1],df[2] #joint, w, alpha
     
-    
+def roundrobin(*iterables):
+    "roundrobin('ABC', 'D', 'EF') --> A D E B F C"
+    # Recipe credited to George Sakkis
+    pending = len(iterables)
+    nexts = cycle(iter(it).next for it in iterables)
+    while pending:
+        try:
+            for next in nexts:
+                yield next()
+        except StopIteration:
+            pending -= 1
+            nexts = cycle(islice(nexts, pending))    
