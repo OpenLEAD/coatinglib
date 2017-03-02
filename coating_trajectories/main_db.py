@@ -424,22 +424,25 @@ def clear_db_visited_bases():
     DB.clear_db_visited_bases()
     return
 
+def create_db_from_segments(path):
+    DB = db.DB(directory)
+    db_main = DB.create_db_from_segments(path)
+    DB.save_db_pickle(db_main, join(path,'db.pkl') )
+    return
+    
+    
 if __name__ == '__main__':
 
     directory = 'db'
     blade_folder = "jiraublade_hd_filtered"
     blade_folder_full = "jiraublade_hd"
-    try:
-        makedirs(directory)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-              
+    new_segs_path = 'db/not_merged/new_seg'
+    
     dir_test = join(realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db_with_blade()
@@ -463,6 +466,8 @@ if __name__ == '__main__':
 
     #borders, points_to_remove = compute_points_to_remove(24)
     #remove_points_from_db(24, borders, points_to_remove)
+
+    #create_db_from_segments(new_segs_path)
 
 
 
