@@ -251,6 +251,22 @@ class DB:
                 value = set([value])
             main_db[key] = main_db.get(key,set()) | value
         return main_db
+
+    def merge_seg(self, seg, main_db):
+        """
+        Merge new seg to the main database.
+
+        keyword arguments:
+        seg -- segments to be merged;
+        main_db -- main database file;
+        """
+
+        base = seg.keys()[0]
+        for segments in seg[base]:
+            for segment in segments:
+                for point in segment:
+                    main_db[point] = main_db.get(point,set()) | set([base])
+        return main_db
         
     def merge_db_directory(self, path):
         """
@@ -277,6 +293,33 @@ class DB:
                 db = self.merge_db(db_file, db)        
         self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
         return
+
+    def create_db_from_segments(self, path):
+        """
+        Method to create db (num to num) with segments in given path.
+
+        keyword arguments:
+        path -- where the segments are.
+        """
+
+        db = dict()
+        ptn = self.load_db_points_to_num()
+        for key, value in ptn.iteritems():
+            db[value] = set()
+            
+        onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+        N = len(onlyfiles)
+        index = 0
+        for afile in onlyfiles:
+            filename, file_extension = splitext(afile)
+            if file_extension == '.pkl':
+                print('file = %s' % (filename))
+                try: 
+                    db_file = self.load_db_pickle(join(path,afile))
+                except EOFError:
+                    continue
+                db = self.merge_seg(db_file, db)        
+        return db
 
     def generate_db(self, turbine, blade, rail_position, minimal_number_of_points_per_trajectory = 2): 
         """
