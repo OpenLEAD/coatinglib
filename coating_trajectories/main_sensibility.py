@@ -10,6 +10,7 @@ from visualizer import Visualizer
 from numpy import all, nonzero, split, array
 import cPickle
 import errno
+import rail_place
 
 def load_blade(folder):
     """
@@ -109,11 +110,38 @@ def compute_new_segs():
             raise 'Error saving db_base_to_joints.pkl'
     return    
 
+def plot_segs_comp(base_num):
+    seg_base = DB.load_db_pickle(join(segs_path,str(base_num)+'.pkl'))
+    new_seg_base = DB.load_db_pickle(join(new_segs_path,str(base_num)+'.pkl'))
+    trajectories = seg_base[base_num]
+    new_trajectories = new_seg_base[base_num]
+    ntp = DB.get_sorted_points()
+
+    for i in range(0,len(trajectories)):
+        if len(trajectories[i])>0:
+            for j in range(0,len(trajectories[i])):
+                for num_point in trajectories[i][j]:
+                    p = vis.plot(ntp[num_point],'p',(1,0,0))
+
+    for i in range(0,len(new_trajectories)):
+        if len(new_trajectories[i])>0:
+            for j in range(0,len(new_trajectories[i])):
+                for num_point in new_trajectories[i][j]:
+                    p = vis.plot(ntp[num_point],'p',(0,0,1))
+
+    base = DB.get_sorted_bases()[base_num]
+    rp = rail_place.RailPlace(base)
+    turb.place_rail(rp)
+    turb.place_robot(rp)
+    return
+    
+
 if __name__ == '__main__':
     segs_path = 'db/not_merged/seg'
     joints_path = 'db/not_merged/joints'
+    new_segs_path = 'db/not_merged/new_seg'
     directory = 'db'
-    #base_num = 0
+    base_num = 13
     blade_folder = "jiraublade_hd_filtered"
     DB = db.DB(directory)
 
@@ -121,8 +149,9 @@ if __name__ == '__main__':
     environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
 
     #velocities = compute_velocities(base_num)
     #new_seg_base = check_angular_velocities_segs(velocities, base_num)
-    compute_new_segs()
+    #compute_new_segs()
+    plot_segs_comp(base_num)
