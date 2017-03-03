@@ -227,6 +227,39 @@ def grid_verticalization(grid_num):
     rays = DB.compute_rays_from_parallels(blade, trajectories, borders)
     return mathtools.trajectory_verticalization(rays)
 
+def plot_bases(sorted_bases, trajectories, borders, threshold, grid_num, path):
+    import matplotlib.pyplot as plt
+    from scipy.spatial import ConvexHull
+
+    xy = []
+    feasible_bases = []
+    for sorted_base in sorted_bases:
+        score, base, angle = sorted_base
+        if -score >= threshold:
+            rp = rail_place.RailPlace(base)
+            xyz = rp.getXYZ(cfg)
+            feasible_bases.append([score,base])
+            xy.append([xyz[0],xyz[1]])
+        else: break
+
+    if len(xy)>0:
+        fig = plt.figure()
+        try:
+            hull2D = ConvexHull(xy)
+            plt = mathtools.plot_hull(xy, hull2D, plt)
+        except:
+            plt.scatter(array(xy)[:,0],array(xy)[:,1])
+        fig.savefig(join(path,str(grid_num)+'.pdf'))
+        plt.close()
+    return feasible_bases
+
+def grid_tolerance_plot():
+    db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
+    for grid_num in db_grid_to_trajectories.keys():
+        sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
+        plot_bases(sorted_bases, trajectories, borders, threshold, grid_num, path)
+    return 
+
 if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
@@ -252,10 +285,16 @@ if __name__ == '__main__':
     #vis = Visualizer(turb.env)
 
     # Grid input
-    #grid_num = 26
+    grid_num = 0
+    threshold = 0.95
+    path = 'grid_tolerance_plot'
+
+    
     #sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
     #plot_base_for_grid_coating(sorted_bases, trajectories, borders)
-    while True:
-        if not tolerance_test(): break
+    #while True:
+        #if not tolerance_test(): break
     #non_coatable_one_base, non_coatable = non_coatable_grids()
     #non_coatable = plot_non_coatable_points_grid(grid_num)
+    #feasible_bases = plot_bases(sorted_bases, trajectories, borders, threshold, grid, path)
+    grid_tolerance_plot()
