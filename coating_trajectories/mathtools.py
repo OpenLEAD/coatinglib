@@ -63,14 +63,16 @@ def base_points_by_angle( points2D, angle, turb ):
 
     return viable
     
-def plot_hull(points2D, hull2D):
-    import matplotlib.pyplot as plt
-    rndhull = list(hull2D)+ [hull2D[0]]
+def plot_hull(points2D, hull2D, plt = None):
+    if plt == None:
+        import matplotlib.pyplot as plt
+        
+    rndhull = list(hull2D.vertices)+ [hull2D.vertices[0]]
 
-    plt.scatter(points2D[:,0],points2D[:,1])
-    plt.plot(points2D[rndhull,0], points2D[rndhull,1], 'r--', lw=2)
-    plt.plot(points2D[rndhull[:-1],0], points2D[rndhull[:-1],1], 'ro')
-    plt.show()
+    plt.scatter(array(points2D)[:,0],array(points2D)[:,1])
+    plt.plot(array(points2D)[rndhull,0], array(points2D)[rndhull,1], 'r--', lw=2)
+    plt.plot(array(points2D)[rndhull[:-1],0], array(points2D)[rndhull[:-1],1], 'ro')
+    return plt
 
 def secondary_positions_by_angle(points2D, angle):
     step = _base_module_precision * cos(angle)
