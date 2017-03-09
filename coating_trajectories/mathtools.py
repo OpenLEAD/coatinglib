@@ -855,3 +855,14 @@ def roundrobin(*iterables):
         except StopIteration:
             pending -= 1
             nexts = cycle(islice(nexts, pending))    
+
+def intersection(points1, points2, r):
+    intersections = []
+    points1 = array(list(points1))
+    points2 = array(list(points2))
+    for point1 in points1:
+        in_radius = points2[linalg.norm(points2-point1,axis=1)<=r]
+        if len(in_radius)>0:
+            intersections.extend(list((in_radius+point1)/2))
+    intersections_tuple = [tuple(i) for i in intersections]
+    return intersections_tuple
