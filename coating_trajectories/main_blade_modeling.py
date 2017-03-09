@@ -79,8 +79,8 @@ def save_trajectories():
 
 def plot_trajectories():
     load_trajectories()
-    for trajectory in blade.trajectories:
-        vis.plot(trajectory, 'trajectories', ((0,0,1)))
+    for i in range(0,len(blade.trajectories),5):
+        vis.plot(blade.trajectories[i], 'trajectories', (0,0,1),1)
     return
 
 def generate_trajectories():
@@ -119,9 +119,9 @@ def rotate_blade(T, directory):
     
 if __name__ == "__main__":
     
-    name = 'jiraublade_hd'
+    name = 'jiraublade_hd_filtered'
     dir_test = join(realpath('.'),'test')
-    os.environ['OPENRAVE_DATA'] = str(dir_test)
+    environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
     
@@ -143,10 +143,10 @@ if __name__ == "__main__":
     #filter_trajectories()
     #save_filtered_trajectories()
 
-    rotate_blade(matrixFromAxisAngle([-pi/4, 0, 0]), 'jiraublade_hd_-45')
+    #rotate_blade(matrixFromAxisAngle([-pi/4, 0, 0]), 'jiraublade_hd_-45')
 
     # Visualizer
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
     #plot_samples()
-    #plot_trajectories()
+    plot_trajectories()
     
