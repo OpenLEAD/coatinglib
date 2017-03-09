@@ -14,6 +14,7 @@ import planning
 from copy import deepcopy
 import csv
 import cPickle
+from copy import copy
 
 def base_for_grid_coating(grid_num):
     
@@ -260,6 +261,64 @@ def grid_tolerance_plot():
         plot_bases(sorted_bases, trajectories, borders, threshold, grid_num, path)
     return 
 
+def bases_for_all_grids(threshold):
+    db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
+
+    grid_bases = dict()
+    for grid_num in db_grid_to_trajectories.keys():
+        sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
+        xy = []
+        for sorted_base in sorted_bases:
+            score, base, angle = sorted_base
+            if -score >= threshold:
+                rp = rail_place.RailPlace(base)
+                xyz = rp.getXYZ(cfg)
+                value = set([(xyz[0],xyz[1])])
+                grid_bases[grid_num] = grid_bases.get(grid_num,set()) | value
+            else: break
+    return grid_bases
+
+def compute_best_intersection(intersection, grid_nums, grid_bases):
+
+    best_intersection_len = 0
+    best_intersection = None
+    intersections = None
+    for grid in grid_nums:
+        intersections = mathtools.intersection(intersection, grid_bases[grid], 0.2)
+        if len(intersections)>best_intersection_len:
+            best_intersection_len = len(intersections)
+            best_intersection = grid
+            intersection = intersections
+    return best_intersection, best_intersection_len, intersection
+
+def compute_best_intersections(grid_num, grid_nums, min_intersections=2, grid_bases=None):
+
+    if grid_bases==None:
+        grid_bases = bases_for_all_grids(threshold)
+
+    all_grids = copy(grid_nums)
+    remove_grids = [grid_num]
+    intersection = grid_bases[grid_num]
+    while True:
+        for grid in remove_grids:
+            try:
+               grid_nums.remove(grid)
+            except: None
+            
+        best_intersection, best_intersection_len, intersection = compute_best_intersection(
+            intersection, grid_nums, grid_bases)
+
+        if best_intersection_len<=min_intersections:
+            return intersection, remove_grids
+
+        remove_grids.append(best_intersection)
+        grid_nums = copy(all_grids)
+
+        if len(remove_grids) == len(all_grids):
+            break
+    return intersection, remove_grids
+        
+
 if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
@@ -297,4 +356,18 @@ if __name__ == '__main__':
     #non_coatable_one_base, non_coatable = non_coatable_grids()
     #non_coatable = plot_non_coatable_points_grid(grid_num)
     #feasible_bases = plot_bases(sorted_bases, trajectories, borders, threshold, grid, path)
-    grid_tolerance_plot()
+    #grid_tolerance_plot()
+    #grid_bases = bases_for_all_grids(threshold)
+
+    with open('grid_bases.pkl', 'rb') as f:
+            grid_bases = cPickle.load(f)
+    grid_nums = range(0,15)
+    grid_nums.extend(range(17,20))
+    grid_nums.extend(range(22,24))
+    grid_nums.extend(range(67,69))
+    grid_nums.extend(range(72,77))
+    grid_nums.extend(range(78,80))
+    grid_nums.remove(74)
+    
+    intersection, remove_grids = compute_best_intersections(
+        0, grid_nums, min_intersections=2, grid_bases=None)
