@@ -866,3 +866,20 @@ def intersection(points1, points2, r):
             intersections.extend(list((in_radius+point1)/2))
     intersections_tuple = [tuple(i) for i in intersections]
     return intersections_tuple
+
+def distance_line_bases(line, bases, min_threshold, max_threshold):
+    distance_str = 0; distance = None; point_near = []
+    (a,b) = line; x1 = (0,b)
+    if a==0: x2 = (1,b)
+    else: x2 = (-b/a,0)
+
+    for base in bases:
+        d = distance_point_line_3d(array(x1), array(x2), array(base))
+        if d<=max_threshold:
+            distance_str+=1
+        if d<=min_threshold:
+            if distance>d or distance==None:
+                distance = d
+                point_near = base
+    return point_near, distance, distance_str
+        
