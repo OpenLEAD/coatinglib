@@ -11,10 +11,9 @@ import rail_place
 import mathtools
 import blade_modeling
 import planning
-from copy import deepcopy
+from copy import deepcopy, copy
 import csv
 import cPickle
-from copy import copy
 
 def base_for_grid_coating(grid_num):
     
