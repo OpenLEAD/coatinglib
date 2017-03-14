@@ -871,6 +871,7 @@ def distance_line_bases(line, bases, min_threshold, max_threshold):
     distance_str = 0; distance = None; point_near = []
     (a,b) = line; x1 = (0,b)
     if a==0: x2 = (1,b)
+    elif b==0: x2 = (1,a)
     else: x2 = (-b/a,0)
 
     for base in bases:
