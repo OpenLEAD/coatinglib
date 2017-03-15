@@ -97,4 +97,13 @@ class Visualizer:
         """
             
         self.env.UpdatePublishedBodies()
+
+    def drawline(self, points, key='normal_'+str(random.uniform(1,10)), color=(1,0,0), linewidth = 4):
+        if key in self.handles:
+            temp = self.handles[key]
+            temp.append(self.env.drawlinestrip(points=points, linewidth=3.0, colors=color))
+            self.handles[key] = temp
+        else:
+            self.handles[key] = [self.env.drawlinestrip(points=points, linewidth=linewidth, colors=color)]
+        return key
         
