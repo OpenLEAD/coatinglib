@@ -371,7 +371,7 @@ class DB:
         best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
         return best_bases, -array(sorted(score))*1.0/N
         
-    def make_grid(self, blade, number_of_meridians = 12, number_of_parallels = 6, init_parallel = 17 ):
+    def make_grid(self, blade, number_of_meridians, number_of_parallels, init_parallel):
         """
         Make a grid in the blade with parallels and meridians.
         Meridians and parallels are evenly spaced.
@@ -390,7 +390,7 @@ class DB:
         
         parallels = []
         list_index = linspace(init_parallel,len(blade.trajectories),number_of_parallels).astype(int)
-        list_index[-1] -= 2
+        list_index[-1] -= 1
         for i in list_index:
             parallels.append(blade.trajectories[i])
         return meridians, parallels
@@ -416,7 +416,6 @@ class DB:
         for i in range(0,len(meridians)):
             for j in range(0,len(parallels)-1):
                 grid = [(i, (i+1)%len(meridians)), (j,j+1)]
-                print('iter %3i ' % (counter))
                 trajectories_in_grid, borders = self.get_points_in_grid(
                     blade, [meridians[grid[0][0]], meridians[grid[0][1]]],
                     [parallels[grid[1][0]], parallels[grid[1][1]]])
@@ -535,16 +534,22 @@ class DB:
         meridian1, meridian2 = meridian[0], meridian[1]
         parallel1, parallel2 = parallel[0], parallel[1]
         db_points_to_num = self.load_db_points_to_num()
-        
-        parallel_index_1 = int((blade.trajectory_iter_surface._Rn0 -
-                                linalg.norm(parallel1[0][0:3]))/
-                               blade.trajectory_iter_surface.coatingstep)
-        parallel_index_2 = int((blade.trajectory_iter_surface._Rn0 -
-                                linalg.norm(parallel2[0][0:3]))/
-                               blade.trajectory_iter_surface.coatingstep)
+
+        parallel_index_1 = 0
+        parallel_index_2 = 0
+        for i in range(0,len(blade.trajectories)):
+            traj_list = [list(a) for a in blade.trajectories[i]]
+            if list(parallel1[0]) in traj_list:
+                parallel_index_1 = i
+                break
+        for i in range(0,len(blade.trajectories)):
+            traj_list = [list(a) for a in blade.trajectories[i]]
+            if list(parallel2[0]) in traj_list:
+                parallel_index_2 = i
+                break
+
         init = min(parallel_index_1,parallel_index_2)
         end = max(parallel_index_1,parallel_index_2)+1
-
         trajectories_in_grid = []
 
         def get_point_value(point):
@@ -557,7 +562,6 @@ class DB:
         for i in range(init,end):
             trajectory_in_grid = []
             parallel = array(blade.trajectories[i])
-            blade.trajectory_iter_surface.find_iter(parallel[0])
             p1, sorted_parallel1 = self._closest_meridian_point(meridian1, parallel, blade)
             p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel, blade)
             parallel1 = mathtools.direction_in_halfplane(parallel,p1[3:6])
@@ -566,8 +570,10 @@ class DB:
             p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel2, blade)
             index_left = self._get_first_left_meridian_point_index(parallel, sorted_parallel1, p1)
             index_right = self._get_first_right_meridian_point_index(parallel, sorted_parallel2, p2)
-            
-            if abs(index_right - index_left)%(len(parallel)-1) == 1:
+
+            if index_left==None or index_right==None:
+                pass
+            elif abs(index_right - index_left)%(len(parallel)-1) == 1:
                 pass
             elif index_left <= index_right:
                 trajectory_in_grid += filter(lambda x: x is not None,
@@ -598,7 +604,8 @@ class DB:
                 dist_list = dist
         sorted_parallel = [x for (y,x) in sorted(zip(dist_list,parallel))]
         model = blade.select_model(closest_meridian_point)
-        return mathtools.curvepoint(model,blade.trajectory_iter_surface,closest_meridian_point[0:3]), sorted_parallel
+        
+        return self._get_ray(model,closest_meridian_point), sorted_parallel
 
     def _get_first_left_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
         """
@@ -623,6 +630,11 @@ class DB:
             if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
 
+    def _get_ray(self, model,point):
+        df = model.df(point)
+        df = df/linalg.norm(df)
+        return array(list(point)+list(df))
+
     def compute_rays_from_parallels(self, blade, parallels, borders = None):
         """
         This method gets a list of point numbers (parallel db format) and
@@ -638,34 +650,29 @@ class DB:
 
         rays = []
         ntp = self.get_sorted_points()
-
-        def get_ray(model,point):
-            df = model.df(point)
-            df = df/linalg.norm(df)
-            return array(list(point)+list(df))
-            
+       
         if borders is None:
             for parallel in parallels:
                 if len(parallel)==0:
                     rays+=[[]]
                     continue
                 model = blade.select_model(ntp[parallel[0]])
-                rays += [ map( lambda x: get_ray(model,ntp[x]), parallel ) ]
+                rays += [ map( lambda x: self._get_ray(model,ntp[x]), parallel ) ]
 
         else:
             for i in range(len(parallels)):
                 traj = []
                 if len(borders[i][0])>0:
                     model = blade.select_model(borders[i][0])
-                    traj.append(get_ray(model,borders[i][0]))
+                    traj.append(self._get_ray(model,borders[i][0]))
 
                 if len(parallels[i])>0:
                     model = blade.select_model(ntp[parallels[i][0]])
-                    traj += map( lambda x: get_ray(model,ntp[x]), parallels[i])
+                    traj += map( lambda x: self._get_ray(model,ntp[x]), parallels[i])
                     
                 if len(borders[i][1])>0:
                     model = blade.select_model(borders[i][1])
-                    traj.append(get_ray(model,borders[i][1]))
+                    traj.append(self._get_ray(model,borders[i][1]))
                     
                 rays.append(traj)
         return rays
@@ -696,8 +703,7 @@ class DB:
 
     def remove_point(self, points):
         """
-        Remove given points from db, db_points_to_num and
-        db_grid_to_trajectories.
+        Remove given points from db, and db_grid_to_trajectories.
         
         Keyword arguments:
         points (or rays) -- list of points to be removed
@@ -724,9 +730,7 @@ class DB:
         try:
             self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
         except IOError: None
-        try:
-            self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_points_to_num.pkl'))
-        except IOError: None
+    
         try:
             self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
         except IOError: None
