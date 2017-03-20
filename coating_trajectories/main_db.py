@@ -227,14 +227,14 @@ def load_blade(folder):
     blade.load_trajectory(xml_trajectories_path)
     return blade
    
-def make_grid():
+def make_grid(number_of_meridians, number_of_parallels, init_parallel):
     """
     See make_grid method in db.py.
     """
     
     DB = db.DB(directory)
     blade = load_blade(blade_folder_full)
-    return DB.make_grid(blade)
+    return DB.make_grid(blade, number_of_meridians, number_of_parallels, init_parallel)
 
 def blade_borders(meridians):
     """
@@ -433,10 +433,10 @@ def create_db_from_segments(path):
     
 if __name__ == '__main__':
 
-    directory = 'db'
-    blade_folder = "jiraublade_hd_filtered"
-    blade_folder_full = "jiraublade_hd"
-    new_segs_path = 'db/not_merged/new_seg'
+    directory = 'db_lip'
+    blade_folder = "lip"
+    blade_folder_full = "lip"
+    new_segs_path = 'db_lip/not_merged/new_seg'
     
     dir_test = join(realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
@@ -447,16 +447,15 @@ if __name__ == '__main__':
     #generate_robot_positions()
     #create_db_with_blade()
     #clear_db_visited_bases()
-    #generate_db()
-    #generate_db_joints()
+    generate_db_joints()
     #merge()
     #plot_gradient()
 
-    #meridians, parallels = make_grid()
+    #meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
     #meridians = blade_borders(meridians)
     #save_meridians(meridians)
     #save_parallels(parallels)
-    #vis.plot_lists(meridians,'meridians')
+    #vis.plot_lists(meridians,'meridians',(1,0,0))
     #vis.plot_lists(parallels,'parallels')
 
     #create_db_grid()
