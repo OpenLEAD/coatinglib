@@ -2,12 +2,14 @@ import cPickle
 from turbine import Turbine
 from turbine_config import TurbineConfig, ConfigFileError
 import mathtools
-from numpy import array, tan, arange
+from numpy import array, tan, arange, zeros
 from math import pi as pi
 from os.path import join, realpath
 from os import environ
 import itertools
 from visualizer import Visualizer
+import db
+import blade_modeling
 
 def check_line(line, grids_num, grid_bases, line_grid, line_grid_dist):
     x1 = line[0]; x2 = line[1]
@@ -93,17 +95,66 @@ def remove_grid_bases(line_grid, grid_nums):
     return grid_nums
 
 def plot_line(vis, lines, key):
-    p0 = (0,0,cfg.environment.z_floor_level)
+    p0 = (-2,0,cfg.environment.z_floor_level)
     p1 = (2,0,cfg.environment.z_floor_level)
     points = array((p0,p1))
     vis.drawline(points, key, (0,0,0), 5)
+
     for line in lines:
-        p0 = (line[0][0],line[0][1],cfg.environment.z_floor_level)
-        p1 = (line[1][0],line[1][1],cfg.environment.z_floor_level)
+        # Ax+By+C=0
+        x1 = line[0][0]; y1 = line[0][1]
+        x2 = line[1][0]; y2 = line[1][1]
+        A = y1-y2; B = x2-x1
+        C = x1*y2-x2*y1
+        if A!=0:
+            y1=cfg.environment.y_min; y2=cfg.environment.y_max
+            p0 = ((-C-y1*B)/A,y1,cfg.environment.z_floor_level)
+            p1 = ((-C-y2*B)/A,y2,cfg.environment.z_floor_level)
+        else:
+            p0 = (cfg.environment.x_min,y1,cfg.environment.z_floor_level)
+            p1 = (cfg.environment.x_max,y1,cfg.environment.z_floor_level)
         points = array((p0,p1))
         vis.drawline(points, key, (0,0,1), 5)
     return
-    
+
+def plot_grids(vis, lines, line_grid):
+    db_grid_to_trajectories =DB.load_db_grid_to_trajectories()
+    blade = load_blade(blade_folder)
+    grid_list = []
+    line0 = (float('Inf'), float('Inf'))
+    grids = list(line_grid[line0])
+    grid_list.extend(grids)
+    for line in lines:
+        grid_list.extend(line_grid[line])
+    for grid in grid_list:
+        trajectories, borders = db_grid_to_trajectories[grid]
+        rays = DB.compute_rays_from_parallels(blade, trajectories, borders)
+        if grid_list.count(grid)>2:
+            vis.plot_lists(rays,'rays',(0,0,1))
+        if grid_list.count(grid)==1:
+            vis.plot_lists(rays,'rays',(0,0,0))
+        if grid_list.count(grid)==2:
+            vis.plot_lists(rays,'rays',(1,0,0))
+        grid_list = filter(lambda a: a != grid, grid_list)
+    return 
+        
+def plot_bases(vis, sol, line_grid, line_grid_dist):
+    line0 = (float('Inf'), float('Inf'))
+    grids = line_grid[line0]
+    for grid in grids:
+        point_near, distance, distance_str = line_grid_dist[line0][grid]
+        p = (point_near[0],point_near[1],cfg.environment.z_floor_level)
+        vis.plot(p,'point',(1,0,0),10)
+        
+    for line in sol:
+        grids = line_grid[line]
+        for grid in grids:
+            point_near, distance, distance_str = line_grid_dist[line][grid]
+            p = (point_near[0],point_near[1],cfg.environment.z_floor_level)
+            vis.plot(p,'point',(1,0,0),10)
+    return 
+            
+  
 def compute_lines(x_range, angle_range):
     lines=[]
     for x in arange(x_range[0],x_range[1],0.1):
@@ -118,6 +169,72 @@ def compute_lines(x_range, angle_range):
         lines.append(((x,0),(x,1)))
     return lines
 
+def sort_best_sol(best_sol, line_grid, line_grid_dist):
+    min_str = []
+    mean_str = []
+    sum_str = []
+    num_grids = []
+    
+    for sol in best_sol:
+        ngrids = 0
+        distance_str_total = 0
+        distance_str_min = 1000
+        for line in sol:
+            grids = line_grid[line]
+            ngrids+=len(grids)
+            for grid in grids:
+                point_near, distance, distance_str = line_grid_dist[line][grid]
+                distance_str_total+=distance_str
+                distance_str_min = min(distance_str_min,distance_str)
+        sum_str.append(distance_str_total)
+        mean_str.append(distance_str_total*1.0/ngrids)
+        num_grids.append(ngrids)
+        min_str.append(distance_str_min)
+
+    values = zeros((len(best_sol),4))
+    values[:,0] = sum_str; values[:,1] = mean_str; values[:,2] = num_grids; values[:,3] = min_str
+    return values
+
+def load_blade(folder):
+    """
+    Function to load blade model given folder.
+    """
+    xml_trajectories_path = join(folder,"trajectory/trajectory.xml")
+    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
+    blade.load_trajectory(xml_trajectories_path)
+    return blade  
+
+def jusante():
+    global x_range
+    
+    grid_nums = range(0,15)
+    grid_nums.extend(range(17,20))
+    grid_nums.extend(range(22,25))
+    grid_nums.extend(range(67,70))
+    grid_nums.extend(range(72,77))
+    grid_nums.extend(range(78,80))
+    remove = [24,69,74]
+    for i in remove:
+        grid_nums.remove(i)
+
+    x_range = [0.7,2]
+    return grid_nums
+
+def montante():
+    global x_range
+    
+    grid_nums = range(30,50)
+    grid_nums.extend(range(51,55))
+    grid_nums.extend(range(56,60))
+    grid_nums.extend([77])
+    remove = [33,34,39,59]
+    for i in remove:
+        grid_nums.remove(i)
+
+    x_range = [-2,-0.5]
+    return grid_nums
+
+
 if __name__ == '__main__':
 
     dir_test = join(realpath('.'),'test')
@@ -126,28 +243,34 @@ if __name__ == '__main__':
     turb = Turbine(cfg)
     key='l'
 
+    # DB inputs
+    db_directories = 'db'
+    DB = db.DB(db_directories)
+    blade_folder = 'jiraublade_hd_filtered'
+
     with open('grid_bases.pkl', 'rb') as f:
             grid_bases = cPickle.load(f)
-    grid_nums = range(0,15)
-    grid_nums.extend(range(17,20))
-    grid_nums.extend(range(22,24))
-    grid_nums.extend(range(67,69))
-    grid_nums.extend(range(72,77))
-    grid_nums.extend(range(78,80))
-    grid_nums.remove(74)
 
-    min_threshold, max_threshold = 0.1, 0.2
-    threshold_str = 5
-    x_range = [0.7,2]
+    # Side inputs
+    x_range = [0,0]
     angle_range = [-80,80] 
+    #grid_nums = jusante()
+    grid_nums = montante()
     lines = compute_lines(x_range, angle_range)
+
+    # Line Parameters
+    min_threshold, max_threshold = 0.1, 0.2
     
+    # Primary rail
+    threshold_str = 5
     line_grid, line_grid_dist = primary_rail_grids(grid_nums, grid_bases)
     line_grid, line_grid_dist = remove_nonstr_lines(line_grid, line_grid_dist, threshold_str)
     grid_nums = remove_grid_bases(line_grid, grid_nums)
     
+    # Secondary rail
     line_grid, line_grid_dist = compute_all_lines(lines, grid_nums, grid_bases, line_grid, line_grid_dist)
     best_sol = compute_minimal_lines(line_grid, grid_nums)
+    values = sort_best_sol(best_sol, line_grid, line_grid_dist)
 
     # Visualizer
     vis = Visualizer(turb.env)
