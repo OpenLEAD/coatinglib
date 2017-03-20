@@ -322,10 +322,12 @@ if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
     # DB inputs
-    db_directories = ['db']#, 'db_45', 'db_-45']
+    db_directories = [#'db'#, 'db_45', 'db_-45',
+        'db_lip']
     db_angles = [0]#, pi/4,-pi/4]
-    blade_folder = ['jiraublade_hd_filtered']#, 'jiraublade_hd_filtered_45',
-                    #'jiraublade_hd_filtered_-45']
+    blade_folder = [#'jiraublade_hd_filtered']#, 'jiraublade_hd_filtered_45',
+                    #'jiraublade_hd_filtered_-45',
+        'lip_filtered']
     #-----------------------------------------------------------------------
     
     dir_test = join(realpath('.'),'test')
@@ -340,10 +342,10 @@ if __name__ == '__main__':
     for i in range(0,len(blade_folder)):
         dict_angle_blade[db_angles[i]]=load_blade(blade_folder[i])
     
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
 
     # Grid input
-    grid_num = 0
+    grid_num = 2
     threshold = 0.95
     path = 'grid_tolerance_plot'
 
@@ -358,15 +360,3 @@ if __name__ == '__main__':
     #grid_tolerance_plot()
     #grid_bases = bases_for_all_grids(threshold)
 
-    with open('grid_bases.pkl', 'rb') as f:
-            grid_bases = cPickle.load(f)
-    grid_nums = range(0,15)
-    grid_nums.extend(range(17,20))
-    grid_nums.extend(range(22,24))
-    grid_nums.extend(range(67,69))
-    grid_nums.extend(range(72,77))
-    grid_nums.extend(range(78,80))
-    grid_nums.remove(74)
-    
-    intersection, remove_grids = compute_best_intersections(
-        0, grid_nums, min_intersections=2, grid_bases=None)
