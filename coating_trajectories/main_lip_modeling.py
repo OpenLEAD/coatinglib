@@ -163,7 +163,7 @@ def reorganize_trajectories():
 def filter_trajectories():
     load_trajectories()
     blade.trajectories = blade.filter_trajectory_opt()
-    #vis.plot_lists(blade.trajectories)
+    vis.plot_lists(blade.trajectories)
     return 
 
 def save_filtered_trajectories():
@@ -201,8 +201,8 @@ if __name__ == "__main__":
     # Visualizer
     vis = Visualizer(turb.env)
     #plot_samples()
-    load_trajectories()
-    plot_trajectories()
+    #load_trajectories()
+    #plot_trajectories()
 
 
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     #generate_trajectories()
     #save_trajectories()
 
-    #filter_trajectories()
+    filter_trajectories()
     #save_filtered_trajectories()
 
 
