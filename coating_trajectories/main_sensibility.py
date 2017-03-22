@@ -11,6 +11,7 @@ from numpy import all, nonzero, split, array
 import cPickle
 import errno
 import rail_place
+from itertools import izip
 
 def load_blade(folder):
     """
@@ -47,8 +48,8 @@ def compute_velocities(base_num,turbine):
             torque = []
             sensible = []
             for ray, joints, w, alpha in izip(list_rays[j], list_joints, w_list, alpha_list):
-                torque += [torque_computation(turbine, joints, w, alpha)]
-                sensible += [sensibility(turbine, ray, w, alpha)]
+                torque += [planning.torque_computation(turbine, joints, w, alpha)]
+                sensible += [planning.sensibility(turbine, ray, w, alpha)]
                 
             velocity_times += [(w_list, alpha_list, times)]
             torque_seg += [torque]
@@ -153,12 +154,12 @@ def plot_segs_comp(base_num):
     
 
 if __name__ == '__main__':
-    segs_path = 'db_lip/not_merged/seg'
-    joints_path = 'db_lip/not_merged/joints'
-    new_segs_path = 'db_lip/not_merged/new_seg'
-    directory = 'db_lip'
+    segs_path = 'db/not_merged/new_seg'
+    joints_path = 'db/not_merged/joints'
+    new_segs_path = 'db/not_merged/new_seg'
+    directory = 'db'
     base_num = 13
-    blade_folder = "lip"
+    blade_folder = "jiraublade_hd_filtered"
     DB = db.DB(directory)
 
     dir_test = join(realpath('.'),'test')
