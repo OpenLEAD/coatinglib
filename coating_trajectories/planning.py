@@ -52,18 +52,23 @@ def compute_general_velocities(turbine, joints_trajectory, points):
         alpha_list += [alpha]
     return w_list, alpha_list, times
 
-def torque_computation(turbine, joints, w, alpha):
-    # INVERSE DYNAMICS ComputeInverseDynamics
+def torque_computation(turbine, joints, w, alpha, verify = False):
+    """
+    Apply joints position 'joints', joints velocities 'w' and joints acceleration 'alpha'
+    Return torques - (6,) array
+    verify - if True function returns False when a torque is bigger than maximum
+    """
     with turbine.robot:
+        gun = turbine.robot.GetLink('Gun')
+        flame_force = {gun.GetIndex(): list(-gun.GetTransform()[0:3,2]*flame_thrust)+[0,0,0]} 
         turbine.robot.SetDOFValues(joints, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
         turbine.robot.SetDOFVelocities(w, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
-        torques = turbine.robot.ComputeInverseDynamics(alpha)
+        torques = turbine.robot.ComputeInverseDynamics(alpha,flame_force)
 
-        if any(torques < turb.robot.GetDOFMaxTorque):
-            return False#THROW EXCEPTION
-        else:
-            return True
-    return torques
+    if any(torques > turbine.robot.GetDOFMaxTorque) and verify:
+        return False
+    else:
+        return torques
 
 def sensibility(turbine, ray, w, alpha):
     
