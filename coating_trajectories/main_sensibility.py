@@ -24,24 +24,40 @@ def load_blade(folder):
 def get_joint(base_num,joint_base, point_num):
         return joint_base[base_num][point_num]
     
-def compute_velocities(base_num):
+def compute_velocities(base_num,turbine):
     blade = load_blade(blade_folder)
     
     seg_base = DB.load_db_pickle(join(segs_path,str(base_num)+'.pkl'))
     joint_base = DB.load_db_pickle(join(joints_path,str(base_num)+'.pkl'))
     trajectories = seg_base[base_num]
     velocities_times = []
+    torque_traj = []
+    sensible_traj = []
 
     for i in range(0,len(trajectories)):
         velocity_times = []
+        torque_seg = []
+        sensible_seg = []
         if len(trajectories[i])>0:
             list_rays = DB.compute_rays_from_parallels(blade, trajectories[i])
 
         for j in range(0,len(trajectories[i])):
-            list_joints =  map( lambda x: get_joint(base_num,joint_base,x), trajectories[i][j] ) 
-            velocity_times.append(planning.compute_general_velocities(turb, list_joints, list_rays[j]))
-        velocities_times.append(velocity_times)
-    return velocities_times
+            list_joints =  map( lambda x: get_joint(base_num,joint_base,x), trajectories[i][j] )
+            w_list, alpha_list, times = planning.compute_general_velocities(turb, list_joints, list_rays[j])
+            torque = []
+            sensible = []
+            for ray, joints, w, alpha in izip(list_rays[j], list_joints, w_list, alpha_list):
+                torque += [torque_computation(turbine, joints, w, alpha)]
+                sensible += [sensibility(turbine, ray, w, alpha)]
+                
+            velocity_times += [(w_list, alpha_list, times)]
+            torque_seg += [torque]
+            sensible_seg += [sensible]
+            
+        velocities_times += [velocity_times]
+        torque_traj += [torque_seg]
+        sensible_traj += [sensible_seg]
+    return velocities_times, torque_traj, sensible_traj
 
 def check_angular_velocities(velocities):
     maxVel = turb.robot.GetDOFVelocityLimits()
@@ -70,7 +86,7 @@ def check_angular_velocities_segs(velocity_segs, base_num):
                 new_seg_base[base_num].append(new_seg)
     return new_seg_base
 
-def compute_new_segs():
+def compute_new_segs(turb):
     new_path_seg = join(directory,'not_merged','new_seg')
 
     try:
@@ -99,7 +115,7 @@ def compute_new_segs():
         except IOError:
             continue
 
-        velocities = compute_velocities(base_num)
+        velocities,_,_ = compute_velocities(base_num,turb)
         new_seg_base = check_angular_velocities_segs(velocities, base_num)
 
         print 'saving base_num: ', base_num
@@ -151,5 +167,8 @@ if __name__ == '__main__':
     turb = Turbine(cfg)
     vis = Visualizer(turb.env)
 
-    compute_new_segs()
+    #compute_new_segs()
+    velocities, torq, sens = compute_velocities(base_num,turb)
+    #new_seg_base = check_angular_velocities_segs(velocities, base_num)
+    #compute_new_segs(turb)
     #plot_segs_comp(base_num)
