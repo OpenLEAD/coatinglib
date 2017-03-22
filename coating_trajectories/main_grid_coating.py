@@ -261,8 +261,9 @@ def grid_tolerance_plot():
     return 
 
 def bases_for_all_grids(threshold):
-    db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
-
+    
+    DB = dict_angle_db[0]
+    db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
     grid_bases = dict()
     for grid_num in db_grid_to_trajectories.keys():
         sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
@@ -275,6 +276,7 @@ def bases_for_all_grids(threshold):
                 value = set([(xyz[0],xyz[1])])
                 grid_bases[grid_num] = grid_bases.get(grid_num,set()) | value
             else: break
+    DB.save_db_pickle(grid_bases,db_directories[0]+'/grid_bases.pkl')
     return grid_bases
 
 def compute_best_intersection(intersection, grid_nums, grid_bases):
@@ -327,7 +329,7 @@ if __name__ == '__main__':
     db_angles = [0]#, pi/4,-pi/4]
     blade_folder = [#'jiraublade_hd_filtered']#, 'jiraublade_hd_filtered_45',
                     #'jiraublade_hd_filtered_-45',
-        'lip_filtered']
+        'lip']
     #-----------------------------------------------------------------------
     
     dir_test = join(realpath('.'),'test')
@@ -346,7 +348,7 @@ if __name__ == '__main__':
 
     # Grid input
     grid_num = 2
-    threshold = 0.95
+    threshold = 0.90
     path = 'grid_tolerance_plot'
 
     
@@ -358,5 +360,5 @@ if __name__ == '__main__':
     #non_coatable = plot_non_coatable_points_grid(grid_num)
     #feasible_bases = plot_bases(sorted_bases, trajectories, borders, threshold, grid, path)
     #grid_tolerance_plot()
-    #grid_bases = bases_for_all_grids(threshold)
+    grid_bases = bases_for_all_grids(threshold)
 
