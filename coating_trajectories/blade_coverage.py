@@ -234,6 +234,12 @@ def montante():
     x_range = [-2,-0.5]
     return grid_nums
 
+def lip():
+    global x_range
+    grid_nums = [0,1,2]
+    x_range = [0.7,2]
+    return grid_nums
+
 
 if __name__ == '__main__':
 
@@ -244,18 +250,19 @@ if __name__ == '__main__':
     key='l'
 
     # DB inputs
-    db_directories = 'db'
+    db_directories = 'db_lip'
     DB = db.DB(db_directories)
-    blade_folder = 'jiraublade_hd_filtered'
+    blade_folder = 'lip'#jiraublade_hd_filtered'
 
-    with open('grid_bases.pkl', 'rb') as f:
+    with open(db_directories+'/grid_bases.pkl', 'rb') as f:
             grid_bases = cPickle.load(f)
 
     # Side inputs
     x_range = [0,0]
     angle_range = [-80,80] 
     #grid_nums = jusante()
-    grid_nums = montante()
+    #grid_nums = montante()
+    grid_nums = lip()
     lines = compute_lines(x_range, angle_range)
 
     # Line Parameters
