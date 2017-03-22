@@ -30,6 +30,7 @@ class TurbineConfig:
         angle_tolerance = None
         coating_speed = None
         parallel_gap = None
+        flame_thrust = None
 
     class Model:
         nose_radius = None
@@ -81,6 +82,7 @@ class TurbineConfig:
             config.coating.angle_tolerance = parser.getfloat("coating","angle_tolerance")
             config.coating.coating_speed = parser.getfloat("coating","coating_speed")
             config.coating.parallel_gap = parser.getfloat("coating","parallel_gap")
+            config.coating.flame_thrust = parser.getfloat("coating","flame_thrust")
 
             # model Section
             config.model.nose_radius = parser.getfloat("model","nose_radius")

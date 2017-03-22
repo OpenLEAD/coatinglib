@@ -1,5 +1,5 @@
-from numpy import sqrt, dot, concatenate, arange, array, abs, zeros, cumsum
-from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
+from numpy import sqrt, dot, concatenate, arange, array, abs, zeros, cumsum, minimum
+from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf, arccos, maximum
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, Ray
 from math import pi, cos, sin, atan2
@@ -60,9 +60,9 @@ def torque_computation(turbine, joints, w, alpha, verify = False):
     """
     with turbine.robot:
         gun = turbine.robot.GetLink('Gun')
-        flame_force = {gun.GetIndex(): list(-gun.GetTransform()[0:3,2]*flame_thrust)+[0,0,0]} 
-        turbine.robot.SetDOFValues(joints, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
-        turbine.robot.SetDOFVelocities(w, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsThrow)
+        flame_force = {gun.GetIndex(): list(-gun.GetTransform()[0:3,2]*turbine.config.coating.flame_thrust)+[0,0,0]} 
+        turbine.robot.SetDOFValues(joints, turbine.robot.GetActiveDOFIndices(), turbine.robot.CheckLimitsAction.CheckLimitsSilent)
+        turbine.robot.SetDOFVelocities(w,turbine.robot.CheckLimitsAction.CheckLimitsSilent,turbine.robot.GetActiveDOFIndices())
         torques = turbine.robot.ComputeInverseDynamics(alpha,flame_force)
 
     if any(torques > turbine.robot.GetDOFMaxTorque) and verify:
@@ -81,14 +81,14 @@ def sensibility(turbine, ray, w, alpha):
     Hpos = turbine.robot.ComputeHessianTranslation(turbine.manipulator.GetArmDOF(),
                                                    turbine.manipulator.GetEndEffectorTransform()[0:3,3])
     Hpos = dot(Hpos,w)
-    theta_limits = zip(-2*turbine.robot.GetDOFResolutions(),2*turbine.robot.GetDOFResolutions())
-    w_limits = zip(-w*0.01,w*0.01) #HARDCODED 1% error
-    limts = tuple(theta_limits + w_limits)
+    theta_limits = zip(-turbine.robot.GetDOFResolutions(),turbine.robot.GetDOFResolutions())
+    w_limits = zip(-abs(w)*0.001,abs(w)*0.001) #HARDCODED 1% error
+    limits = tuple(theta_limits + w_limits)
 
     Hpos_tan = dot(Hpos,tangent_vec)
     Jpos_tan = dot(tangent_vec, Jpos)
-    errorgain_tan = contcatenate((Jpos_tan,Hpos_tan))
-    velocity_tan_error = (linprog(errorgain_tan, bounds=limts).get('fun'),-linprog(-errorgain_tan, bounds=limts).get('fun'))
+    errorgain_tan = concatenate((Jpos_tan,Hpos_tan))
+    velocity_tan_error = (linprog(errorgain_tan, bounds=limits).get('fun'),-linprog(-errorgain_tan, bounds=limits).get('fun'))
 
     Jpos_normal = dot(normal_vec, Jpos)
     position_normal_error = (linprog(Jpos_normal, bounds=theta_limits).get('fun'),-linprog(-Jpos_normal, bounds=theta_limits).get('fun'))
@@ -101,9 +101,9 @@ def sensibility(turbine, ray, w, alpha):
     nhat = mathtools.hat(normal_vec)
     xn = dot(x_dir,nhat)
     Jcos = -dot(xn,Jw)
-    cos = -dot(x_dir,normal_vec)
-    dcos = (linprog(Jcos, bounds=theta_limits).get('fun'),-linprog(-Jcos, bounds=theta_limits).get('fun'))
-    angle_error = tuple(np.arccos(cos+dcos))
+    cosn = -dot(x_dir,normal_vec)
+    dcosn = (linprog(Jcos, bounds=theta_limits).get('fun'),-linprog(-Jcos, bounds=theta_limits).get('fun'))
+    angle_error = tuple(arccos(minimum(cosn+dcosn,1.)) - arccos(cosn))
 
     return velocity_tan_error, position_normal_error, position_perp_error, angle_error
     
