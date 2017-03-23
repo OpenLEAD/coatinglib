@@ -6,32 +6,19 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1224</width>
+    <height>944</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLineEdit" name="lineEdit">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>30</y>
-      <width>113</width>
-      <height>27</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>grid number</string>
-    </property>
-   </widget>
    <widget class="QPushButton" name="pushButton">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>60</y>
+      <y>130</y>
       <width>99</width>
       <height>27</height>
      </rect>
@@ -45,13 +32,31 @@
      <rect>
       <x>170</x>
       <y>20</y>
-      <width>1055</width>
-      <height>862</height>
+      <width>1154</width>
+      <height>1770</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QLabel" name="label">
+      <widget class="QLabel" name="jusantepng">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>1152</width>
+         <height>860</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>1152</width>
+         <height>860</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
        <property name="text">
         <string/>
        </property>
@@ -59,14 +64,47 @@
         <enum>Qt::RichText</enum>
        </property>
        <property name="pixmap">
-        <pixmap>../../../Documents/bases/jusante.png</pixmap>
+        <pixmap>interface_figs/jusante.png</pixmap>
+       </property>
+       <property name="scaledContents">
+        <bool>true</bool>
        </property>
        <property name="wordWrap">
         <bool>false</bool>
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QLabel" name="montantepng">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="pixmap">
+        <pixmap>interface_figs/montante.png</pixmap>
+       </property>
+      </widget>
+     </item>
     </layout>
+   </widget>
+   <widget class="QComboBox" name="dbs">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>40</y>
+      <width>85</width>
+      <height>27</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QSpinBox" name="spinBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>100</y>
+      <width>61</width>
+      <height>27</height>
+     </rect>
+    </property>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
@@ -74,7 +112,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>1224</width>
      <height>25</height>
     </rect>
    </property>

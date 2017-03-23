@@ -1,13 +1,13 @@
 from PyQt4 import QtGui  # Import the PyQt4 module we'll need
 import sys  # We need sys so that we can pass argv to QApplication
 
-import untitled  # This file holds our MainWindow and all design related things
+import qt_interface  # This file holds our MainWindow and all design related things
 
 # it also keeps events etc that we defined in Qt Designer
 import os  # For listing directory methods
 
 
-class ExampleApp(QtGui.QMainWindow, untitled.Ui_MainWindow):
+class ExampleApp(QtGui.QMainWindow, qt_interface.Ui_MainWindow):
     def __init__(self):
         # Explaining super is out of the scope of this article
         # So please google it if you're not familar with it
@@ -17,8 +17,8 @@ class ExampleApp(QtGui.QMainWindow, untitled.Ui_MainWindow):
         self.setupUi(self)  # This is defined in design.py file automatically
         # It sets up layout and widgets that are defined
         self.actionOpen.triggered.connect(self.browse_folder)  # When the button is pressed
-                                                            # Execute browse_folder function
-
+        self.jusantepng.setFixedSize(640,480)
+         
     def browse_folder(self):
         directory = QtGui.QFileDialog.getOpenFileName(self,
                                                       "Open File",
