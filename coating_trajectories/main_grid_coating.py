@@ -360,5 +360,5 @@ if __name__ == '__main__':
     #non_coatable = plot_non_coatable_points_grid(grid_num)
     #feasible_bases = plot_bases(sorted_bases, trajectories, borders, threshold, grid, path)
     #grid_tolerance_plot()
-    grid_bases = bases_for_all_grids(threshold)
+    #grid_bases = bases_for_all_grids(threshold)
 
