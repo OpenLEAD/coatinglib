@@ -466,7 +466,7 @@ if __name__ == '__main__':
     #borders, points_to_remove = compute_points_to_remove(24)
     #remove_points_from_db(24, borders, points_to_remove)
 
-    create_db_from_segments(new_segs_path)
+    #create_db_from_segments(new_segs_path)
 
 
 
