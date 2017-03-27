@@ -473,7 +473,7 @@ def compute_perpendicular_vector(vector_1):
 def distance_point_line_3d(x1, x2, x0):
     """
     A line in three dimensions specified by two points x1 and x2.
-    The function calculates the squared distance between a point
+    The function calculates the euclidean distance between a point
     x0 and the line.
     
     keyword arguments:
@@ -483,6 +483,20 @@ def distance_point_line_3d(x1, x2, x0):
     """
 
     return linalg.norm(cross(x0-x1,x0-x2))/linalg.norm(x2-x1)
+
+def closest_point_line_3d(x1, x2, x0):
+    """
+    A line in three dimensions specified by two points x1 and x2.
+    The function calculates the closest point in line to point
+    x0.
+    
+    keyword arguments:
+    x1 -- (x,y,z) a point of the line
+    x2 -- (x,y,z) a second point of the line
+    x0 -- point not in the line to compute distance
+    """
+    P10 = (x1-x0); P12 = (x1-x2)
+    return -P12*dot(P10,P12)/dot(P12,P12)+x1
 
 def isospherical_theta(xyz):
     return acos(xyz[2]/sqrt(xyz[0]**2+xyz[1]**2+xyz[2]**2))
