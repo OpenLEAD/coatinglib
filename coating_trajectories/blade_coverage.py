@@ -2,14 +2,17 @@ import cPickle
 from turbine import Turbine
 from turbine_config import TurbineConfig, ConfigFileError
 import mathtools
-from numpy import array, tan, arange, zeros
+from numpy import array, tan, arange, zeros, linalg, sign
 from math import pi as pi
 from os.path import join, realpath
-from os import environ
+from os import environ, makedirs
 import itertools
 from visualizer import Visualizer
 import db
 import blade_modeling
+import errno
+import rail_place
+from math import atan2
 
 def check_line(line, grids_num, grid_bases, line_grid, line_grid_dist):
     x1 = line[0]; x2 = line[1]
@@ -193,7 +196,8 @@ def sort_best_sol(best_sol, line_grid, line_grid_dist):
 
     values = zeros((len(best_sol),4))
     values[:,0] = sum_str; values[:,1] = mean_str; values[:,2] = num_grids; values[:,3] = min_str
-    return values
+    best_sol_ordered = [x for (y,x) in sorted(zip(-values[:,0],best_sol))]
+    return values, best_sol_ordered
 
 def load_blade(folder):
     """
@@ -204,9 +208,8 @@ def load_blade(folder):
     blade.load_trajectory(xml_trajectories_path)
     return blade  
 
-def jusante():
-    global x_range
-    
+def jusante(x_range, grid_path):
+    grid_path = 'jusante'
     grid_nums = range(0,15)
     grid_nums.extend(range(17,20))
     grid_nums.extend(range(22,25))
@@ -218,11 +221,10 @@ def jusante():
         grid_nums.remove(i)
 
     x_range = [0.7,2]
-    return grid_nums
+    return grid_nums, x_range, grid_path
 
-def montante():
-    global x_range
-    
+def montante(x_range, grid_path):
+    grid_path = 'montante'
     grid_nums = range(30,50)
     grid_nums.extend(range(51,55))
     grid_nums.extend(range(56,60))
@@ -232,14 +234,48 @@ def montante():
         grid_nums.remove(i)
 
     x_range = [-2,-0.5]
-    return grid_nums
+    return grid_nums, x_range, grid_path
 
-def lip():
-    global x_range
+def lip(x_range, grid_path):
+    grid_path = 'lip'
     grid_nums = [0,1,2]
     x_range = [0.7,2]
-    return grid_nums
+    return grid_nums, x_range, grid_path
 
+def save_best_sol(best_sol_ordered, line_grid, line_grid_dist):
+    path = join(db_directories,'rails',grid_path)
+    try:
+        makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise    
+    DB.save_db_pickle(best_sol_ordered,join(path, 'best_sol.pkl'))
+    DB.save_db_pickle(line_grid,join(path, 'line_grid.pkl'))
+    DB.save_db_pickle(line_grid_dist,join(path, 'line_grid_dist.pkl'))            
+    return
+
+def robot_base_position(grid):
+    path = join(db_directories,'rails',grid_path)
+    best_sol_ordered = DB.load_db_pickle(join(path, 'best_sol.pkl'))
+    line_grid = DB.load_db_pickle(join(path, 'line_grid.pkl'))
+    line_grid_dist = DB.load_db_pickle(join(path, 'line_grid_dist.pkl'))
+
+    line0 = (float('Inf'), float('Inf'))
+    grids = line_grid[line0]
+    if grid in grids:
+        point_near, distance, distance_str = line_grid_dist[line0][grid]
+        return (point_near[0], 0, 0)
+        
+    for line in best_sol_ordered[0]:
+        grids = line_grid[line]
+        if grid in grids:
+            # Ax+By+C=0
+            x1 = line[0][0]; y1 = line[0][1]
+            x2 = line[1][0]; y2 = line[1][1]
+            point_near, distance, distance_str = line_grid_dist[line][grid]
+            p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
+            vis.plot((p[0],p[1],cfg.environment.z_floor_level),'p',(0,0,1),10)
+            return (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1)) 
 
 if __name__ == '__main__':
 
@@ -249,10 +285,14 @@ if __name__ == '__main__':
     turb = Turbine(cfg)
     key='l'
 
+    # Visualizer
+    vis = Visualizer(turb.env)
+    
     # DB inputs
     db_directories = 'db_lip'
     DB = db.DB(db_directories)
     blade_folder = 'lip'#jiraublade_hd_filtered'
+    grid_path = ''
 
     with open(db_directories+'/grid_bases.pkl', 'rb') as f:
             grid_bases = cPickle.load(f)
@@ -260,25 +300,28 @@ if __name__ == '__main__':
     # Side inputs
     x_range = [0,0]
     angle_range = [-80,80] 
-    #grid_nums = jusante()
-    #grid_nums = montante()
-    grid_nums = lip()
+    #grid_nums, x_range, grid_path = jusante(x_range, grid_path)
+    #grid_nums, x_range, grid_path = montante(x_range, grid_path)
+    #grid_nums, x_range, grid_path = lip(x_range, grid_path)
     lines = compute_lines(x_range, angle_range)
 
     # Line Parameters
     min_threshold, max_threshold = 0.1, 0.2
     
-    # Primary rail
+    # Primary rail computation
     threshold_str = 5
-    line_grid, line_grid_dist = primary_rail_grids(grid_nums, grid_bases)
-    line_grid, line_grid_dist = remove_nonstr_lines(line_grid, line_grid_dist, threshold_str)
-    grid_nums = remove_grid_bases(line_grid, grid_nums)
+    #line_grid, line_grid_dist = primary_rail_grids(grid_nums, grid_bases)
+    #line_grid, line_grid_dist = remove_nonstr_lines(line_grid, line_grid_dist, threshold_str)
+    #grid_nums = remove_grid_bases(line_grid, grid_nums)
     
-    # Secondary rail
-    line_grid, line_grid_dist = compute_all_lines(lines, grid_nums, grid_bases, line_grid, line_grid_dist)
-    best_sol = compute_minimal_lines(line_grid, grid_nums)
-    values = sort_best_sol(best_sol, line_grid, line_grid_dist)
+    # Secondary rail computation
+    #line_grid, line_grid_dist = compute_all_lines(lines, grid_nums, grid_bases, line_grid, line_grid_dist)
+    #best_sol = compute_minimal_lines(line_grid, grid_nums)
+    #values, best_sol_ordered = sort_best_sol(best_sol, line_grid, line_grid_dist)
+    #save_best_sol(best_sol_ordered, line_grid, line_grid_dist)
+    #psa = robot_base_position(0)
+    #rp = rail_place.RailPlace(psa)
+    #turb.place_rail(rp)
 
-    # Visualizer
-    vis = Visualizer(turb.env)
+    
     
