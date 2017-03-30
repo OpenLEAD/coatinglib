@@ -6,8 +6,8 @@ from os import path
 
 _PRIMARY_RAIL = "primary_rail"
 _SECONDARY_RAIL = "secondary_rail"
-_BLADE = "pa"
-_RUNNER_AREA = "arocamara"
+_BLADE = "blade"
+_RUNNER_AREA = "runner"
 _IRIS = "iris"
 _ROTOR = "rotor"
 
