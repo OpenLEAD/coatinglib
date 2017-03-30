@@ -760,33 +760,6 @@ class DB:
         except IOError: raise
         return
 
-    def plot_points_gradient(self, vis, scale = 1):
-        """
-        Method to plot points in a color gradient way regarding reachability by the bases.
-        Red -> point is not reachable by any base
-        Green -> point is well reachable.
-
-        keyword arguments:
-        vis -- visualizer object.
-        scale -- number_of_points/scale will be plotted.
-        """
-        
-        N = 0
-        db = self.load_db()
-        for key, value in db.iteritems():
-            N = max(N,len(value))
-
-        points_tuple = self.get_sorted_points()
-        
-        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
-        points_num = array(db.keys())[index]
-        bases_num = array(db.values())[index]
-
-        for i in range(0,len(points_num)):
-            vis.plot(points_tuple[points_num[i]], 'points_gradient',
-                     color = hls_to_rgb(len(bases_num[i])*1.0/(3*N),0.5,1))
-        return
-
     def plot_points_db(self, vis, scale=1):
         """
         Method to plot db points.

@@ -19,83 +19,6 @@ import mathtools
 from copy import deepcopy
 import ast
 
-def merge():
-    """
-    Function to call merge method in db.py.
-    It will merge the db files in 'not_merged' folder.
-    """
-    DB = db.DB(directory)
-    DB.merge_db_directory(join(directory,'not_merged'))
-    return
-
-def plot_gradient():
-    """
-    Function to call plot_points_gradient in db.py.
-    """
-    DB = db.DB(directory)
-    DB.plot_points_gradient(vis)
-    DB.plot_bases_db(vis, turb)
-    return
-
-def generate_db():
-    """
-    Function to generate the db. It can be called multiple times
-    by different process.
-    """
-    
-    turb.robot.GetLink('Flame').Enable(False)
-    blade = load_blade(blade_folder)
-    DB = db.DB(directory)
-
-    path = join(directory,'not_merged')
-    try:
-        makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-    
-    while True:
-        with open(join(directory,'fixed_db','db_visited_bases.pkl'), 'rb') as f:
-            db_visited_bases = cPickle.load(f)
-        base_num = None
-        for key, value in db_visited_bases.iteritems():
-            if value == False:
-                db_visited_bases[key] = True
-                base_num = key
-                break
-        if base_num is None:
-            break
-        with open(join(directory,'fixed_db','db_visited_bases.pkl'), 'wb') as f:
-            cPickle.dump(db_visited_bases, f, cPickle.HIGHEST_PROTOCOL)
-        del db_visited_bases
-
-        db_bases_to_num = DB.load_db_bases_to_num()
-        for key, value in db_bases_to_num.iteritems():
-            if value == base_num:
-                base = key
-                break
-        del db_bases_to_num
-
-        rp = rail_place.RailPlace(base)
-        turb.place_rail(rp)
-        turb.place_robot(rp)
-
-        if turb.check_rail_collision():
-            continue
-        if turb.check_robotbase_collision():
-            continue
-
-        database = DB.generate_db(turb, blade, base_num)
-        name = rp.getXYZ(turb.config)
-        name = [round(name[0],3), round(name[1],3)]
-        name = str(name)
-        name = name.replace(', ','_')
-        name = name.replace('[','')
-        name = name.replace(']','')
-        print 'saving base local (x,y): ', name
-        DB.save_db_pickle(database, join(path,name+'.pkl'))
-    return
-
 def generate_db_joints():
     """
     Function to generate the trajectory_db and joints_db.
@@ -433,10 +356,10 @@ def create_db_from_segments(path):
     
 if __name__ == '__main__':
 
-    directory = 'db_lip'
-    blade_folder = "lip"
-    blade_folder_full = "lip"
-    new_segs_path = 'db_lip/not_merged/new_seg'
+    directory = 'db'
+    blade_folder = "jiraublade_hd_filtered"
+    blade_folder_full = "jiraublade_hd"
+    new_segs_path = 'db/not_merged/new_seg'
     
     dir_test = join(realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
@@ -448,8 +371,6 @@ if __name__ == '__main__':
     #create_db_with_blade()
     #clear_db_visited_bases()
     #generate_db_joints()
-    #merge()
-    #plot_gradient()
 
     #meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
     #meridians = blade_borders(meridians)
@@ -461,7 +382,6 @@ if __name__ == '__main__':
     #create_db_grid()
     #grid_pick()
     #grid_add()
-    #feasible_bases = grid_validation(1)
 
     #borders, points_to_remove = compute_points_to_remove(24)
     #remove_points_from_db(24, borders, points_to_remove)
