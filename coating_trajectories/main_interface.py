@@ -23,9 +23,9 @@ import qt_interface  # This file holds our MainWindow and all design related thi
 import os  # For listing directory methods
 
 dics = {
-    "Faces": ['jusante','montante',blade_coverage.jusante()+blade_coverage.montante()],
-    "Lados": ['borda_direita','borda_esquerda',blade_coverage.lip()],
-    "Lips": ['lip','lip',blade_coverage.lip()],
+    "Jusante": ['jusante', blade_coverage.jusante_grids(),'db','jusante'],
+    "Montante": ['montante', blade_coverage.montante_grids(),'db','montante'],
+    "Lips": ['lip', blade_coverage.lip_grids(),'db_lip','lip'] 
     }
 
 class ExampleApp(QtGui.QMainWindow, qt_interface.Ui_MainWindow):
@@ -37,30 +37,22 @@ class ExampleApp(QtGui.QMainWindow, qt_interface.Ui_MainWindow):
         super(self.__class__, self).__init__()
         self.setupUi(self)  # This is defined in design.py file automatically
         # It sets up layout and widgets that are defined
-        self.actionOpen.triggered.connect(self.browse_folder)  # When the button is presse
         self.dbs.addItems(dics.keys())
+        key = str(self.dbs.currentText())
+        self.figesq.setPixmap(QtGui.QPixmap(_fromUtf8("interface_figs/"+dics[key][0]+".png")))
         self.dbs.currentIndexChanged[QtCore.QString].connect(self.apply_figs)
+        self.pushButton.clicked.connect(self.coat)
         
     def apply_figs(self,key):
         self.figesq.setPixmap(QtGui.QPixmap(_fromUtf8("interface_figs/"+dics[str(key)][0]+".png")))
-        self.figdir.setPixmap(QtGui.QPixmap(_fromUtf8("interface_figs/"+dics[str(key)][1]+".png")))
         self.grid.clear()
-        self.grid.addItems(map(lambda s: str(s),dics[str(key)][2]))
-        
-        
-         
-    def browse_folder(self):
-        directory = QtGui.QFileDialog.getOpenFileName(self,
-                                                      "Open File",
-                                                      '',
-                                                      'cfg (*.cfg)')
-        # execute getExistingDirectory dialog and set the directory variable to be equal
-        # to the user selected directory
+        self.grid.addItems(map(lambda s: str(s),dics[str(key)][1]))
 
-        if directory: # if user didn't pick a directory don't continue
-            for file_name in os.listdir(directory): # for all files, if any, in the directory
-                self.listWidget.addItem(file_name)  # add file to the listWidget
-
+    def coat(self):
+        key = str(self.dbs.currentText())
+        grid_num = int(str(self.grid.currentText()))
+        psa = blade_coverage.robot_base_position(dics[key][2],dics[key][3],grid_num)
+        print psa
 
 def main():
     app = QtGui.QApplication(sys.argv)  # A new instance of QApplication

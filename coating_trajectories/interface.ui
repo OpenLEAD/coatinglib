@@ -22,7 +22,7 @@
      <rect>
       <x>10</x>
       <y>20</y>
-      <width>1211</width>
+      <width>611</width>
       <height>591</height>
      </rect>
     </property>
@@ -44,7 +44,7 @@
        <rect>
         <x>20</x>
         <y>110</y>
-        <width>1174</width>
+        <width>581</width>
         <height>432</height>
        </rect>
       </property>
@@ -98,56 +98,9 @@
          </property>
         </widget>
        </item>
-       <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item>
-        <widget class="QLabel" name="figdir">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>576</width>
-           <height>430</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>576</width>
-           <height>430</height>
-          </size>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-         <property name="pixmap">
-          <pixmap>interface_figs/montante.png</pixmap>
-         </property>
-         <property name="scaledContents">
-          <bool>true</bool>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="">
+     <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>30</x>
