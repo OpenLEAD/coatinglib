@@ -208,8 +208,7 @@ def load_blade(folder):
     blade.load_trajectory(xml_trajectories_path)
     return blade  
 
-def jusante(x_range, grid_path):
-    grid_path = 'jusante'
+def jusante_grids():
     grid_nums = range(0,15)
     grid_nums.extend(range(17,20))
     grid_nums.extend(range(22,25))
@@ -219,12 +218,9 @@ def jusante(x_range, grid_path):
     remove = [24,69,74]
     for i in remove:
         grid_nums.remove(i)
+    return grid_nums
 
-    x_range = [0.7,2]
-    return grid_nums, x_range, grid_path
-
-def montante(x_range, grid_path):
-    grid_path = 'montante'
+def montante_grids():
     grid_nums = range(30,50)
     grid_nums.extend(range(51,55))
     grid_nums.extend(range(56,60))
@@ -232,13 +228,26 @@ def montante(x_range, grid_path):
     remove = [33,34,39,59]
     for i in remove:
         grid_nums.remove(i)
+    return grid_nums
 
+def lip_grids():
+    return [0,1,2]
+
+def jusante(x_range, grid_path):
+    grid_path = 'jusante'
+    grid_nums = jusante_grids()
+    x_range = [0.7,2]
+    return grid_nums, x_range, grid_path
+
+def montante(x_range, grid_path):
+    grid_path = 'montante'
+    grid_nums = montante_grids()
     x_range = [-2,-0.5]
     return grid_nums, x_range, grid_path
 
 def lip(x_range, grid_path):
     grid_path = 'lip'
-    grid_nums = [0,1,2]
+    grid_nums = lip_grids()
     x_range = [0.7,2]
     return grid_nums, x_range, grid_path
 
@@ -254,8 +263,9 @@ def save_best_sol(best_sol_ordered, line_grid, line_grid_dist):
     DB.save_db_pickle(line_grid_dist,join(path, 'line_grid_dist.pkl'))            
     return
 
-def robot_base_position(grid):
+def robot_base_position(db_directories, grid_path, grid):
     path = join(db_directories,'rails',grid_path)
+    DB = db.DB(db_directories)
     best_sol_ordered = DB.load_db_pickle(join(path, 'best_sol.pkl'))
     line_grid = DB.load_db_pickle(join(path, 'line_grid.pkl'))
     line_grid_dist = DB.load_db_pickle(join(path, 'line_grid_dist.pkl'))
@@ -274,7 +284,6 @@ def robot_base_position(grid):
             x2 = line[1][0]; y2 = line[1][1]
             point_near, distance, distance_str = line_grid_dist[line][grid]
             p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
-            vis.plot((p[0],p[1],cfg.environment.z_floor_level),'p',(0,0,1),10)
             return (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1)) 
 
 if __name__ == '__main__':
@@ -293,6 +302,7 @@ if __name__ == '__main__':
     DB = db.DB(db_directories)
     blade_folder = 'lip'#jiraublade_hd_filtered'
     grid_path = ''
+    grid_num = 0
 
     with open(db_directories+'/grid_bases.pkl', 'rb') as f:
             grid_bases = cPickle.load(f)
@@ -319,7 +329,7 @@ if __name__ == '__main__':
     #best_sol = compute_minimal_lines(line_grid, grid_nums)
     #values, best_sol_ordered = sort_best_sol(best_sol, line_grid, line_grid_dist)
     #save_best_sol(best_sol_ordered, line_grid, line_grid_dist)
-    #psa = robot_base_position(0)
+    #psa = robot_base_position(db_directories, grid_path, grid_num)
     #rp = rail_place.RailPlace(psa)
     #turb.place_rail(rp)
 
