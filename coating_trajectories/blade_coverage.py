@@ -263,9 +263,8 @@ def save_best_sol(best_sol_ordered, line_grid, line_grid_dist):
     DB.save_db_pickle(line_grid_dist,join(path, 'line_grid_dist.pkl'))            
     return
 
-def robot_base_position(path=None, grid=0):
-    if path is None:
-        path = join(db_directories,'rails',grid_path)
+def robot_base_position(db_directories, grid_path, grid):
+    path = join(db_directories,'rails',grid_path)
     DB = db.DB(db_directories)
     best_sol_ordered = DB.load_db_pickle(join(path, 'best_sol.pkl'))
     line_grid = DB.load_db_pickle(join(path, 'line_grid.pkl'))
