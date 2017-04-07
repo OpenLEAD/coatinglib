@@ -74,7 +74,7 @@ def load_trajectories():
 
 def save_trajectories():
     blade.save_trajectory(join(name,'model','model.xml'),
-                          join(name,'trajectory'), name)
+                          '', name)
     return
 
 def plot_trajectories():
