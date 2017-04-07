@@ -154,22 +154,22 @@ def plot_segs_comp(base_num):
     
 
 if __name__ == '__main__':
-    segs_path = 'db/not_merged/new_seg'
-    joints_path = 'db/not_merged/joints'
-    new_segs_path = 'db/not_merged/new_seg'
-    directory = 'db'
+    segs_path = 'db_45/not_merged/new_seg'
+    joints_path = 'db_45/not_merged/joints'
+    new_segs_path = 'db_45/not_merged/new_seg'
+    directory = 'db_45'
     base_num = 13
-    blade_folder = "jiraublade_hd_filtered"
+    blade_folder = "jiraublade_hd_filtered_45"
     DB = db.DB(directory)
 
     dir_test = join(realpath('.'),'test')
     environ['OPENRAVE_DATA'] = str(dir_test)
-    cfg = TurbineConfig.load('turbine_unittest.cfg','test')
+    cfg = TurbineConfig.load('turbine_unittest_45.cfg','test')
     turb = Turbine(cfg)
     vis = Visualizer(turb.env)
 
     #compute_new_segs()
-    velocities, torq, sens = compute_velocities(base_num,turb)
+    #velocities, torq, sens = compute_velocities(base_num,turb)
     #new_seg_base = check_angular_velocities_segs(velocities, base_num)
-    #compute_new_segs(turb)
+    compute_new_segs(turb)
     #plot_segs_comp(base_num)
