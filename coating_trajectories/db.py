@@ -2,24 +2,39 @@ from path_filters import filter_trajectories, side_filter
 import planning
 from numpy import save, load, random, array, linspace, cross
 from numpy import sign, dot, linalg, sum, zeros
-from os.path import basename, splitext, join, exists, isfile
+from os.path import basename, splitext, join, exists, isfile, split, realpath
 from os import makedirs, listdir
 import copy
 import rail_place
-from colorsys import hls_to_rgb
 import cPickle
 import mathtools
 import errno
+from lxml import etree as ET
+from openravepy import matrixFromAxisAngle
+import blade_modeling
+from numpy import dot, array
 
 
 class NoDBFound(Exception):    
     def __init__(self, value):
-        Exception.__init__(self,"No DataBase named " + value + " found.")
+        Exception.__init__(self,"No DB file named " + value + " found.")
+
+def save_pickle(obj, name ):
+    """
+    Save a general file in pickle format.
+
+    Keyword arguments:
+    obj -- object to be saved.
+    name -- name of the file ('example/file.pkl').
+    """
+    
+    with open(name, 'wb') as f:
+        cPickle.dump(obj, f, cPickle.HIGHEST_PROTOCOL)
+    return
 
 def load_pickle(filename):
     with open(filename,'rb') as f:
-        b2n = cPickle.load(f)
-    return b2n
+        return cPickle.load(f)
 
 def get_sorted(filename):
     b2n = load_db_pickle(filename)
@@ -35,49 +50,181 @@ class DB:
     blade -- BladeModeling object;
     """
 
-    def __init__(self, path, blade=None):
+    def __init__(self, path, turbine, db_name = None):
 
         self.path = path
-        self.create_db(blade)
-        del blade
-        
+        self.db_main_path = None
+        self.T = matrixFromAxisAngle([0,0,0])
+        self.info = None
+        self.turb = turbine
+
         if not exists(self.path):
             makedirs(self.path)
-       
-    def save_db_pickle(self, obj, name ):
-        """
-        Save a general file in pickle format.
 
-        Keyword arguments:
-        obj -- object to be saved.
-        name -- name of the file ('example/file.pkl').
-        """
-        
-        with open(name, 'wb') as f:
-            cPickle.dump(obj, f, cPickle.HIGHEST_PROTOCOL)
-        return
+        try:
+            self.info = ET.parse(open(join(self.path,'info.xml')))
+        except IOError as error:
+            if error.errno == errno.ENOENT:
+                raise NoDBFound('info.xml')
 
-    def load_db_pickle(self, name):
-        """
-        Load a general pickle file.
-
-        Keyword arguments:
-        name -- name of the file ('example/file.pkl').
-        """
-        
-        with open(name, 'rb') as f:
-            return cPickle.load(f)
-
+        if db_name!=None:
+            dbs = self.info.findall('db')
+            db_main = None
+            for db in dbs:
+                if db.find('name').text == db_name:
+                    self.db_main_path = join(self.path,db.find('path').text)
+                    T = db.find('transform').text
+                    m = []; mi = []
+                    for t in T:
+                        try:
+                            mi.append(float(t))
+                        except: None
+                        if len(mi)==4:
+                            m.append(mi)
+                            mi=[]
+                    m = array(m)
+                    if m.shape==(4,4):
+                        self.T = m
+                    else:
+                        raise SyntaxError("Invalid transform shape in info.xml")
+                    break
+            else:
+                raise NoDBFound(db_name)
+                
+                
     def load_db(self):
         """
         Load main database num:num. The first num represents the points and
         the second represents the bases.
         """
 
-        name = join(self.path,'fixed_db','db.pkl')
-        return self.load_db_pickle(name)
+        name = join(self.db_main_path,'db.pkl')
+        return load_pickle(name)
 
-    def create_db(self, blade):
+    def load_points_to_num(self):
+        """
+        Load points_to_num database points:num. Points are tuples (x,y,z) and
+        the num maps the points (counter to reduce database complexity).
+        """
+
+        path = join(self.path, 'points_to_num.pkl')
+        ptn = load_pickle(path)
+        real_ptn = dict()
+        for key, value in ptn.iteritems():
+            real_ptn[tuple(dot(self.T,[key[0],key[1],key[2],1])[0:3])] = value
+        return real_ptn
+
+
+    def load_grid_to_mp(self):
+        """
+        Load grid_to_mp database num:[(m1,m2),(p1,p2)].
+        Grids are numbers and the mp are
+        meridian/parallels index.
+        """
+
+        path = join(self.path, 'grid_to_mp.pkl')
+        return load_pickle(path)
+
+    def load_grid_to_trajectories(self):
+        """
+        Load grid_to_trajectories database num:[trajectories, borders].
+        Grids are numbers and the bases are lists of trajectories (num, db format)
+        and borders (tuples Nx3).
+        """
+
+        path = join(self.path, 'grid_to_trajectories.pkl')
+        grid_to_trajectories = load_pickle(path)
+        new_grid_to_trajectories = dict()
+        for grid, value in grid_to_trajectories.iteritems():
+            trajectories, borders = value
+            new_grid_to_trajectories[grid] = [trajectories,mathtools.rotate_points(borders, self.T)]
+            
+        return new_grid_to_trajectories
+
+    def load_bases_to_num(self):
+        """
+        Load bases_to_num database bases:num. Bases are tuples railplace and
+        the num maps the bases (counter to reduce database complexity).
+        """
+
+        path = join(self.path,'bases_to_num.pkl')
+        
+        return load_pickle(path)
+
+    def load_visited_bases(self):
+        """
+        Load visited_bases database bases:bool. Bases are tuples PSAlpha and
+        the bool show if it was already computed.
+        """
+
+        path = join(self.path,'visited_bases.pkl')
+        return load_pickle(path)
+
+    def load_grid_meridian(self):
+        """
+        Load grid_meridians. The meridians used to make the grid.
+        """
+
+        path = join(self.path, 'meridians.pkl')
+        return mathtools.rotate_trajectories(load_pickle(path),self.T)
+
+    def load_grid_parallel(self):
+        """
+        Load grid_parallel. The parallels used to make the grid.
+        """
+
+        path = join(self.path, 'parallels.pkl')
+        return mathtools.rotate_trajectories(load_pickle(path),self.T)
+
+    def load_blade(self):
+        """
+        Function to load blade model.
+        """
+
+        folder = self.info.find('blade_model_filtered')
+        if folder == None:
+            folder = self.info.find('blade_model')
+        if folder == None:
+            raise NameError("No blade model found in info.xml")
+
+        folder = folder.text
+        xml_trajectories_path = join(self.path,folder,"trajectory/trajectory.xml")
+        blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[0])
+        blade.load_trajectory(xml_trajectories_path)
+        blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,self.T)
+        blade.rotate_models(self.T)
+        return blade
+
+    def load_blade_full(self):
+        """
+        Function to load blade model.
+        """
+
+        folder = self.info.find('blade_model')
+        if folder == None:
+            raise NameError("No blade model found in info.xml")
+
+        folder = folder.text
+        xml_trajectories_path = join(self.path,folder,"trajectory/trajectory.xml")
+        blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[0])
+        blade.load_trajectory(xml_trajectories_path)
+        blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,self.T)
+        blade.rotate_models(self.T)
+        return blade
+
+    def create_points_to_num(self):
+        blade = self.load_blade()
+        points_to_num = dict()
+
+        counter = 0
+        for trajectory in blade.trajectories:
+            for point in trajectory:
+                points_to_num[tuple(point[0:3])] = counter
+                counter+=1
+        save_pickle(points_to_num, join(self.path, 'points_to_num.pkl'))
+        return 
+
+    def create_db(self):
         """
         Create the database.
 
@@ -86,141 +233,39 @@ class DB:
         with the parallel points.
         """
 
-        if not exists(join(self.path,'fixed_db')):
-            makedirs(join(self.path,'fixed_db'))
-        db = dict()
-        db_points_to_num = dict()
+        try:
+            points_to_num = self.load_points_to_num()
+        except IOError:
+            self.create_points_to_num(turb)
         
         try:
             db = self.load_db()
         except IOError:
-            if blade is None:
-                db_points_to_num = dict()    
-            else:
-                counter = 0
-                for trajectory in blade.trajectories:
-                    for point in trajectory:
-                        db[counter] = set()
-                        counter+=1
-            self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
+            db = dict()
+            blade = self.load_blade()
+            counter = 0
+            for trajectory in blade.trajectories:
+                for point in trajectory:
+                    db[counter] = set()
+                    counter+=1
+            save_pickle(db, join(self.db_main_path,'db.pkl'))
         del db
-            
-        try:
-            db_points_to_num = self.load_db_points_to_num()
-        except IOError:
-            if blade is None:
-                db_points_to_num = dict()
-            else:
-                counter = 0
-                for trajectory in blade.trajectories:
-                    for point in trajectory:
-                        db_points_to_num[tuple(point[0:3])] = counter
-                        counter+=1
-            self.save_db_pickle(db_points_to_num, join(self.path,'fixed_db','db_points_to_num.pkl'))
-        del db_points_to_num
 
         try:
-            db_bases_to_num = self.load_db_bases_to_num()
+            bases_to_num = self.load_bases_to_num()
         except IOError as error:
             if error.errno == errno.ENOENT:
-                raise NoDBFound('db_bases_to_num.pkl')
+                raise NoDBFound('bases_to_num.pkl')
             else:
-                raise
-        del db_bases_to_num
-           
+                raise        
         return
-
-    def load_db_points_to_num(self):
-        """
-        Load points_to_num database points:num. Points are tuples (x,y,z) and
-        the num maps the points (counter to reduce database complexity).
-        """
-
-        path = join(self.path, 'fixed_db', 'db_points_to_num.pkl')
-        return self.load_db_pickle(path)
-
-    def load_db_grid_to_mp(self):
-        """
-        Load grid_to_mp database num:[(m1,m2),(p1,p2)].
-        Grids are numbers and the mp are
-        meridian/parallels index.
-        """
-
-        path = join(self.path, 'fixed_db', 'db_grid_to_mp.pkl')
-        return self.load_db_pickle(path)
-
-    def load_db_nums_to_joints(self):
-        """
-        Load nums_to_joints database (base_num,point_num):[joints].
-        Grids are numbers and the bases are lists of PSAlpha tuples.
-        """
-
-        path = join(self.path, 'fixed_db', 'db_nums_to_joints.pkl')
-        return self.load_db_pickle(path)
-
-    def load_db_grid_to_bases(self):
-        """
-        Load grid_to_bases database num:[bases].
-        Grids are numbers and the bases are lists of PSAlpha tuples.
-        """
-
-        path = join(self.path, 'fixed_db', 'db_grid_to_bases.pkl')
-        return self.load_db_pickle(path)
-
-    def load_db_grid_to_trajectories(self):
-        """
-        Load grid_to_trajectories database num:[trajectories, borders].
-        Grids are numbers and the bases are lists of trajectories (num, db format)
-        and borders (tuples Nx3).
-        """
-
-        path = join(self.path, 'fixed_db', 'db_grid_to_trajectories.pkl')
-        return self.load_db_pickle(path)
-
-    def load_db_bases_to_num(self):
-        """
-        Load bases_to_num database bases:num. Bases are tuples railplace and
-        the num maps the bases (counter to reduce database complexity).
-        """
-
-        if not exists(join(self.path,'fixed_db')):
-            makedirs(join(self.path,'fixed_db'))
-
-        path = join(self.path,'fixed_db','db_bases_to_num.pkl')
-        
-        return self.load_db_pickle(path)
-
-    def load_db_visited_bases(self):
-        """
-        Load visited_bases database bases:bool. Bases are tuples PSAlpha and
-        the bool show if it was already computed.
-        """
-
-        path = join(self.path,'fixed_db','db_visited_bases.pkl')
-        return self.load_db_pickle(path)
-
-    def load_grid_meridian(self):
-        """
-        Load grid_meridians. The meridians used to make the grid.
-        """
-
-        path = join(self.path, 'fixed_db', 'meridians.pkl')
-        return self.load_db_pickle(path)
-
-    def load_grid_parallel(self):
-        """
-        Load grid_parallel. The parallels used to make the grid.
-        """
-
-        path = join(self.path, 'fixed_db', 'parallels.pkl')
-        return self.load_db_pickle(path)
 
     def get_sorted_bases(self):
         """
         Return the sorted bases -- tuples PSAlpha.
         """
 
-        btn = self.load_db_bases_to_num()
+        btn = self.load_bases_to_num()
         return [ b for (v,b) in sorted(zip(btn.values(),btn.keys()))]
 
     def get_sorted_points(self):
@@ -228,7 +273,7 @@ class DB:
         Return the sorted points -- tuples (x,y,z).
         """
 
-        ptn = self.load_db_points_to_num()
+        ptn = self.load_points_to_num()
         return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
 
     def get_bases(self, db):
@@ -267,34 +312,8 @@ class DB:
                 for point in segment:
                     main_db[point] = main_db.get(point,set()) | set([base])
         return main_db
-        
-    def merge_db_directory(self, path):
-        """
-        Method to merge all databases in a specific folder with the
-        main database.
 
-        keyword arguments:
-        path -- where the databases are
-        """
-
-        db = self.load_db()
-        onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-        N = len(onlyfiles)
-        index = 0
-        for afile in onlyfiles:
-            filename, file_extension = splitext(afile)
-            if file_extension == '.pkl':
-                index+=1
-                print('iter %3i\tfile = %s' % (index, filename))
-                try: 
-                    db_file = self.load_db_pickle(join(path,afile))
-                except EOFError:
-                    db_file = dict()
-                db = self.merge_db(db_file, db)        
-        self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
-        return
-
-    def create_db_from_segments(self, path):
+    def create_db_from_segments(self, path, merge = 0):
         """
         Method to create db (num to num) with segments in given path.
 
@@ -302,11 +321,13 @@ class DB:
         path -- where the segments are.
         """
 
-        db = dict()
-        ptn = self.load_db_points_to_num()
-        for key, value in ptn.iteritems():
-            db[value] = set()
-            
+        if merge==0:
+            db = dict()
+            ptn = self.load_points_to_num()
+            for key, value in ptn.iteritems():
+                db[value] = set()
+        else: db = self.load_db()
+                  
         onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
         N = len(onlyfiles)
         index = 0
@@ -315,7 +336,7 @@ class DB:
             if file_extension == '.pkl':
                 print('file = %s' % (filename))
                 try: 
-                    db_file = self.load_db_pickle(join(path,afile))
+                    db_file = load_pickle(join(path,afile))
                 except EOFError:
                     continue
                 db = self.merge_seg(db_file, db)        
@@ -371,7 +392,7 @@ class DB:
         best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
         return best_bases, -array(sorted(score))*1.0/N
         
-    def make_grid(self, blade, number_of_meridians, number_of_parallels, init_parallel):
+    def make_grid(self, turb, number_of_meridians, number_of_parallels, init_parallel):
         """
         Make a grid in the blade with parallels and meridians.
         Meridians and parallels are evenly spaced.
@@ -384,7 +405,8 @@ class DB:
         init_parallel -- initial parallel. This argument is
         important to remove the lip from the grid.
         """
-        
+
+        blade = load_blade_full(self, turb)
         parallel = blade.trajectories[int(len(blade.trajectories)/2)]
         meridians = blade.draw_meridians(parallel, 1e-3, number_of_meridians)
         
@@ -395,7 +417,7 @@ class DB:
             parallels.append(blade.trajectories[i])
         return meridians, parallels
 
-    def create_db_grid(self, blade):
+    def create_db_grid(self, turb):
         """
         Autonomously create the db_grid after the make_grid process.
         The method will get adjacent meridians and parallels, building
@@ -405,10 +427,11 @@ class DB:
         keyword arguments:
         blade -- blade object.
         """
-        
-        db_grid_to_mp = dict()
+
+        blade = load_blade_full()
+        grid_to_mp = dict()
         db_grid_to_bases = dict()
-        db_grid_to_trajectories = dict()
+        grid_to_trajectories = dict()
         meridians = self.load_grid_meridian()
         parallels = self.load_grid_parallel()
 
@@ -421,26 +444,26 @@ class DB:
                     [parallels[grid[1][0]], parallels[grid[1][1]]])
                 bases = self.get_bases_trajectories(trajectories_in_grid)
 
-                db_grid_to_mp[counter] = grid
+                grid_to_mp[counter] = grid
                 db_grid_to_bases[counter] = bases 
-                db_grid_to_trajectories[counter] = [trajectories_in_grid, borders]
+                grid_to_trajectories[counter] = [trajectories_in_grid, borders]
                 counter+=1
 
         try:
-            self.save_db_pickle(db_grid_to_mp, join(self.path,'fixed_db','db_grid_to_mp.pkl'))
+            save_pickle(grid_to_mp, join(self.path,'grid_to_mp.pkl'))
         except IOError: None
 
         try:
-            self.save_db_pickle(db_grid_to_bases, join(self.path,'fixed_db','db_grid_to_bases.pkl'))
+            save_pickle(db_grid_to_bases, join(self.path,'db_grid_to_bases.pkl'))
         except IOError: None
 
         try:
-            self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
+            save_pickle(grid_to_trajectories, join(self.path,'grid_to_trajectories.pkl'))
         except IOError: None
        
         return
 
-    def generate_db_joints(self, turbine, blade, base_num, minimal_number_of_points_per_trajectory=2):
+    def generate_db_joints(self, base_num, minimal_number_of_points_per_trajectory=3):
         """
         Compute joints for coating HARD COMPUTATION time
         outputs:
@@ -451,7 +474,9 @@ class DB:
         
         """
 
-        db_points_to_num = self.load_db_points_to_num()
+        points_to_num = self.load_points_to_num()
+        blade = self.load_blade()
+        
         db_base_to_joints = dict()  
         db_base_to_segs = dict()
 
@@ -459,7 +484,7 @@ class DB:
         db_base_to_segs[base_num] = list()
 
         # iterate each (filtered) parallel
-        filtered_trajectories = filter_trajectories(turbine, blade.trajectories, minimal_number_of_points_per_trajectory)
+        filtered_trajectories = filter_trajectories(self.turb, blade.trajectories, minimal_number_of_points_per_trajectory)
         for filtered_trajectory in filtered_trajectories:
             db_base_to_segs[base_num] += [[]]
             # iterate each part of trajectory
@@ -483,43 +508,19 @@ class DB:
                         
                     upper = evaluated_points + len(joint_solutions)
                     
-                    if len(joint_solutions) > minimal_number_of_points_per_trajectory:
+                    if len(joint_solutions) >= minimal_number_of_points_per_trajectory:
                         db_base_to_segs[base_num][-1] += [[]]
                         # save point_num in each dictionary 
                         for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joint_solutions):
-                            point_num = db_points_to_num[tuple(point[0:3])]
+                            point_num = points_to_num[tuple(point[0:3])]
                             db_base_to_joints[base_num][point_num] = joints
                             db_base_to_segs[base_num][-1][-1] += [point_num]
 
                     # restart at end point
                     evaluated_points = upper
-        return db_base_to_joints, db_base_to_segs
+        return db_base_to_joints, db_base_to_segs                           
 
-    def create_db_grid_to_bases(self, db_grid_to_trajectories=None):
-        """
-        Compute bases to coat the grids
-        
-        keyword arguments:
-        blade -- blade object.
-        T -- homogenous transform matrix to rotate the blade.
-        """
-
-        if db_grid_to_trajectories is None:
-            db_grid_to_trajectories = self.load_db_grid_to_trajectories()
-        db_grid_to_bases = dict()
-
-        for key, value in db_grid_to_trajectories.iteritems():
-            trajectories, borders = value
-            bases = self.get_bases_trajectories(trajectories)
-            db_grid_to_bases[key] = bases 
-
-        try:
-            self.save_db_pickle(db_grid_to_bases, join(self.path,'fixed_db','db_grid_to_bases.pkl'))
-        except IOError: None
-        return
-                           
-
-    def get_points_in_grid(self, blade, meridian, parallel):
+    def get_points_in_grid(self, meridian, parallel):
         """
         Get parallels that belong to a grid, between given meridians and
         given parallels.
@@ -531,9 +532,10 @@ class DB:
         parallel -- tuple 1x2. Not ordered.
         """
 
+        blade = self.load_blade()
         meridian1, meridian2 = meridian[0], meridian[1]
         parallel1, parallel2 = parallel[0], parallel[1]
-        db_points_to_num = self.load_db_points_to_num()
+        points_to_num = self.load_points_to_num()
 
         parallel_index_1 = 0
         parallel_index_2 = 0
@@ -554,7 +556,7 @@ class DB:
 
         def get_point_value(point):
             try:
-                return db_points_to_num[point]
+                return points_to_num[point]
             except KeyError:
                 return None
 
@@ -590,7 +592,7 @@ class DB:
             borders.append([tuple(p1[0:3]),tuple(p2[0:3])])
         return trajectories_in_grid, borders
 
-    def _closest_meridian_point(self, meridian, parallel, blade):
+    def _closest_meridian_point(self, meridian, parallel):
         min_dist = 100
         closest_meridian_point = []
         sorted_parallel = []
@@ -603,6 +605,7 @@ class DB:
                 min_dist = min(dist)
                 dist_list = dist
         sorted_parallel = [x for (y,x) in sorted(zip(dist_list,parallel))]
+        blade = self.load_blade()
         model = blade.select_model(closest_meridian_point)
         
         return self._get_ray(model,closest_meridian_point), sorted_parallel
@@ -635,7 +638,7 @@ class DB:
         df = df/linalg.norm(df)
         return array(list(point)+list(df))
 
-    def compute_rays_from_parallels(self, blade, parallels, borders = None):
+    def compute_rays_from_parallels(self, parallels, borders = None):
         """
         This method gets a list of point numbers (parallel db format) and
         create a list of rays (point-normal) with possible border points.
@@ -643,13 +646,20 @@ class DB:
         it will return an empty list.
 
         Keyword arguments:
-        blade -- a blade_modeling object.
         parallels -- list of [ list of (point numbers)]
         borders -- If present, must be a list shape (N,2) with begin and end of each parallel
         """
 
         rays = []
         ntp = self.get_sorted_points()
+        blade = self.load_blade()
+        parallels = copy.deepcopy(parallels)
+        
+        db = self.load_db()
+        for parallel in parallels:
+            for point in parallel:
+                if point not in db.keys():
+                    parallel.remove(point)
        
         if borders is None:
             for parallel in parallels:
@@ -677,7 +687,7 @@ class DB:
                 rays.append(traj)
         return rays
                 
-    def bases_validation(self, parallels, bases, turbine, blade):
+    def bases_validation(self, parallels, bases):
         """
         Validate bases for given parallels.
         
@@ -687,13 +697,14 @@ class DB:
         """
         
         feasible_bases = []
+        blade = self.load_blade()
         for base in bases:
             rp = rail_place.RailPlace(base)
-            turbine.place_rail(rp)
-            turbine.place_robot(rp)
+            self.turb.place_rail(rp)
+            self.turb.place_robot(rp)
             for parallel in parallels:
                 joint_solutions = planning.compute_robot_joints(
-                    turbine, parallel, 0, blade.trajectory_iter_surface)
+                    self.turb, parallel, 0, blade.trajectory_iter_surface)
                 if len(joint_solutions) != len(parallel):
                     break
             else:
@@ -703,36 +714,26 @@ class DB:
 
     def remove_point(self, points):
         """
-        Remove given points from db, and db_grid_to_trajectories.
+        Remove given points from db, and grid_to_trajectories.
         
         Keyword arguments:
         points (or rays) -- list of points to be removed
         """
-
-        db_grid_to_trajectories = self.load_db_grid_to_trajectories()
+        
         db = self.load_db()
-        db_points_to_num = self.load_db_points_to_num()
+        points_to_num = self.load_points_to_num()
         
         for point in points:
             key_point = tuple(point[0:3])     
             try:
-                key_num = db_points_to_num[key_point]
+                key_num = points_to_num[key_point]
             except KeyError:
                 continue
 
             db.pop(key_num,None)
-            for key, value in db_grid_to_trajectories.iteritems():
-                trajectories, border = value
-                for trajectory in trajectories:
-                    if key_num in trajectory:
-                        trajectory.remove(key_num)
-
-        try:
-            self.save_db_pickle(db_grid_to_trajectories, join(self.path,'fixed_db','db_grid_to_trajectories.pkl'))
-        except IOError: None
     
         try:
-            self.save_db_pickle(db, join(self.path,'fixed_db','db.pkl'))
+            save_pickle(db, join(self.path,'db.pkl'))
         except IOError: None
 
         return
@@ -745,18 +746,21 @@ class DB:
         db = self.load_db()
         for key, value in db.iteritems():
             db[key] = set()
+        try:
+            save_pickle(db, join(self.path,'db.pkl'))
+        except IOError: raise
         return db
 
-    def clear_db_visited_bases(self):
+    def clear_visited_bases(self):
         """
-        Clear the db_visited_bases.
+        Clear the visited_bases.
         """
 
-        db = self.load_db_visited_bases()
+        db = self.load_visited_bases()
         for key in db:
             db[key] = False
         try:
-            self.save_db_pickle(db, join(self.path,'fixed_db','db_visited_bases.pkl'))
+            save_pickle(db, join(self.path,'visited_bases.pkl'))
         except IOError: raise
         return
 
@@ -779,7 +783,7 @@ class DB:
             vis.plot(points_tuple[i], 'points_db')
         return
 
-    def plot_bases_db(self, vis, turbine):
+    def plot_bases_db(self, vis):
         """
         Method to plot db bases.
 
@@ -793,12 +797,13 @@ class DB:
         bases = self.get_bases(db)
         for base in bases:
             rp = rail_place.RailPlace(db_bases[base])
-            vis.plot(rp.getXYZ(turbine.config),'base',(0,0,1))
+            vis.plot(rp.getXYZ(self.turb.config),'base',(0,0,1))
         return
 
-    def plot_grid(self, blade, grid_num, vis):
-        db_grid_to_trajectories = self.load_db_grid_to_trajectories()
-        trajectories, borders = db_grid_to_trajectories[grid_num]
+    def plot_grid(self, grid_num, vis):
+        grid_to_trajectories = self.load_grid_to_trajectories()
+        blade = self.load_blade()
+        trajectories, borders = grid_to_trajectories[grid_num]
         rays = self.compute_rays_from_parallels(blade, trajectories, borders)
         vis.plot_lists(rays, 'rays', color=(1,0,0))
         return
