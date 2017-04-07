@@ -19,18 +19,18 @@ def grids_out(args):
     print grids_available[args.Area]()
 
 parser = argparse.ArgumentParser(description='Coating script.')
-parser.add_argument('Area', choices=area_db.keys(), type=str,
-                    help = 'Area to be coated.')
 
 subparsers = parser.add_subparsers(help='Functions')
 
 # Function to return PSAlpha
-parser_p = subparsers.add_parser('p', help='Compute the rail and robot base position.')
+parser_p = subparsers.add_parser('position', help='Compute the rail and robot base position.')
+parser_p.add_argument('Area', choices=area_db.keys(), type=str, help='Area to be coated.')
 parser_p.add_argument('Grid', type=int, help='Grid to be coated.')
 parser_p.set_defaults(func=coverage)
 
 # Function to return Grids
-parser_g = subparsers.add_parser('g', help='Return available grids given area.')
+parser_g = subparsers.add_parser('grids', help='Return available grids given area.')
+parser_g.add_argument('Area', choices=area_db.keys(), type=str, help='Area to be coated.')
 parser_g.set_defaults(func=grids_out)
 
 
