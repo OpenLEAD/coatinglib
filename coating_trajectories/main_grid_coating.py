@@ -19,7 +19,7 @@ def base_for_grid_coating(grid_num):
     
     bases = []
     scores = []
-    db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
+    db_grid_to_trajectories = dict_angle_db[db_angles[0]].load_db_grid_to_trajectories()
     trajectories, borders = db_grid_to_trajectories[grid_num]
     for angle, DB in dict_angle_db.iteritems():
         base, score = DB.get_best_bases_trajectories(trajectories)
@@ -132,7 +132,7 @@ def tolerance_test(score_threshold=0.9):
     sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)      
     
     blade = dict_angle_blade[0]
-    rays = dict_angle_db[0].compute_rays_from_parallels(blade, trajectories, borders)
+    rays = dict_angle_db[db_angles[0]].compute_rays_from_parallels(blade, trajectories, borders)
 
     table = ['Rotor Angle', 'Base Position', 'Expected Score', 'Score']
     tolerance_list = []
@@ -181,7 +181,7 @@ def tolerance_test(score_threshold=0.9):
 def non_coatable_grids():
     non_coatable_one_base = []
     non_coatable = []
-    for grid, traj_border in dict_angle_db[0].load_db_grid_to_trajectories().iteritems():
+    for grid, traj_border in dict_angle_db[db_angles[0]].load_db_grid_to_trajectories().iteritems():
         sorted_bases, trajectories, _ = base_for_grid_coating(grid)
         expected_score, base, angle = sorted_bases[0]
         if -expected_score != 1:
@@ -203,6 +203,8 @@ def non_coatable_grids():
 def plot_non_coatable_points_grid(grid_num):
     non_coatable = []
     _, trajectories, _ = base_for_grid_coating(grid_num)
+    for blade in turb.blades:
+            blade.SetTransform(matrixFromAxisAngle([db_angles[0],0,0]))
     main_dbs = []
     for angle, DB in dict_angle_db.iteritems():
         main_dbs.append(DB.load_db())
@@ -213,14 +215,14 @@ def plot_non_coatable_points_grid(grid_num):
                 if len(main_dbs[i][point])>0:
                     break
             else:
-                non_coatable.append(dict_angle_db[0].get_sorted_points()[point])
+                non_coatable.append(dict_angle_db[db_angles[0]].get_sorted_points()[point])
             continue            
     vis.plot(non_coatable,'noncoat',color=(1,0,0))              
     return non_coatable
 
 def grid_verticalization(grid_num):
-    DB = dict_angle_db[0]
-    blade = dict_angle_blade[0]
+    DB = dict_angle_db[db_angles[0]]
+    blade = dict_angle_blade[db_angles[0]]
     db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
 
     trajectories, borders = db_grid_to_trajectories[grid_num]
@@ -254,7 +256,7 @@ def plot_bases(sorted_bases, trajectories, borders, threshold, grid_num, path):
     return feasible_bases
 
 def grid_tolerance_plot():
-    db_grid_to_trajectories = dict_angle_db[0].load_db_grid_to_trajectories()
+    db_grid_to_trajectories = dict_angle_db[db_angles[0]].load_db_grid_to_trajectories()
     for grid_num in db_grid_to_trajectories.keys():
         sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
         plot_bases(sorted_bases, trajectories, borders, threshold, grid_num, path)
@@ -262,7 +264,7 @@ def grid_tolerance_plot():
 
 def bases_for_all_grids(threshold):
     
-    DB = dict_angle_db[0]
+    DB = dict_angle_db[db_angles[0]]
     db_grid_to_trajectories = DB.load_db_grid_to_trajectories()
     grid_bases = dict()
     for grid_num in db_grid_to_trajectories.keys():
@@ -324,12 +326,21 @@ if __name__ == '__main__':
 
     #-----------------------------------------------------------------------
     # DB inputs
-    db_directories = [#'db'#, 'db_45', 'db_-45',
-        'db_lip']
-    db_angles = [0]#, pi/4,-pi/4]
-    blade_folder = [#'jiraublade_hd_filtered']#, 'jiraublade_hd_filtered_45',
+    db_directories = [#'db'
+                      #'db_-45'
+                      #'db_lip'
+                       'db_45'
+                      ]
+    db_angles = [#0
+                 pi/4
+                 #,-pi/4
+                 ]
+    blade_folder = [
+                    #'jiraublade_hd_filtered'
+                    'jiraublade_hd_filtered_45'
                     #'jiraublade_hd_filtered_-45',
-        'lip']
+                    #'lip'
+                    ]
     #-----------------------------------------------------------------------
     
     dir_test = join(realpath('.'),'test')
@@ -347,13 +358,13 @@ if __name__ == '__main__':
     vis = Visualizer(turb.env)
 
     # Grid input
-    grid_num = 2
-    threshold = 0.90
+    grid_num = 25
+    threshold = 0.95
     path = 'grid_tolerance_plot'
 
     
-    #sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
-    #plot_base_for_grid_coating(sorted_bases, trajectories, borders)
+    sorted_bases, trajectories, borders = base_for_grid_coating(grid_num)
+    plot_base_for_grid_coating(sorted_bases, trajectories, borders)
     #while True:
         #if not tolerance_test(): break
     #non_coatable_one_base, non_coatable = non_coatable_grids()
