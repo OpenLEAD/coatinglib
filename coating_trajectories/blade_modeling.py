@@ -3,7 +3,7 @@ from numpy import meshgrid, array, shape, sum, eye, dot, argsort
 from numpy import argmax, argmin, savetxt, mean, loadtxt, cross, linalg
 from numpy import r_, c_, outer, tile, concatenate, sqrt, linspace
 from os import makedirs
-from os.path import join
+from os.path import join, split, dirname
 import errno
 from openravepy import RaveCreateCollisionChecker, matrixFromAxisAngle
 import mathtools
@@ -93,12 +93,15 @@ class BladeModeling:
         model_index = self.models_index
         intersection_between_divisions = self.intersection_between_divisions
         number_of_points_per_model = self.number_of_points_per_model
+        directory_to_save = join(directory_to_save, name,'model')
+        xml_directory = join(name, 'model')
 
         try:
             makedirs(directory_to_save)
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
+        
 
         model = ET.Element("model")
         ET.SubElement(model, "name").text = name
@@ -116,11 +119,11 @@ class BladeModeling:
         for i in range(0,len(models)):
             doc = ET.SubElement(model, "interpolation")
             ET.SubElement(doc, "type").text = models[i].model_type
-            ET.SubElement(doc, "points").text = join(directory_to_save,'points_' + str(i) + ".csv")
+            ET.SubElement(doc, "points").text = join(xml_directory,'points_' + str(i) + ".csv")
             savetxt(join(directory_to_save, 'points_' + str(i) + '.csv'), models[i]._points, delimiter = ',')
             
             if models[i].model_type == 'RBF':
-                ET.SubElement(doc, "w").text = join(directory_to_save, 'w_' + str(i) + ".csv")
+                ET.SubElement(doc, "w").text = join(xml_directory, 'w_' + str(i) + ".csv")
                 savetxt(join(directory_to_save, 'w_' + str(i) + '.csv'), models[i]._w, delimiter = ',')
                 ET.SubElement(doc, "kernel").text = models[i]._kernel
                 ET.SubElement(doc, "eps").text = str(models[i]._eps)
@@ -131,7 +134,7 @@ class BladeModeling:
         tree.write(join(directory_to_save, "model.xml"), pretty_print=True)
         return
 
-    def save_trajectory(self, xml_model, directory_to_save, name):
+    def save_trajectory(self, directory_to_save, name):
         """
         A method to save trajectory and trajectory info. Two type of files are saved:
         .npz and n .csv files
@@ -147,9 +150,10 @@ class BladeModeling:
         trajectories = self.trajectories
         trajectory_step = self.trajectory_step
         iter_surface = self.trajectory_iter_surface
+        xml_model =join(name,'model','mode.xml')
 
         try:
-            makedirs(directory_to_save)
+            makedirs(join(directory_to_save, name, 'trajectory'))
         except OSError as exception:
             if exception.errno != errno.EEXIST:
                 raise
@@ -166,17 +170,9 @@ class BladeModeling:
         ET.SubElement(surface, "stopR").text = str(iter_surface.stopR)
         ET.SubElement(surface, "coatingstep").text = str(iter_surface.coatingstep)
 
-        csv_files = ET.SubElement(trajectory, "csv_files")
         iter_surface._Rn = iter_surface._Rn0
-        for i in range(0,len(trajectories)):
-            ETfile = ET.SubElement(csv_files, "file")
-            ET.SubElement(ETfile, "path").text = join(directory_to_save,'trajectory_' + str(i) + '.csv')
-            iter_surface.update()
-            ET.SubElement(ETfile, "iter_R").text = str(iter_surface._Rn)
-            savetxt(join(directory_to_save, 'trajectory_' + str(i) + '.csv'), trajectories[i], delimiter = ',')
-
-        ET.SubElement(trajectory, "npz_file").text = join(directory_to_save,'trajectory.npz')
-        savez_compressed(join(directory_to_save,'trajectory.npz'), array=trajectories)
+        ET.SubElement(trajectory, "npz_file").text = join(name,'trajectory.npz')
+        savez_compressed(join(directory_to_save, name,'trajectory','trajectory.npz'), array=trajectories)
         
         tree = ET.ElementTree(trajectory)
         tree.write(join(directory_to_save, "trajectory.xml"), pretty_print=True)
@@ -189,7 +185,7 @@ class BladeModeling:
         Keyword arguments:
         xml_file -- the xml file path of the samples.
         """
-        
+            
         try:
             xml = ET.parse(open(xml_file))
         except IOError:
@@ -210,12 +206,13 @@ class BladeModeling:
         Keyword arguments:
         xml_file -- the xml file path of the model.
         """
-        
+
+        path = dirname(dirname(dirname(xml_file)))       
         try:
             xml = ET.parse(open(xml_file))
         except IOError:
             raise IOError('Model could not be loaded. Call method BladeModeling::make_model')
-
+        
         if xml.find('iter_surface').find('type').text != 'None':
             self.model_iter_surface = getattr(mathtools, xml.find('iter_surface').find('type').text)(float(xml.find('iter_surface').find('Rn').text),0,0)
             self.models_index = ast.literal_eval(xml.find('iter_surface').find('switching_parameters').text)
@@ -227,13 +224,13 @@ class BladeModeling:
         self.models = []
         for xml_model in xml.findall('interpolation'):
             if xml_model.find('type').text == 'RBF':
-                points = loadtxt(xml_model.find('points').text, delimiter=',')
+                points = loadtxt(join(path,xml_model.find('points').text), delimiter=',')
                 eps = float(xml_model.find('eps').text)
                 kernel = xml_model.find('kernel').text
                 gausse = None
                 if xml_model.find("gauss_parameter") is not None: gausse = float(xml_model.find("gauss_parameter").text)
                 model = RBF(kernel, points, eps, gausse)
-                model._w = loadtxt(xml_model.find('w').text, delimiter=',')
+                model._w = loadtxt(join(path,xml_model.find('w').text), delimiter=',')
                 self.models.append(model)
             else: raise TypeError('This type of interpolation was not yet implemented')
         return
@@ -246,7 +243,8 @@ class BladeModeling:
         xml_file -- the xml file path of the trajectories.
         Note that the load_trajectories calls the load_model method.
         """
-        
+
+        path = dirname(dirname(dirname(xml_file)))
         try:
             xml = ET.parse(open(xml_file))
         except IOError:
@@ -258,23 +256,9 @@ class BladeModeling:
                                                                                                       float(xml.find('iter_surface').find('stopR').text),
                                                                                                       float(xml.find('iter_surface').find('coatingstep').text)
                                                                                                       )
-        self.load_model(xml.find('xml_model').text)
-        self.trajectories = (load(xml.find('npz_file').text)['array']).tolist()
+        self.load_model(join(path, xml.find('xml_model').text))
+        self.trajectories = (load(join(path,xml.find('npz_file').text))['array']).tolist()
         return
-
-    def validate_models(self, models, samples):
-        """
-        After the load_model call, the user may not know if the models are valid.
-        This method verifies if the model are valid w.r.t. the samples. 
-
-        Keyword arguments:
-        models -- the model objects (e.g. RBF).
-        samples -- samples of the object.
-        """
-
-        return
-            
-            
 
     def sampling(self):
         """
@@ -365,7 +349,7 @@ class BladeModeling:
             elif not issubclass(model_iter_surface.__class__, mathtools.IterSurface):
                     raise TypeError("Object is not a valid surface.")
             else:
-                model_points, models_index = self.divide_model_points(self.points, model_iter_surface,
+                model_points, models_index = self._divide_model_points(self.points, model_iter_surface,
                                                                      number_of_points_per_model,
                                                                      intersection_between_divisions)                
 
@@ -381,7 +365,7 @@ class BladeModeling:
         self.intersection_between_divisions = intersection_between_divisions
         return models, models_index
 
-    def divide_model_points(self, points, iter_surface, number_of_points_per_part,
+    def _divide_model_points(self, points, iter_surface, number_of_points_per_part,
                             intersection_between_divisions):
         """
         This method divides the points for multiple model generation, e.g. multiple RBFs.
@@ -426,7 +410,7 @@ class BladeModeling:
                                     iter_surface.f(points[k+number_of_points_per_part-1])))
             counter += 1
 
-    def compute_initial_point(self, iter_surface, trajectories):
+    def _compute_initial_point(self, iter_surface, trajectories):
         """
         The compute_initial_point computes the initial point to start the generating trajectories
         algorithm. If trajectories were loaded, the initial point is the last computed point projected
@@ -597,7 +581,7 @@ class BladeModeling:
                                      matrixFromAxisAngle([0, -self.turbine.config.environment.blade_angle, 0]))
                                  )
 
-        point_on_surfaces = self.compute_initial_point(iter_surface, trajectories)
+        point_on_surfaces = self._compute_initial_point(iter_surface, trajectories)
         self.trajectory_iter_surface = iter_surface
         while iter_surface.criteria():
             model = self.select_model(point_on_surfaces)
@@ -643,47 +627,6 @@ class BladeModeling:
             if dif > f_points:
                 return models[i-1]
         return models[-1]
-
-    def filter_trajectory(self, interpolation='linear', new_step = None, max_error = None):
-
-        if interpolation == 'linear':
-            f = mathtools.distance_point_line_3d
-
-        if new_step is None:
-            new_step = 20*self.trajectory_step
-
-        if new_step < self.trajectory_step:
-            return self.trajectory_step
-
-        if max_error is None:
-            max_error = self.gap/2
-        
-        D = []
-        new_trajectories = []
-        input_step = new_step
-        for trajectory in self.trajectories:
-            d = 100
-            while d > max_error:
-                d_list = []
-                index_factor = int(new_step/self.trajectory_step)
-                index_selection = arange(0, len(trajectory), index_factor)
-                for i in range(0,len(index_selection)):
-                    if i==len(index_selection)-1:
-                        for j in range(index_selection[i], len(trajectory)):
-                            d_list.append(f(array(trajectory[index_selection[i]])[0:3],
-                                            array(trajectory[index_selection[0]])[0:3],
-                                            array(trajectory[j])[0:3]))
-                    else:
-                        for j in range(index_selection[i], index_selection[i+1]):
-                            d_list.append(f(array(trajectory[index_selection[i]])[0:3],
-                                       array(trajectory[index_selection[i+1]])[0:3],
-                                       array(trajectory[j])[0:3]))
-                d = max(d_list)
-                new_step = new_step - self.trajectory_step
-            D.append(d_list)
-            new_trajectories.append((array(trajectory)[arange(0, len(trajectory), index_factor)]).tolist())
-            new_step = input_step
-        return new_trajectories, D
 
     def filter_trajectory_opt(self, interpolation='linear', max_error = None):
 
@@ -732,3 +675,32 @@ class BladeModeling:
             neg_border.append(rays[rays[:,1]<0])
             pos_border.append(rays[rays[:,1]>0])
         return neg_border, pos_border
+
+    def verify_accuracy():
+        all_dist = array([])
+        for trajectories in self.trajectories:
+            rays = array(trajectories)
+            dists = zeros((len(rays),2))+100
+
+            rays[:,3:6] = -rays[:,3:6]*1000
+            collision, info = self.turbine.env.CheckCollisionRays(rays, blade_obj)
+            newinfo = info[collision,:]
+            newrays = rays[collision,:]
+            dif = newrays[:,0:3]-newinfo[:,0:3]
+            n_dists = sum(dif*dif,1)
+            dists[collision,0] = n_dists
+            
+            rays = array(trajectories)
+            rays[:,3:6] = rays[:,3:6]*1000
+            collision, info = self.turbine.env.CheckCollisionRays(rays, blade_obj)
+            newinfo = info[collision,:]
+            newrays = rays[collision,:]
+            dif = newrays[:,0:3]-newinfo[:,0:3]
+            p_dists = sum(dif*dif,1)
+            dists[collision,1] = p_dists
+
+            dists = min(dists,1)
+            dists = dists[dists<100]
+            
+            all_dist = concatenate((all_dist,dists))
+        return sqrt(all_dist)
