@@ -14,10 +14,11 @@ from datetime import datetime
 from os import makedirs
 import cPickle
 import errno
-from math import pi
+from math import pi as pi
 import mathtools
 from copy import deepcopy
 import ast
+from openravepy import matrixFromAxisAngle
 
 def generate_db_joints():
     """
@@ -148,6 +149,7 @@ def load_blade(folder):
     xml_trajectories_path = join(folder,"trajectory/trajectory.xml")
     blade = blade_modeling.BladeModeling(turb, turb.blades[0])
     blade.load_trajectory(xml_trajectories_path)
+    blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,T)
     return blade
    
 def make_grid(number_of_meridians, number_of_parallels, init_parallel):
@@ -352,19 +354,21 @@ def create_db_from_segments(path):
     db_main = DB.create_db_from_segments(path)
     DB.save_db_pickle(db_main, join(path,'db.pkl') )
     return
-    
+
+def turbine_rotate(turb, T):
+    for blade in turb.blades:
+        blade.SetTransform(T)
+    return
     
 if __name__ == '__main__':
 
-    directory = 'db'
-    blade_folder = "jiraublade_hd_filtered"
-    blade_folder_full = "jiraublade_hd"
-    new_segs_path = 'db/not_merged/new_seg'
-    
+    path = 'FACE'
     dir_test = join(realpath('.'),'test')
     os.environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
     turb = Turbine(cfg)
+    DB = db.DB(path, turb)
+    turbine_rotate(turb, DB.T)
     vis = Visualizer(turb.env)
     
     #generate_robot_positions()
@@ -387,7 +391,3 @@ if __name__ == '__main__':
     #remove_points_from_db(24, borders, points_to_remove)
 
     #create_db_from_segments(new_segs_path)
-
-
-
-    
