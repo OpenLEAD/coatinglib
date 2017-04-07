@@ -233,6 +233,12 @@ def montante_grids():
 def lip_grids():
     return [0,1,2]
 
+def jusante_corner_left_grids():
+    return [24]
+
+def montante_corner_right_grids():
+    return [33,34,39]
+
 def jusante(x_range, grid_path):
     grid_path = 'jusante'
     grid_nums = jusante_grids()
@@ -300,7 +306,7 @@ if __name__ == '__main__':
     # DB inputs
     db_directories = 'db_lip'
     DB = db.DB(db_directories)
-    blade_folder = 'lip'#jiraublade_hd_filtered'
+    blade_folder = 'lip'#'jiraublade_hd_filtered'
     grid_path = ''
     grid_num = 0
 
@@ -313,7 +319,7 @@ if __name__ == '__main__':
     #grid_nums, x_range, grid_path = jusante(x_range, grid_path)
     #grid_nums, x_range, grid_path = montante(x_range, grid_path)
     #grid_nums, x_range, grid_path = lip(x_range, grid_path)
-    lines = compute_lines(x_range, angle_range)
+    #lines = compute_lines(x_range, angle_range)
 
     # Line Parameters
     min_threshold, max_threshold = 0.1, 0.2
