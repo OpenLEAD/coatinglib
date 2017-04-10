@@ -427,6 +427,8 @@ def rotate_points(trajectories, T=[]):
     R = T[0:3,0:3]
     for i in range(0,len(rtrajectories)):
         traj = [x for x in rtrajectories[i] if len(x)>0]
+        if len(traj)==0:
+            continue
         traj = array(traj)
         Ra = zeros(traj.shape)
         
