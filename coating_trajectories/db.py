@@ -157,7 +157,7 @@ class DB:
         the bool show if it was already computed.
         """
 
-        path = join(self.path,'visited_bases.pkl')
+        path = join(self.db_main_path,'visited_bases.pkl')
         return load_pickle(path)
 
     def load_grid_meridian(self):
@@ -236,7 +236,7 @@ class DB:
         try:
             points_to_num = self.load_points_to_num()
         except IOError:
-            self.create_points_to_num(turb)
+            self.create_points_to_num()
         
         try:
             db = self.load_db()
@@ -392,7 +392,7 @@ class DB:
         best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
         return best_bases, -array(sorted(score))*1.0/N
         
-    def make_grid(self, turb, number_of_meridians, number_of_parallels, init_parallel):
+    def make_grid(self, number_of_meridians, number_of_parallels, init_parallel):
         """
         Make a grid in the blade with parallels and meridians.
         Meridians and parallels are evenly spaced.
@@ -406,7 +406,7 @@ class DB:
         important to remove the lip from the grid.
         """
 
-        blade = load_blade_full(self, turb)
+        blade = load_blade_full(self)
         parallel = blade.trajectories[int(len(blade.trajectories)/2)]
         meridians = blade.draw_meridians(parallel, 1e-3, number_of_meridians)
         
@@ -417,7 +417,7 @@ class DB:
             parallels.append(blade.trajectories[i])
         return meridians, parallels
 
-    def create_db_grid(self, turb):
+    def create_db_grid(self):
         """
         Autonomously create the db_grid after the make_grid process.
         The method will get adjacent meridians and parallels, building
@@ -474,12 +474,20 @@ class DB:
         
         """
 
-        points_to_num = self.load_points_to_num()
+        ntb = self.get_sorted_bases()
+        base = ntb[base_num]
+        rp = rail_place.RailPlace(base)
+        self.turb.place_rail(rp)
+        self.turb.place_robot(rp)
+        if self.turb.check_rail_collision():
+            return None, None
+        if self.turb.check_robotbase_collision():
+            return None, None
+
+        ptn = self.load_points_to_num()
         blade = self.load_blade()
-        
         db_base_to_joints = dict()  
         db_base_to_segs = dict()
-
         db_base_to_joints[base_num] = dict()
         db_base_to_segs[base_num] = list()
 
@@ -512,7 +520,7 @@ class DB:
                         db_base_to_segs[base_num][-1] += [[]]
                         # save point_num in each dictionary 
                         for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joint_solutions):
-                            point_num = points_to_num[tuple(point[0:3])]
+                            point_num = ptn[tuple(point[0:3])]
                             db_base_to_joints[base_num][point_num] = joints
                             db_base_to_segs[base_num][-1][-1] += [point_num]
 
@@ -760,7 +768,7 @@ class DB:
         for key in db:
             db[key] = False
         try:
-            save_pickle(db, join(self.path,'visited_bases.pkl'))
+            save_pickle(db, join(self.db_main_path,'visited_bases.pkl'))
         except IOError: raise
         return
 
