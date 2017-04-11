@@ -394,6 +394,19 @@ class DB:
                     pass
         best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
         return best_bases, -array(sorted(score))*1.0/N
+
+    def base_grid_coating(self, grid_num):
+        """
+        Method returns the bases in score order that can coat a specific grid. 
+
+        keyword arguments:
+        grid_num -- grid to be coated
+        """
+        
+        gtt = self.load_grid_to_trajectories()
+        trajectories, borders = gtt[grid_num]
+        bases, scores = self.get_best_bases_trajectories(trajectories)
+        return bases, scores
         
     def make_grid(self, number_of_meridians, number_of_parallels, init_parallel):
         """
@@ -504,7 +517,7 @@ class DB:
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
                         lower, _, _ = planning.compute_first_feasible_point(
-                            turbine,
+                            self.turb,
                             filtered_trajectory_part[evaluated_points:],
                             blade.trajectory_iter_surface)
                         evaluated_points = evaluated_points + lower
@@ -512,7 +525,7 @@ class DB:
                         evaluated_points = len(filtered_trajectory_part)
                         continue
 
-                    joint_solutions = planning.compute_robot_joints(turbine,
+                    joint_solutions = planning.compute_robot_joints(self.turb,
                                                                     filtered_trajectory_part,
                                                                     evaluated_points,
                                                                     blade.trajectory_iter_surface)
@@ -791,7 +804,7 @@ class DB:
         points_tuple = self.get_sorted_points()
         
         for i in points_num:
-            vis.plot(points_tuple[i], 'points_db')
+            p = vis.plot(points_tuple[i], 'points_db')
         return
 
     def plot_bases_db(self, vis):
@@ -813,9 +826,31 @@ class DB:
 
     def plot_grid(self, grid_num, vis):
         grid_to_trajectories = self.load_grid_to_trajectories()
-        blade = self.load_blade()
         trajectories, borders = grid_to_trajectories[grid_num]
-        rays = self.compute_rays_from_parallels(blade, trajectories, borders)
-        vis.plot_lists(rays, 'rays', color=(1,0,0))
+        ntp = DB.get_sorted_points()
+        for trajectory in trajectories:
+            for point in trajectory:
+                p = vis.plot(ntp[point], 'p', color=(1,0,0))
+        p = vis.plot_lists(borders, 'p', color=(1,0,0))
         return
+
+    def plot_grid_coat(self, vis, grid_num, best_base):
+        non_coatable = []
+        coatable = []
+        grid_to_trajectories = self.load_grid_to_trajectories()
+        trajectories, _ = grid_to_trajectories[grid_num]
+        main_db = self.load_db()
+        ntp = self.get_sorted_points()
+        counter = 0
+        for trajectory in trajectories:
+            for point in trajectory:
+                try:
+                    if best_base not in main_db[point]:
+                        non_coatable.append(ntp[point])
+                    else:
+                        coatable.append(ntp[point])
+                except KeyError: continue
+        p = vis.plot(non_coatable,'noncoat',color=(1,0,0))
+        p = vis.plot(coatable,'coat',color=(0,0,1))
+        return non_coatable
         
