@@ -1,7 +1,7 @@
 from path_filters import filter_trajectories, side_filter
 import planning
 from numpy import save, load, random, array, linspace, cross
-from numpy import sign, dot, linalg, sum, zeros
+from numpy import sign, dot, linalg, sum, zeros, round
 from os.path import basename, splitext, join, exists, isfile, split, realpath
 from os import makedirs, listdir
 import copy
@@ -12,7 +12,6 @@ import errno
 from lxml import etree as ET
 from openravepy import matrixFromAxisAngle
 import blade_modeling
-from numpy import dot, array
 
 
 class NoDBFound(Exception):    
