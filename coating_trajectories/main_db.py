@@ -96,14 +96,6 @@ def create_db_with_blade():
     DB.create_db()
     return
 
-def save_meridians(meridians):
-    db.save_pickle(meridians,join(area,'meridians.pkl'))
-    return
-
-def save_parallels(parallels):
-    db.save_pickle(parallels,join(area,'parallels.pkl'))
-    return
-
 def load_blade(folder):
     """
     Function to load blade model given folder.
@@ -296,13 +288,6 @@ def turbine_rotate(turb):
         blade.SetTransform(DB.T)
     return
 
-def base_grid_coating(grid_num):
-    
-    grid_to_trajectories = DB.load_grid_to_trajectories()
-    trajectories, borders = grid_to_trajectories[grid_num]
-    bases, scores = DB.get_best_bases_trajectories(trajectories)
-    sorted_bases = sorted(zip(-array(scores),bases))
-    return sorted_bases
 
 def bases_grids_coating(threshold):
     
