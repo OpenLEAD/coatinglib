@@ -386,10 +386,10 @@ class DB:
         N = 0
         
         for trajectory in trajectories:
-            N+=len(trajectory)
             for point in trajectory:
                 try:
                     score[list(db[point])]-=1
+                    N+=1
                 except KeyError:
                     pass
         best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
