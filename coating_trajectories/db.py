@@ -371,13 +371,13 @@ class DB:
 
     def get_best_bases_trajectories(self, trajectories):
         """
-        Method returns the bases that can coat not all, but almost
-        all of points in side the grid. This is important to know
-        because some points should not be coated (as points on top of
+        Method returns the bases in score order that can coat the given
+        trajectories. This order is more important to know than absolut coating
+        because some points may never be coated (as points on the top of
         the blade)
 
         keyword arguments:
-        trajctories -- points_num (db format) to be coated
+        trajectories -- points_num (db format) to be coated
         """
 
         db = self.load_db()
