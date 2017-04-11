@@ -73,6 +73,10 @@ class DB:
                 if db.find('name').text == db_name:
                     self.db_main_path = join(self.path,db.find('path').text)
                     T = db.find('transform').text
+                    T = T.replace('\n',' ')
+                    T = T.replace('\t',' ')
+                    T = T.split(' ')
+                    T[:] = [x for x in T if x != '']
                     m = []; mi = []
                     for t in T:
                         try:
