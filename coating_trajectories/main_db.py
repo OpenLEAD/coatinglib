@@ -288,18 +288,16 @@ def turbine_rotate(turb):
         blade.SetTransform(DB.T)
     return
 
-
 def bases_grids_coating(threshold):
     
     grid_to_trajectories = DB.load_grid_to_trajectories()
     grid_bases = dict()
     for grid_num in grid_to_trajectories.keys():
         trajectories, borders = grid_to_trajectories[grid_num]
-        sorted_bases = base_grid_coating(grid_num)
+        bases, scores = DB.base_grid_coating(grid_num)
         xy = []
-        for sorted_base in sorted_bases:
-            score, base = sorted_base
-            if -score >= threshold:
+        for i, base in enumerate(bases):
+            if scores[i] >= threshold:
                 rp = rail_place.RailPlace(base)
                 xyz = rp.getXYZ(cfg)
                 value = set([(xyz[0],xyz[1])])
@@ -313,17 +311,18 @@ def verify_base_grid_threshold():
     grid_bases = dict()
     for grid_num in grid_to_trajectories.keys():
         trajectories, borders = grid_to_trajectories[grid_num]
-        sorted_bases = base_grid_coating(grid_num)
-        xy = []
-        sorted_base = sorted_bases[0]
-        score, base = sorted_base
-        print 'Grid: ', grid_num, '/ score: ', -score
+        bases, scores = DB.base_grid_coating(grid_num)
+        print 'Grid: ', grid_num, '/ score: ', scores[0]
     return
 
-    
+def plot_grid_coat():
+    bases, scores = DB.base_grid_coating(grid_num)
+    non_coatable = DB.plot_grid_coat(vis, grid_num, DB.load_bases_to_num()[bases[0]])
+    return
+   
 if __name__ == '__main__':
 
-    area, db_name = 'FACE', 'db'
+    area, db_name = 'FACE', 'db_-45'
     path = join(area,db_name)
     
     dir_test = join(realpath('.'),'test')
@@ -334,20 +333,17 @@ if __name__ == '__main__':
     DB = db.DB(area, turb, db_name)
     turbine_rotate(turb)
     
-    threshold = 0.92
-    #vis = Visualizer(turb.env)
+    threshold = 0.95
+    grid_num = 19
+    vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db_with_blade()
     #clear_db_visited_bases()
-    #generate_db_joints()
+    generate_db_joints()
 
     #meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
     #meridians = blade_borders(meridians)
-    #save_meridians(meridians)
-    #save_parallels(parallels)
-    #vis.plot_lists(meridians,'meridians',(1,0,0))
-    #vis.plot_lists(parallels,'parallels')
 
     #create_db_grid()
     #grid_pick()
@@ -357,4 +353,9 @@ if __name__ == '__main__':
     #remove_points_from_db(24, borders, points_to_remove)
 
     #create_db_from_segments(new_segs_path)
-    bases_grids_coating(threshold)
+
+    #plot_grid_coat()
+    #verify_base_grid_threshold()
+    #bases_grids_coating(threshold)
+    
+
