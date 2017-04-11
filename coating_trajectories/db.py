@@ -114,7 +114,7 @@ class DB:
         ptn = load_pickle(path)
         real_ptn = dict()
         for key, value in ptn.iteritems():
-            real_ptn[tuple(dot(self.T,[key[0],key[1],key[2],1])[0:3])] = value
+            real_ptn[tuple(round(dot(self.T,[key[0],key[1],key[2],1])[0:3],9))] = value
         return real_ptn
 
 
@@ -222,7 +222,7 @@ class DB:
         counter = 0
         for trajectory in blade.trajectories:
             for point in trajectory:
-                points_to_num[tuple(point[0:3])] = counter
+                points_to_num[tuple(round(point[0:3],9))] = counter
                 counter+=1
         save_pickle(points_to_num, join(self.path, 'points_to_num.pkl'))
         return 
@@ -523,7 +523,7 @@ class DB:
                         db_base_to_segs[base_num][-1] += [[]]
                         # save point_num in each dictionary 
                         for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joint_solutions):
-                            point_num = ptn[tuple(point[0:3])]
+                            point_num = ptn[tuple(round(point[0:3],9))]
                             db_base_to_joints[base_num][point_num] = joints
                             db_base_to_segs[base_num][-1][-1] += [point_num]
 
@@ -567,7 +567,7 @@ class DB:
 
         def get_point_value(point):
             try:
-                return points_to_num[point]
+                return points_to_num[round(point,9)]
             except KeyError:
                 return None
 
@@ -737,7 +737,7 @@ class DB:
         for point in points:
             key_point = tuple(point[0:3])     
             try:
-                key_num = points_to_num[key_point]
+                key_num = points_to_num[round(key_point,9)]
             except KeyError:
                 continue
 
