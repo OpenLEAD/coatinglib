@@ -704,3 +704,10 @@ class BladeModeling:
             
             all_dist = concatenate((all_dist,dists))
         return sqrt(all_dist)
+
+    def compute_ray_from_point(self, point, model = None):
+        if model == None:
+            model = self.select_model(point)
+        df = model.df(point)
+        df = df/linalg.norm(df)
+        return array(list(point)+list(df))

@@ -19,6 +19,7 @@ import mathtools
 from copy import deepcopy
 import ast
 from openravepy import matrixFromAxisAngle
+import sensibility
 
 def generate_db_joints():
     """
@@ -88,11 +89,11 @@ def generate_robot_positions(number_of_positions=1000):
     db.save_pickle(visited_bases,join(path,'visited_bases.pkl'))
     return       
 
-def create_db_with_blade():
+def create_db():
     """
     Funciton uses the blade points to create an empty db.
     """
-    DB.create_points_to_num()
+    
     DB.create_db()
     return
 
@@ -274,7 +275,7 @@ def remove_points_from_db(grid_num, new_border, points_to_remove):
     DB.remove_point(points_to_remove)
     return 
 
-def clear_db_visited_bases():
+def clear_visited_bases():
     DB.clear_visited_bases()
     return
 
@@ -319,7 +320,7 @@ def plot_grid_coat():
     bases, scores = DB.base_grid_coating(grid_num)
     non_coatable = DB.plot_grid_coat(vis, grid_num, DB.load_bases_to_num()[bases[0]])
     return
-   
+ 
 if __name__ == '__main__':
 
     area, db_name = 'FACE', 'db_-45'
@@ -335,12 +336,12 @@ if __name__ == '__main__':
     
     threshold = 0.95
     grid_num = 19
-    vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
-    #create_db_with_blade()
-    #clear_db_visited_bases()
-    generate_db_joints()
+    #create_db()
+    #clear_visited_bases()
+    #generate_db_joints()
 
     #meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
     #meridians = blade_borders(meridians)
@@ -358,4 +359,4 @@ if __name__ == '__main__':
     #verify_base_grid_threshold()
     #bases_grids_coating(threshold)
     
-
+    #sensibility.compute_new_segs_DB(DB)

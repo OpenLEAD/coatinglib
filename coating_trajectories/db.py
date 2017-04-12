@@ -246,11 +246,8 @@ class DB:
         except IOError:
             db = dict()
             blade = self.load_blade()
-            counter = 0
-            for trajectory in blade.trajectories:
-                for point in trajectory:
-                    db[counter] = set()
-                    counter+=1
+            for point, num in points_to_num.iteritems():
+                db[num] = set()
             save_pickle(db, join(self.db_main_path,'db.pkl'))
         del db
 
@@ -632,7 +629,7 @@ class DB:
         blade = self.load_blade()
         model = blade.select_model(closest_meridian_point)
         
-        return self._get_ray(model,closest_meridian_point), sorted_parallel
+        return blade.compute_ray_from_point(closest_meridian_point, model), sorted_parallel
 
     def _get_first_left_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
         """
@@ -657,11 +654,6 @@ class DB:
             if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
 
-    def _get_ray(self, model,point):
-        df = model.df(point)
-        df = df/linalg.norm(df)
-        return array(list(point)+list(df))
-
     def compute_rays_from_parallels(self, parallels, borders = None):
         """
         This method gets a list of point numbers (parallel db format) and
@@ -676,7 +668,6 @@ class DB:
 
         rays = []
         ntp = self.get_sorted_points()
-        blade = self.load_blade()
         parallels = copy.deepcopy(parallels)
         
         db = self.load_db()
@@ -691,22 +682,21 @@ class DB:
                     rays+=[[]]
                     continue
                 model = blade.select_model(ntp[parallel[0]])
-                rays += [ map( lambda x: self._get_ray(model,ntp[x]), parallel ) ]
+                rays += [ map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallel ) ]
 
         else:
             for i in range(len(parallels)):
                 traj = []
                 if len(borders[i][0])>0:
-                    model = blade.select_model(borders[i][0])
-                    traj.append(self._get_ray(model,borders[i][0]))
+                    traj.append(blade.compute_ray_from_point(borders[i][0]))
 
                 if len(parallels[i])>0:
-                    model = blade.select_model(ntp[parallels[i][0]])
-                    traj += map( lambda x: self._get_ray(model,ntp[x]), parallels[i])
+                    model = blade.select_model(ntp[parallel[0]])
+                    traj += map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallels[i])
                     
                 if len(borders[i][1])>0:
-                    model = blade.select_model(borders[i][1])
-                    traj.append(self._get_ray(model,borders[i][1]))
+                    model = blade.select_model(ntp[parallel[0]])
+                    traj.append(blade.compute_ray_from_point(borders[i][1],model))
                     
                 rays.append(traj)
         return rays

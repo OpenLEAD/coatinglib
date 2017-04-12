@@ -33,7 +33,6 @@ def compute_general_velocities(turbine, joints_trajectory, points):
     3)Use general_finite_difference(time, joints, times) to compute difference, it outputs the estimated joint, w , alpha
     """
     h = turbine.config.coating.coating_speed
-
     dpoints = array(points[1:])-array(points[:-1])
     times = cumsum(array([0.]+list(norm(dpoints,axis=1)))/h)
 
