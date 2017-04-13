@@ -199,15 +199,6 @@ def sort_best_sol(best_sol, line_grid, line_grid_dist):
     best_sol_ordered = [x for (y,x) in sorted(zip(-values[:,0],best_sol))]
     return values, best_sol_ordered
 
-def load_blade(folder):
-    """
-    Function to load blade model given folder.
-    """
-    xml_trajectories_path = join(folder,"trajectory/trajectory.xml")
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-    blade.load_trajectory(xml_trajectories_path)
-    return blade  
-
 def jusante_grids():
     grid_nums = range(0,15)
     grid_nums.extend(range(17,20))
@@ -215,9 +206,6 @@ def jusante_grids():
     grid_nums.extend(range(67,70))
     grid_nums.extend(range(72,77))
     grid_nums.extend(range(78,80))
-    remove = [24,69,74]
-    for i in remove:
-        grid_nums.remove(i)
     return grid_nums
 
 def montante_grids():
@@ -225,19 +213,13 @@ def montante_grids():
     grid_nums.extend(range(51,55))
     grid_nums.extend(range(56,60))
     grid_nums.extend([77])
-    remove = [33,34,39,59]
+    remove = [59]
     for i in remove:
         grid_nums.remove(i)
     return grid_nums
 
 def lip_grids():
     return [0,1,2]
-
-def jusante_corner_left_grids():
-    return [24]
-
-def montante_corner_right_grids():
-    return [33,34,39]
 
 def jusante(x_range, grid_path):
     grid_path = 'jusante'
