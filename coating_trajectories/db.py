@@ -1,8 +1,9 @@
+#!/usr/bin/env python
 from path_filters import filter_trajectories, side_filter
 import planning
 from numpy import save, load, random, array, linspace, cross
 from numpy import sign, dot, linalg, sum, zeros, round
-from os.path import basename, splitext, join, exists, isfile, split, realpath
+from os.path import basename, splitext, join, exists, isfile, split
 from os import makedirs, listdir
 import copy
 import rail_place
@@ -12,6 +13,7 @@ import errno
 from lxml import etree as ET
 from openravepy import matrixFromAxisAngle
 import blade_modeling
+from scipy.spatial import ConvexHull
 
 
 class NoDBFound(Exception):    
@@ -32,6 +34,13 @@ def save_pickle(obj, name ):
     return
 
 def load_pickle(filename):
+    """
+    Load a general file in pickle format.
+
+    Keyword arguments:
+    filename -- path/name of the file ('example/file.pkl').
+    """
+    
     with open(filename,'rb') as f:
         return cPickle.load(f)
 
@@ -225,7 +234,7 @@ class DB:
                 points_to_num[tuple(round(point[0:3],9))] = counter
                 counter+=1
         save_pickle(points_to_num, join(self.path, 'points_to_num.pkl'))
-        return 
+        return points_to_num
 
     def create_db(self):
         """
@@ -239,7 +248,7 @@ class DB:
         try:
             points_to_num = self.load_points_to_num()
         except IOError:
-            self.create_points_to_num()
+            points_to_num = self.create_points_to_num()
         
         try:
             db = self.load_db()
@@ -336,10 +345,10 @@ class DB:
             if file_extension == '.pkl':
                 print('file = %s' % (filename))
                 try: 
-                    db_file = load_pickle(join(path,afile))
+                    seg = load_pickle(join(path,afile))
                 except EOFError:
                     continue
-                db = self.merge_seg(db_file, db)        
+                db = self.merge_seg(seg, db)        
         return db
 
     def get_bases_trajectories(self, trajectories):
@@ -419,7 +428,7 @@ class DB:
         important to remove the lip from the grid.
         """
 
-        blade = load_blade_full(self)
+        blade = self.load_blade_full()
         parallel = blade.trajectories[int(len(blade.trajectories)/2)]
         meridians = blade.draw_meridians(parallel, 1e-3, number_of_meridians)
         
@@ -441,7 +450,7 @@ class DB:
         blade -- blade object.
         """
 
-        blade = load_blade_full()
+        blade = self.load_blade_full()
         grid_to_mp = dict()
         db_grid_to_bases = dict()
         grid_to_trajectories = dict()
@@ -803,7 +812,6 @@ class DB:
 
         keyword arguments:
         vis -- visualizer object.
-        scale -- number_of_points/scale will be plotted.
         """
 
         db = self.load_db()
@@ -815,6 +823,14 @@ class DB:
         return
 
     def plot_grid(self, grid_num, vis):
+        """
+        Method to plot grid.
+
+        keyword arguments:
+        grid_num -- grid to be plotted.
+        vis -- visualizer object.
+        """
+        
         grid_to_trajectories = self.load_grid_to_trajectories()
         trajectories, borders = grid_to_trajectories[grid_num]
         ntp = DB.get_sorted_points()
@@ -824,7 +840,16 @@ class DB:
         p = vis.plot_lists(borders, 'p', color=(1,0,0))
         return
 
-    def plot_grid_coat(self, vis, grid_num, best_base):
+    def plot_grid_coat(self, vis, grid_num, base):
+        """
+        Method to plot coatable and non-coatable points of the grid.
+
+        keyword arguments:
+        grid_num -- grid to be plotted (int).
+        vis -- visualizer object.
+        base -- base (DB) for the robot (int).
+        """
+        
         non_coatable = []
         coatable = []
         grid_to_trajectories = self.load_grid_to_trajectories()
@@ -835,7 +860,7 @@ class DB:
         for trajectory in trajectories:
             for point in trajectory:
                 try:
-                    if best_base not in main_db[point]:
+                    if base not in main_db[point]:
                         non_coatable.append(ntp[point])
                     else:
                         coatable.append(ntp[point])
@@ -843,4 +868,35 @@ class DB:
         p = vis.plot(non_coatable,'noncoat',color=(1,0,0))
         p = vis.plot(coatable,'coat',color=(0,0,1))
         return non_coatable
+
+    def plot_convex_grid(self, threshold, grid_num):
+        """
+        Method to plot convex-hull of bases that can coat a given grid.
+
+        Keyword arguments:
+        threshold -- minimum score to consider that the grid is coated.
+        grid_num -- grid to coat.
+        """
         
+        import matplotlib.pyplot as plt
+        bases, scores = self.base_grid_coating(grid_num)
+        xy = []
+        feasible_bases = []
+        for i, base in enumerate(bases):
+            if abs(scores[i]) >= threshold:
+                rp = rail_place.RailPlace(base)
+                xyz = rp.getXYZ(self.turb.config)
+                feasible_bases.append([scores[i],base])
+                xy.append([xyz[0],xyz[1]])
+            else: break
+
+        if len(xy)>0:
+            fig = plt.figure()
+            try:
+                hull2D = ConvexHull(xy)
+                plt = mathtools.plot_hull(xy, hull2D, plt)
+            except:
+                plt.scatter(array(xy)[:,0],array(xy)[:,1])
+            fig.savefig(join(self.db_main_path,str(grid_num)+'.pdf'))
+            plt.close()
+        return         
