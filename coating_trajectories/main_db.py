@@ -282,7 +282,7 @@ def clear_visited_bases():
 def create_db_from_segments(path):
     db_main = DB.create_db_from_segments(path)
     db.save_pickle(db_main, join(path,'db.pkl') )
-    return
+    return 
 
 def turbine_rotate(turb):
     for blade in turb.blades:
@@ -334,8 +334,8 @@ if __name__ == '__main__':
     DB = db.DB(area, turb, db_name)
     turbine_rotate(turb)
     
-    threshold = 0.95
-    grid_num = 19
+    threshold = 0.93
+    grid_num = 58
     #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
@@ -353,10 +353,12 @@ if __name__ == '__main__':
     #borders, points_to_remove = compute_points_to_remove(24)
     #remove_points_from_db(24, borders, points_to_remove)
 
-    #create_db_from_segments(new_segs_path)
+    #sensibility.compute_new_segs_DB(DB)
+    #create_db_from_segments(join(path,'new_seg'))
 
     #plot_grid_coat()
     #verify_base_grid_threshold()
     #bases_grids_coating(threshold)
+    #DB.plot_convex_grid(threshold,grid_num)
     
-    #sensibility.compute_new_segs_DB(DB)
+    
