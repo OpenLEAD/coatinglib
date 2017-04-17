@@ -81,28 +81,31 @@ class DB:
             for db in dbs:
                 if db.find('name').text == db_name:
                     self.db_main_path = join(self.path,db.find('path').text)
-                    T = db.find('transform').text
-                    T = T.replace('\n',' ')
-                    T = T.replace('\t',' ')
-                    T = T.split(' ')
-                    T[:] = [x for x in T if x != '']
-                    m = []; mi = []
-                    for t in T:
-                        try:
-                            mi.append(float(t))
-                        except: None
-                        if len(mi)==4:
-                            m.append(mi)
-                            mi=[]
-                    m = array(m)
-                    if m.shape==(4,4):
-                        self.T = m
-                    else:
-                        raise SyntaxError("Invalid transform shape in info.xml")
+                    self.T = self._extract_T(db)
                     break
             else:
                 raise NoDBFound(db_name)
                 
+
+    def _extract_T(self, info_db):
+        T = info_db.find('transform').text
+        T = T.replace('\n',' ')
+        T = T.replace('\t',' ')
+        T = T.split(' ')
+        T[:] = [x for x in T if x != '']
+        m = []; mi = []
+        for t in T:
+            try:
+                mi.append(float(t))
+            except: None
+            if len(mi)==4:
+                m.append(mi)
+                mi=[]
+        m = array(m)
+        if m.shape==(4,4):
+            return m
+        else:
+            raise SyntaxError("Invalid transform shape in info.xml")
                 
     def load_db(self):
         """
@@ -290,6 +293,25 @@ class DB:
         for val in db.values():
             bases = val|bases
         return bases
+
+    def get_dbs_grids():
+        """
+        Load grid_bases.pkl and info.xml files to return all coatable grids.
+        The method returns a dictionary {db_path:coatable_grids}.
+        """
+        
+        dbs = self.info.findall('db')
+        db_grids = dict()
+        for dbi in dbs:
+            db_path = join(self.path,dbi.find('path').text)
+            T = self._extract_T(dbi)
+            grid_bases = load_pickle(join(db_path,grid_bases))
+            grids = set([])
+            for grid, base in grid_bases.iteritems():
+                if len(base)>0:
+                    grids=grids|set([grid])
+            db_grids[db_path] = grids
+        return db_grids
 
     def merge_db(self, db_file, main_db):
         """
@@ -734,6 +756,75 @@ class DB:
                 feasible_bases.append(base)
             continue
         return feasible_bases
+
+    def _check_line(self, line, grid_bases, line_grid, line_grid_dist, min_threshold, max_threshold):
+        """
+        Verify if given line (rail) can coat given grids.
+        
+        Keyword arguments:
+        line -- rail configuration. ((x1,y1),(x2,y2))
+        grids_num -- grids to be coated.
+        grid_bases -- dictionary which relates grid to bases (bases
+        that can coat given grid).
+        line_grid -- dictionary which relates lines (rails) to
+        coatable grids.
+        line_grid_dist -- dictionary relates rail/grid to dist, a score for
+        that line/grid combination.
+        """
+        
+        x1 = line[0]; x2 = line[1]
+        grid_dist = dict()
+        for grid, bases in grid_bases.iteritems():
+            bases = list(bases)
+            point_near, distance, distance_str = mathtools.distance_line_bases(
+                x1, x2, bases, min_threshold, max_threshold)
+            if distance!=None:
+                line_grid[line] = line_grid.get(line,set()) | set([grid])
+                grid_dist[grid] = [point_near, distance, distance_str]
+        line_grid_dist[line] = grid_dist
+        return line_grid, line_grid_dist
+
+    def compute_rail_configurations(self, lines, min_threshold, max_threshold):
+        """
+        Compute rails configurations (lines) for all dbs.
+        The method saves line_grid and line_grid_dist files.
+
+        line_grid -- it is a dictionary which relates lines (rails) to
+        coatable grids. Call line_grid[line].
+
+        line_grid_dist -- some rail configuration (line) may not be
+        the best to coat a specific grid. This dictionary relates rail/grid
+        to dist, a score for that line/grid combination.
+        Call line_grid_dist[line][grid].
+
+        Keyword arguments:
+        lines -- all possible combinations of possible rail positions.
+        List of tuples:
+        [[((x1,y1),(x2,y2)),],[((x1,y1),(x2,y2)),((x3,y3),(x4,y4))]]
+        min_threshold -- minimum radius of each base
+        max_threshold -- maximum radius of each base
+        """
+        
+        dbs = self.info.findall('db')
+        for dbi in dbs:
+            line_grid = dict()
+            line_grid_dist = dict()
+            db_path = join(self.path, dbi.find('path').text)
+            grid_bases = load_pickle(join(db_path,'grid_bases.pkl'))
+            for line in lines:
+                line_grid, line_grid_dist = self._check_line(
+                    line, grid_bases, line_grid, line_grid_dist, min_threshold,
+                    max_threshold)
+
+            rail_path = join(db_path,'rails')
+            try:
+                makedirs(rail_path)
+            except OSError as exception:
+                if exception.errno != errno.EEXIST:
+                    raise    
+            save_pickle(line_grid,join(rail_path, 'line_grid.pkl'))
+            save_pickle(line_grid_dist,join(rail_path, 'line_grid_dist.pkl'))
+        return         
 
     def remove_point(self, points):
         """
