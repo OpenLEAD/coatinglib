@@ -6,32 +6,13 @@ from numpy import array, tan, arange, zeros, linalg, sign
 from math import pi as pi
 from os.path import join, realpath
 from os import environ, makedirs
-import itertools
 from visualizer import Visualizer
 import db
 import blade_modeling
 import errno
 import rail_place
 from math import atan2
-
-def check_line(line, grids_num, grid_bases, line_grid, line_grid_dist):
-    x1 = line[0]; x2 = line[1]
-    grid_dist = dict()
-    for grid in grids_num:
-        bases = list(grid_bases[grid])
-        point_near, distance, distance_str = mathtools.distance_line_bases(
-            x1, x2, bases, min_threshold, max_threshold)
-        if distance!=None:
-            line_grid[line] = line_grid.get(line,set()) | set([grid])
-            grid_dist[grid] = [point_near, distance, distance_str]
-    line_grid_dist[line] = grid_dist
-    return line_grid, line_grid_dist
-
-def compute_all_lines(lines, grids_num, grid_bases, line_grid = dict(), line_grid_dist = dict()):
-    for line in lines:
-        line_grid, line_grid_dist = check_line(line, grids_num,
-                                          grid_bases, line_grid, line_grid_dist)
-    return line_grid, line_grid_dist
+from itertools import combinations
 
 def set_union_bases(line_grid, lines):
     line_union = set()
@@ -47,7 +28,7 @@ def compute_minimal_lines(line_grid, grid_nums):
     best_sol = []
     stop=0
     for i in range(1,len(lines)):
-        for line_comb in itertools.combinations(lines,i):
+        for line_comb in combinations(lines,i):
             line_union = set_union_bases(line_grid, line_comb)
             difference = set_grid_nums.difference(line_union)
             n = len(difference)
@@ -63,22 +44,6 @@ def compute_minimal_lines(line_grid, grid_nums):
         if stop:
             break
     return best_sol          
-
-def primary_rail_grids(grids_num, grid_bases, line_grid=dict(), line_grid_dist=dict()):
-    grid_dist = dict()
-    x1 = (0,0)
-    x2 = (1,0)
-    line = (float('Inf'), float('Inf'))
-    
-    for grid in grids_num:
-        bases = list(grid_bases[grid])
-        point_near, distance, distance_str = mathtools.distance_line_bases(
-            x1, x2, bases, min_threshold, max_threshold)
-        if distance!=None:
-            line_grid[line] = line_grid.get(line,set()) | set([grid])
-            grid_dist[grid] = [point_near, distance, distance_str]
-    line_grid_dist[line] = grid_dist
-    return line_grid, line_grid_dist
 
 def remove_nonstr_lines(line_grid, line_grid_dist, threshold_str):
     for key in line_grid.keys():
@@ -157,21 +122,6 @@ def plot_bases(vis, sol, line_grid, line_grid_dist):
             vis.plot(p,'point',(1,0,0),10)
     return 
             
-  
-def compute_lines(x_range, angle_range):
-    lines=[]
-    for x in arange(x_range[0],x_range[1],0.1):
-        for angle in arange(angle_range[0],-8,8):
-            y = tan(angle*pi/180)
-            if y < cfg.environment.y_max:
-                lines.append(((x,0),(0,-x*y)))
-        for angle in arange(8,angle_range[1],8):
-            y = tan(angle*pi/180)
-            if y > cfg.environment.y_min:
-                lines.append(((x,0),(0,-x*y)))
-        lines.append(((x,0),(x,1)))
-    return lines
-
 def sort_best_sol(best_sol, line_grid, line_grid_dist):
     min_str = []
     mean_str = []
@@ -274,6 +224,23 @@ def robot_base_position(db_directories, grid_path, grid):
             p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
             return (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1)) 
 
+def select_db(grids_to_coat):
+    db_grids = DB.get_dbs_grids()
+    for ncombination in range(1,len(db_grids)+1):
+        feasible_combination = []
+        for dbs in combinations(db_grids.keys(),ncombination):
+            coatable = set([])
+            for dbi in dbs:
+                coatable = coatable|db_grids[dbi]
+            for grid in grids_to_coat:
+                if grid not in coatable:
+                    break
+            else: feasible_combination.append(dbs)
+        if len(feasible_combination)>0:
+            return feasible_combination
+    return 
+                
+ 
 if __name__ == '__main__':
 
     dir_test = join(realpath('.'),'test')
@@ -286,18 +253,16 @@ if __name__ == '__main__':
     vis = Visualizer(turb.env)
     
     # DB inputs
-    db_directories = 'db_lip'
-    DB = db.DB(db_directories)
-    blade_folder = 'lip'#'jiraublade_hd_filtered'
-    grid_path = ''
-    grid_num = 0
+    path = 'FACE'
+    DB = db.DB(path)
+    grids_to_coat = []
 
     with open(db_directories+'/grid_bases.pkl', 'rb') as f:
             grid_bases = cPickle.load(f)
 
     # Side inputs
     x_range = [0,0]
-    angle_range = [-80,80] 
+    angle_range = [-90,90] 
     #grid_nums, x_range, grid_path = jusante(x_range, grid_path)
     #grid_nums, x_range, grid_path = montante(x_range, grid_path)
     #grid_nums, x_range, grid_path = lip(x_range, grid_path)
