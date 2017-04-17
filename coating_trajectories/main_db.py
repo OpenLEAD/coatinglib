@@ -15,6 +15,7 @@ from os import makedirs
 import cPickle
 import errno
 from math import pi as pi
+from math import tan
 import mathtools
 from copy import deepcopy
 import ast
@@ -318,7 +319,25 @@ def verify_base_grid_threshold():
 
 def plot_grid_coat():
     bases, scores = DB.base_grid_coating(grid_num)
-    non_coatable = DB.plot_grid_coat(vis, grid_num, DB.load_bases_to_num()[bases[0]])
+    non_coatable = DB.plot_grid_coat(vis, grid_num,
+                                     DB.load_bases_to_num()[bases[0]])
+    return
+
+def _compute_lines(x_range, angle_range):
+    lines=[]
+    for x in arange(x_range[0],x_range[1],0.1):
+        for angle in arange(angle_range[0]+1,angle_range[1],8):
+            tanalpha = tan(angle*pi/180)
+            lines.append(((x,0),(x-tanalpha,1.)))
+    lines.append(((0,0),(1,0)))
+    return lines
+
+def generate_rail_configurations():
+    x_range = [-2,2]
+    angle_range = [-90,90]
+    min_threshold, max_threshold = 0.1, 0.2
+    lines = _compute_lines(x_range, angle_range)
+    DB.compute_rail_configurations(lines, min_threshold, max_threshold)
     return
  
 if __name__ == '__main__':
@@ -336,6 +355,7 @@ if __name__ == '__main__':
     
     threshold = 0.93
     grid_num = 58
+    
     #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
@@ -360,5 +380,6 @@ if __name__ == '__main__':
     #verify_base_grid_threshold()
     #bases_grids_coating(threshold)
     #DB.plot_convex_grid(threshold,grid_num)
-    
+
+    #generate_rail_configurations()
     
