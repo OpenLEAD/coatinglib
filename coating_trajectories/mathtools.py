@@ -895,3 +895,18 @@ def distance_line_bases(x1, x2, bases, min_threshold, max_threshold):
                 point_near = base
     return point_near, distance, distance_str
         
+def union_line_grids(line_grid, lines):
+    """
+    Method return a set which is the union of given sets.
+
+    Keyword arguments:
+    line_grid -- it is a dictionary. line_grid relates lines (rays)
+    with coatable grids for that line. This function makes sense
+    with the DB pkl file.
+    lines -- lines to unify grids.
+    """
+    
+    line_union = set()
+    for line in lines:
+        line_union = line_union.union(line_grid[line])
+    return line_union
