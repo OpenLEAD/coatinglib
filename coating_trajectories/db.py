@@ -14,6 +14,7 @@ from lxml import etree as ET
 from openravepy import matrixFromAxisAngle
 import blade_modeling
 from scipy.spatial import ConvexHull
+from itertools import combinations
 
 
 class NoDBFound(Exception):    
@@ -294,7 +295,7 @@ class DB:
             bases = val|bases
         return bases
 
-    def get_dbs_grids():
+    def get_dbs_grids(self):
         """
         Load grid_bases.pkl and info.xml files to return all coatable grids.
         The method returns a dictionary {db_path:coatable_grids}.
@@ -304,8 +305,7 @@ class DB:
         db_grids = dict()
         for dbi in dbs:
             db_path = join(self.path,dbi.find('path').text)
-            T = self._extract_T(dbi)
-            grid_bases = load_pickle(join(db_path,grid_bases))
+            grid_bases = load_pickle(join(db_path,'grid_bases.pkl'))
             grids = set([])
             for grid, base in grid_bases.iteritems():
                 if len(base)>0:
@@ -826,6 +826,103 @@ class DB:
             save_pickle(line_grid_dist,join(rail_path, 'line_grid_dist.pkl'))
         return         
 
+    def _select_db(self, grids_to_coat):
+        """
+        Method returns combination of dbs to coat given grids.
+        For example, if you want to coat grids [50,55] and you have 3 dbs:
+        ['db','db_45','db_-45'], and only dbs ['db','db_45'] can coat both,
+        the method will return [('db',),('db_45',)]. If only the combination
+        ('db','db_45') can coat it (e.g. grid 50 is coatable by 'db' and
+        grid 55 is coatable by 'db_45'), then the method will return:
+        [('db','db_45')].
+
+        Keyword arguments:
+        grids_to_coat -- list of grids to coat
+        """
+        db_grids = self.get_dbs_grids()
+        for ncombination in range(1,len(db_grids)+1):
+            feasible_combination = []
+            for dbs in combinations(db_grids.keys(),ncombination):
+                coatable = set([])
+                for dbi in dbs:
+                    coatable = coatable|db_grids[dbi]
+                for grid in grids_to_coat:
+                    if grid not in coatable:
+                        break
+                else: feasible_combination.append(dbs)
+            if len(feasible_combination)>0:
+                return feasible_combination
+        return
+
+    def _compute_minimal_lines(self, line_grid, grid_nums):
+        lines = line_grid.keys()
+        set_grid_nums = set(grid_nums)
+        sol = []
+        for i in range(1,len(lines)):
+            for line_comb in combinations(lines,i):
+                line_union = mathtools.union_line_grids(line_grid, line_comb)
+                difference = set_grid_nums.difference(line_union)
+                n = len(difference)
+                if len(difference)==len(set_grid_nums):
+                    sol.append(line_comb)
+            if len(sol)>0:
+                return sol
+        return
+
+    def _ordered_rail_by_score(self, sol, line_grid, line_grid_dist, criteria = 'sum'):
+        """
+        Given rail combinations, lines solutions to coat specific grids, line_grid dictionary,
+        line_grid_dist dictionary, and criteria, it returns the ordered by score (criteria)
+        of the rails.
+        """
+        
+        min_str = []
+        sum_str = []
+        criteria = {'min':1,'sum':0}[criteria]
+        
+        for soli in sol:
+            distance_str_total = 0
+            distance_str_min = 1000
+            for line in soli:
+                grids = line_grid[line]
+                for grid in grids:
+                    point_near, distance, distance_str = line_grid_dist[line][grid]
+                    distance_str_total+=distance_str
+                    distance_str_min = min(distance_str_min,distance_str)
+            sum_str.append(distance_str_total)
+            min_str.append(distance_str_min)
+
+        values = zeros((len(sol),3))
+        values[:,0] = sum_str; values[:,1] = min_str
+        ordered_sol = [x for (y,x) in sorted(zip(-values[:,criteria],sol))]
+        return ordered_sol
+
+    def get_rail_configuration(self, grids_to_coat, criteria = 'sum'):
+        feasible_combinations = self._select_db(grids_to_coat)
+        if  feasible_combinations == None:
+            print "Grids are not coatable"
+            return
+        
+        grids = set(grids_to_coat)
+        db_grids = self.get_dbs_grids()
+        sol_lists = []
+        coated_grids = []
+        for fcomb in feasible_combinations:
+            sol_list = []
+            coated_grid = []
+            for dbi in fcomb:
+                line_grid = load_pickle(join(dbi,'rails','line_grid.pkl'))
+                line_grid_dist = load_pickle(join(dbi,'rails','line_grid_dist.pkl'))
+                grids_intersection = grids & db_grids[dbi]
+                coated_grid.append(grids_intersection)
+                sol = self._compute_minimal_lines(line_grid, grids_intersection)
+                sol_list.append(self._ordered_rail_by_score(
+                    sol, line_grid, line_grid_dist, criteria))
+                grids = grids - db_grids[dbi]
+            sol_lists.append(sol_list)
+            coated_grids.append(coated_grid)
+        return sol_lists, coated_grids, feasible_combinations
+                
     def remove_point(self, points):
         """
         Remove given points from db, and grid_to_trajectories.
