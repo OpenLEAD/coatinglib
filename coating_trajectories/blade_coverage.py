@@ -14,36 +14,7 @@ import rail_place
 from math import atan2
 from itertools import combinations
 
-def set_union_bases(line_grid, lines):
-    line_union = set()
-    for line in lines:
-        line_union = line_union.union(line_grid[line])
-    return line_union
-
-def compute_minimal_lines(line_grid, grid_nums):
-    lines = line_grid.keys()
-    set_grid_nums = set(grid_nums)
-    k = len(set_grid_nums)
-    comb_sol = []
-    best_sol = []
-    stop=0
-    for i in range(1,len(lines)):
-        for line_comb in combinations(lines,i):
-            line_union = set_union_bases(line_grid, line_comb)
-            difference = set_grid_nums.difference(line_union)
-            n = len(difference)
-            if n==0:
-                stop=1
-            if n<=k:
-                if n<k:
-                    k = n
-                    best_sol = []
-                    best_sol.append(line_comb)
-                else:
-                    best_sol.append(line_comb)
-        if stop:
-            break
-    return best_sol          
+          
 
 def remove_nonstr_lines(line_grid, line_grid_dist, threshold_str):
     for key in line_grid.keys():
@@ -121,33 +92,6 @@ def plot_bases(vis, sol, line_grid, line_grid_dist):
             p = (point_near[0],point_near[1],cfg.environment.z_floor_level)
             vis.plot(p,'point',(1,0,0),10)
     return 
-            
-def sort_best_sol(best_sol, line_grid, line_grid_dist):
-    min_str = []
-    mean_str = []
-    sum_str = []
-    num_grids = []
-    
-    for sol in best_sol:
-        ngrids = 0
-        distance_str_total = 0
-        distance_str_min = 1000
-        for line in sol:
-            grids = line_grid[line]
-            ngrids+=len(grids)
-            for grid in grids:
-                point_near, distance, distance_str = line_grid_dist[line][grid]
-                distance_str_total+=distance_str
-                distance_str_min = min(distance_str_min,distance_str)
-        sum_str.append(distance_str_total)
-        mean_str.append(distance_str_total*1.0/ngrids)
-        num_grids.append(ngrids)
-        min_str.append(distance_str_min)
-
-    values = zeros((len(best_sol),4))
-    values[:,0] = sum_str; values[:,1] = mean_str; values[:,2] = num_grids; values[:,3] = min_str
-    best_sol_ordered = [x for (y,x) in sorted(zip(-values[:,0],best_sol))]
-    return values, best_sol_ordered
 
 def jusante_grids():
     grid_nums = range(0,15)
@@ -224,21 +168,7 @@ def robot_base_position(db_directories, grid_path, grid):
             p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
             return (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1)) 
 
-def select_db(grids_to_coat):
-    db_grids = DB.get_dbs_grids()
-    for ncombination in range(1,len(db_grids)+1):
-        feasible_combination = []
-        for dbs in combinations(db_grids.keys(),ncombination):
-            coatable = set([])
-            for dbi in dbs:
-                coatable = coatable|db_grids[dbi]
-            for grid in grids_to_coat:
-                if grid not in coatable:
-                    break
-            else: feasible_combination.append(dbs)
-        if len(feasible_combination)>0:
-            return feasible_combination
-    return 
+
                 
  
 if __name__ == '__main__':
