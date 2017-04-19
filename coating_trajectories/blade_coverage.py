@@ -131,45 +131,7 @@ def lip(x_range, grid_path):
     grid_path = 'lip'
     grid_nums = lip_grids()
     x_range = [0.7,2]
-    return grid_nums, x_range, grid_path
-
-def save_best_sol(best_sol_ordered, line_grid, line_grid_dist):
-    path = join(db_directories,'rails',grid_path)
-    try:
-        makedirs(path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise    
-    DB.save_db_pickle(best_sol_ordered,join(path, 'best_sol.pkl'))
-    DB.save_db_pickle(line_grid,join(path, 'line_grid.pkl'))
-    DB.save_db_pickle(line_grid_dist,join(path, 'line_grid_dist.pkl'))            
-    return
-
-def robot_base_position(db_directories, grid_path, grid):
-    path = join(db_directories,'rails',grid_path)
-    DB = db.DB(db_directories)
-    best_sol_ordered = DB.load_db_pickle(join(path, 'best_sol.pkl'))
-    line_grid = DB.load_db_pickle(join(path, 'line_grid.pkl'))
-    line_grid_dist = DB.load_db_pickle(join(path, 'line_grid_dist.pkl'))
-
-    line0 = (float('Inf'), float('Inf'))
-    grids = line_grid[line0]
-    if grid in grids:
-        point_near, distance, distance_str = line_grid_dist[line0][grid]
-        return (point_near[0], 0, 0)
-        
-    for line in best_sol_ordered[0]:
-        grids = line_grid[line]
-        if grid in grids:
-            # Ax+By+C=0
-            x1 = line[0][0]; y1 = line[0][1]
-            x2 = line[1][0]; y2 = line[1][1]
-            point_near, distance, distance_str = line_grid_dist[line][grid]
-            p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
-            return (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1)) 
-
-
-                
+    return grid_nums, x_range, grid_path       
  
 if __name__ == '__main__':
 

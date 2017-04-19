@@ -15,6 +15,7 @@ from openravepy import matrixFromAxisAngle
 import blade_modeling
 from scipy.spatial import ConvexHull
 from itertools import combinations
+from math import atan2
 
 
 class NoDBFound(Exception):    
@@ -365,7 +366,6 @@ class DB:
         for afile in onlyfiles:
             filename, file_extension = splitext(afile)
             if file_extension == '.pkl':
-                print('file = %s' % (filename))
                 try: 
                     seg = load_pickle(join(path,afile))
                 except EOFError:
@@ -861,67 +861,100 @@ class DB:
         for i in range(1,len(lines)):
             for line_comb in combinations(lines,i):
                 line_union = mathtools.union_line_grids(line_grid, line_comb)
-                difference = set_grid_nums.difference(line_union)
-                n = len(difference)
-                if len(difference)==len(set_grid_nums):
+                if len(grid_nums-line_union)==0:
                     sol.append(line_comb)
             if len(sol)>0:
                 return sol
         return
 
-    def _ordered_rail_by_score(self, sol, line_grid, line_grid_dist, criteria = 'sum'):
+    def _compute_psalpha_ordered_by_score(self, line_combs, grids_intersection, line_grid, line_grid_dist, criteria = 'sum'):
         """
-        Given rail combinations, lines solutions to coat specific grids, line_grid dictionary,
-        line_grid_dist dictionary, and criteria, it returns the ordered by score (criteria)
+        Given rail combinations, lines solutions to coat specific grids, 
+        line_grid_dist dictionary, and criteria, it returns the ordered psalpha by score (criteria)
         of the rails.
         """
         
         min_str = []
         sum_str = []
         criteria = {'min':1,'sum':0}[criteria]
-        
-        for soli in sol:
+        psalphas = dict()
+        counter = 0
+        for line_comb in line_combs:
+            counter += 1
             distance_str_total = 0
             distance_str_min = 1000
-            for line in soli:
-                grids = line_grid[line]
+            psalphas[line_comb] = dict()
+            grids = grids_intersection
+            for line in line_comb:
+                grids_intersec = grids & line_grid[line]
+                psalphas[line_comb][line] = dict()
                 for grid in grids:
+                    x1 = line[0][0]; y1 = line[0][1]
+                    x2 = line[1][0]; y2 = line[1][1]
+                    point_near, distance, distance_str = line_grid_dist[line][grid]
+                    p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
+                    psalphas[line_comb][line][grid] = (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1))
                     point_near, distance, distance_str = line_grid_dist[line][grid]
                     distance_str_total+=distance_str
                     distance_str_min = min(distance_str_min,distance_str)
+                grids = grids - grids_intersec
             sum_str.append(distance_str_total)
             min_str.append(distance_str_min)
 
-        values = zeros((len(sol),3))
+        values = zeros((len(line_combs),2))
         values[:,0] = sum_str; values[:,1] = min_str
-        ordered_sol = [x for (y,x) in sorted(zip(-values[:,criteria],sol))]
-        return ordered_sol
+        ordered_sol = [x for (y,x) in sorted(zip(-values[:,criteria],line_combs))]
+        return ordered_sol, psalphas
 
-    def get_rail_configuration(self, grids_to_coat, criteria = 'sum'):
+    def get_rail_configurations(self, grids_to_coat, criteria = 'sum'):
         feasible_combinations = self._select_db(grids_to_coat)
         if  feasible_combinations == None:
             print "Grids are not coatable"
             return
         
-        grids = set(grids_to_coat)
         db_grids = self.get_dbs_grids()
-        sol_lists = []
-        coated_grids = []
+        sol_dict = dict()
+        coated_grids = dict()
+        psalphas = dict()
         for fcomb in feasible_combinations:
-            sol_list = []
-            coated_grid = []
+            coated_grids[fcomb] = dict()
+            psalphas[fcomb] = dict()
+            sol_dict[fcomb] = dict()
+            grids = set(grids_to_coat)
             for dbi in fcomb:
                 line_grid = load_pickle(join(dbi,'rails','line_grid.pkl'))
                 line_grid_dist = load_pickle(join(dbi,'rails','line_grid_dist.pkl'))
                 grids_intersection = grids & db_grids[dbi]
-                coated_grid.append(grids_intersection)
-                sol = self._compute_minimal_lines(line_grid, grids_intersection)
-                sol_list.append(self._ordered_rail_by_score(
-                    sol, line_grid, line_grid_dist, criteria))
+                line_combs = self._compute_minimal_lines(line_grid, grids_intersection)
+                line_combs, psalpha = self._compute_psalpha_ordered_by_score(
+                    line_combs, grids_intersection, line_grid, line_grid_dist, criteria)
+                coated_grids[fcomb] = grids_intersection
+                psalphas[fcomb][dbi] = psalpha
+                sol_dict[fcomb][dbi] = line_combs
                 grids = grids - db_grids[dbi]
-            sol_lists.append(sol_list)
-            coated_grids.append(coated_grid)
-        return sol_lists, coated_grids, feasible_combinations
+        return sol_dict, psalphas, coated_grids, feasible_combinations
+
+    def get_rail_configuration_n(self, grids_to_coat, criteria = 'sum', n=0):
+        sol_dict, psalphas, coated_grids, feasible_combinations = self.get_rail_configurations(grids_to_coat, criteria)
+        n_psas = []
+        for fcomb in feasible_combinations:
+            n_psa = []
+            for dbi in fcomb:
+                dbs = self.info.findall('db')
+                for db in dbs:
+                    if db.find('name').text == split(dbi)[1]:
+                        T = self._extract_T(db)
+                try:
+                    line_comb = sol_dict[fcomb][dbi][n]
+                except IndexError:
+                    n = n-len(sol_dict[fcomb][dbi])
+                    break
+                for line in psalphas[fcomb][dbi][line_comb].keys():
+                    for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
+                        n_psa.append(psa)
+            n_psa = [T,n_psa]
+            n_psas.append(n_psa)
+        return n_psas, feasible_combinations
                 
     def remove_point(self, points):
         """
