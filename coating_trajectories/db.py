@@ -366,7 +366,7 @@ class DB:
         for afile in onlyfiles:
             filename, file_extension = splitext(afile)
             if file_extension == '.pkl':
-                try: 
+                try:
                     seg = load_pickle(join(path,afile))
                 except EOFError:
                     continue
@@ -507,7 +507,7 @@ class DB:
        
         return
 
-    def generate_db_joints(self, base_num, minimal_number_of_points_per_trajectory=3):
+    def generate_db_joints(self, base_num, minimal_number_of_points_per_trajectory=3, do_side_filter=True):
         """
         Compute joints for coating HARD COMPUTATION time
         outputs:
@@ -536,7 +536,8 @@ class DB:
         db_base_to_segs[base_num] = list()
 
         # iterate each (filtered) parallel
-        filtered_trajectories = filter_trajectories(self.turb, blade.trajectories, minimal_number_of_points_per_trajectory)
+        filtered_trajectories = filter_trajectories(
+            self.turb, blade.trajectories, minimal_number_of_points_per_trajectory, do_side_filter)
         for filtered_trajectory in filtered_trajectories:
             db_base_to_segs[base_num] += [[]]
             # iterate each part of trajectory
@@ -947,11 +948,12 @@ class DB:
                 try:
                     line_comb = sol_dict[fcomb][dbi][n]
                 except IndexError:
-                    n = n-len(sol_dict[fcomb][dbi])
                     break
-                for line in psalphas[fcomb][dbi][line_comb].keys():
-                    for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
-                        n_psa.append(psa)
+                else: 
+                    for line in psalphas[fcomb][dbi][line_comb].keys():
+                        for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
+                            n_psa.append(psa)
+                break
             n_psa = [T,n_psa]
             n_psas.append(n_psa)
         return n_psas, feasible_combinations
@@ -1000,12 +1002,10 @@ class DB:
         Clear the visited_bases.
         """
 
-        db = self.load_visited_bases()
-        for key in db:
-            db[key] = False
-        try:
-            save_pickle(db, join(self.db_main_path,'visited_bases.pkl'))
-        except IOError: raise
+        visited_bases = self.load_visited_bases()
+        for key in visited_bases:
+            visited_bases[key] = False
+        save_pickle(visited_bases, join(self.db_main_path,'visited_bases.pkl'))
         return
 
     def plot_points_db(self, vis, scale=1):
