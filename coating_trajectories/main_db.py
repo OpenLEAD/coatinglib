@@ -57,7 +57,8 @@ def generate_db_joints():
         db.save_pickle(visited_bases,join(path,'visited_bases.pkl'))
         del visited_bases
 
-        base_to_joints, base_to_seg = DB.generate_db_joints(base_num)
+        base_to_joints, base_to_seg = DB.generate_db_joints(
+            base_num, minimal_number_of_points_per_trajectory, do_side_filter)
         if base_to_joints == None:
             continue
         
@@ -280,8 +281,8 @@ def clear_visited_bases():
     DB.clear_visited_bases()
     return
 
-def create_db_from_segments(path):
-    db_main = DB.create_db_from_segments(path)
+def create_db_from_segments(directory):
+    db_main = DB.create_db_from_segments(directory)
     db.save_pickle(db_main, join(path,'db.pkl') )
     return 
 
@@ -342,7 +343,8 @@ def generate_rail_configurations():
  
 if __name__ == '__main__':
 
-    area, db_name = 'FACE', 'db_-45'
+    area = 'BORDER'
+    db_name = 'db'
     path = join(area,db_name)
     
     dir_test = join(realpath('.'),'test')
@@ -353,14 +355,17 @@ if __name__ == '__main__':
     DB = db.DB(area, turb, db_name)
     turbine_rotate(turb)
     
-    threshold = 0.93
-    grid_num = 58
+    threshold = 0.95
+    grid_num = 64
     
     #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db()
     #clear_visited_bases()
+
+    # Generate robot joints inputs
+    minimal_number_of_points_per_trajectory, do_side_filter = 3, False
     #generate_db_joints()
 
     #meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
