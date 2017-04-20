@@ -47,6 +47,9 @@ def side_filter(turbine, trajectories):
 
 _filter_options = {'mh12': _mh12_filter}    
 
-def filter_trajectories(turbine, trajectories, N = 100):
+def filter_trajectories(turbine, trajectories, N = 100, do_side_filter = True):
     name = turbine.robot.GetName()
-    return _filter_options.get(name,_std_robot_filter)(turbine, side_filter(turbine,trajectories), N)
+    if do_side_filter:
+        return _filter_options.get(name,_std_robot_filter)(turbine, side_filter(turbine,trajectories), N)
+    else:
+        return _filter_options.get(name,_std_robot_filter)(turbine, trajectories, N)
