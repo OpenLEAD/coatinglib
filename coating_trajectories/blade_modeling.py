@@ -175,7 +175,7 @@ class BladeModeling:
         savez_compressed(join(directory_to_save, name,'trajectory','trajectory.npz'), array=trajectories)
         
         tree = ET.ElementTree(trajectory)
-        tree.write(join(directory_to_save, "trajectory.xml"), pretty_print=True)
+        tree.write(join(directory_to_save, name, "trajectory.xml"), pretty_print=True)
         return
 
     def load_samples(self, xml_file):
