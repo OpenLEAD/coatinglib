@@ -7,9 +7,9 @@ from turbine_config import TurbineConfig
 from turbine import Turbine
 
 
-dir_test = join(realpath('.'),'test')
+dir_test = join(environ['PYTHON_COAT'],'test')
 environ['OPENRAVE_DATA'] = str(dir_test)
-cfg = TurbineConfig.load('turbine_unittest.cfg','test')
+cfg = TurbineConfig.load('turbine_unittest.cfg',dir_test)
 turb = Turbine(cfg)
 
 area_db = {'jusante':'FACE',
