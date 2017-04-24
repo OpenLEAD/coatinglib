@@ -1,3 +1,8 @@
+import sys
+import io
+
+save_stdout = sys.stdout
+sys.stdout = io.BytesIO()
 import blade_coverage
 import argparse
 import db
@@ -47,4 +52,5 @@ parser_g.set_defaults(func=grids_out)
 
 
 args = parser.parse_args()
+sys.stdout = save_stdout
 args.func(args)
