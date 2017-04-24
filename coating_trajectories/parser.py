@@ -2,6 +2,9 @@ import blade_coverage
 import argparse
 import db
 from os import environ
+from os.path import realpath, join
+from turbine_config import TurbineConfig
+from turbine import Turbine
 
 
 dir_test = join(realpath('.'),'test')
@@ -9,10 +12,9 @@ environ['OPENRAVE_DATA'] = str(dir_test)
 cfg = TurbineConfig.load('turbine_unittest.cfg','test')
 turb = Turbine(cfg)
 
-counter = 0 
-area_db = {'jusante':['FACE'],
-           'montante': ['FACE'],
-           'lip': ['LIP']
+area_db = {'jusante':'FACE',
+           'montante': 'FACE',
+           'lip': 'LIP'
           }
 
 grids_available = {'jusante':blade_coverage.jusante_grids,
@@ -21,10 +23,8 @@ grids_available = {'jusante':blade_coverage.jusante_grids,
                   }
 
 def coverage(args):
-    global counter
     DB = db.DB(area_db[args.Area],turb)
-    psa = DB.get_rail_configuration_n(grids_to_coat, 'sum', counter)
-    counter+=1
+    psa = DB.get_rail_configuration_n(args.Grids, 'sum', 0)
     print psa
 
 def grids_out(args):
