@@ -288,7 +288,8 @@ def create_db_from_segments(directory):
 
 def turbine_rotate(turb):
     for blade in turb.blades:
-        blade.SetTransform(DB.T)
+        T = blade.GetTransform()
+        blade.SetTransform(dot(DB.T,T))
     return
 
 def bases_grids_coating(threshold):
@@ -344,7 +345,7 @@ def generate_rail_configurations():
 if __name__ == '__main__':
 
     area = 'BORDER'
-    db_name = 'db'
+    db_name = 'db_-45'
     path = join(area,db_name)
     
     dir_test = join(realpath('.'),'test')
@@ -355,7 +356,7 @@ if __name__ == '__main__':
     DB = db.DB(area, turb, db_name)
     turbine_rotate(turb)
     
-    threshold = 0.95
+    threshold = 0.90
     grid_num = 64
     
     #vis = Visualizer(turb.env)
