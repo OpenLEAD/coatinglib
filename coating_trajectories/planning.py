@@ -465,38 +465,6 @@ def ikfast(robot, point):
                 
         return solutions
 
-def ikfast_position(robot, point):
-    """
-    Call openrave IKFast Translation3D. It computes the inverse kinematic for the point.
-    It returns one solution.
-
-    keyword arguments:
-    robot -- the robot. 
-    point -- point to coat is a 6D array, which (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
-    """
-
-    with robot:
-        ikparam = IkParameterization(point[0:3],IkParameterization.Type.Translation3D)
-        sol = robot.GetActiveManipulator().FindIKSolution(ikparam, IkFilterOptions.CheckEnvCollisions)
-        return sol, []
-
-def ikfast_5d(robot, point):
-    """
-    Call openrave IKFast TranslationDirection5D. It computes the inverse kinematic for the point.
-    It returns all solutions.
-
-    keyword arguments:
-    robot -- the robot. 
-    point -- point to coat is a 6D array, which (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
-    """
-
-    with robot:
-        ikparam = IkParameterization(Ray(point[0:3],-point[3:6]),IkParameterization.Type.TranslationDirection5D)
-        solutions = robot.GetActiveManipulator().FindIKSolutions(ikparam, IkFilterOptions.CheckEnvCollisions)
-        return sol, []
-
 def check_dof_limits(robot, q):
     """
     Method checks if the joints limits are inside limits with a safe tolerance.
@@ -577,23 +545,9 @@ def trajectory_constraints(turbine, iksol, point):
             return False
     return True
 
-def set_ikmodel_translation3d(robot):
-    ikmodel = databases.inversekinematics.InverseKinematicsModel(
-        robot=robot, iktype=IkParameterization.Type.Translation3D)
-    if not ikmodel.load():
-        ikmodel.autogenerate()
-    return
-
 def set_ikmodel_transform6D(robot):
     ikmodel = databases.inversekinematics.InverseKinematicsModel(
         robot=robot, iktype=IkParameterization.Type.Transform6D)
-    if not ikmodel.load():
-        ikmodel.autogenerate()
-    return
-
-def set_ikmodel_translationdirection5d(robot):
-    ikmodel = databases.inversekinematics.InverseKinematicsModel(
-        robot=robot, iktype=IkParameterization.Type.TranslationDirection5D)
     if not ikmodel.load():
         ikmodel.autogenerate()
     return
