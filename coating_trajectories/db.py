@@ -87,6 +87,7 @@ class DB:
                     break
             else:
                 raise NoDBFound(db_name)
+        else: self.db_main_path = self.path
                 
 
     def _extract_T(self, info_db):
@@ -701,8 +702,9 @@ class DB:
         rays = []
         ntp = self.get_sorted_points()
         parallels = copy.deepcopy(parallels)
-        
         db = self.load_db()
+        blade = self.load_blade()
+        
         for parallel in parallels:
             for point in parallel:
                 if point not in db.keys():
@@ -732,31 +734,6 @@ class DB:
                     
                 rays.append(traj)
         return rays
-                
-    def bases_validation(self, parallels, bases):
-        """
-        Validate bases for given parallels.
-        
-        Keyword arguments:
-        parallels -- list of rays (N,6)
-        bases -- [PSAlpha] (N,3), list of tuples
-        """
-        
-        feasible_bases = []
-        blade = self.load_blade()
-        for base in bases:
-            rp = rail_place.RailPlace(base)
-            self.turb.place_rail(rp)
-            self.turb.place_robot(rp)
-            for parallel in parallels:
-                joint_solutions = planning.compute_robot_joints(
-                    self.turb, parallel, 0, blade.trajectory_iter_surface)
-                if len(joint_solutions) != len(parallel):
-                    break
-            else:
-                feasible_bases.append(base)
-            continue
-        return feasible_bases
 
     def _check_line(self, line, grid_bases, line_grid, line_grid_dist, min_threshold, max_threshold):
         """
@@ -957,6 +934,11 @@ class DB:
             n_psa = [T,n_psa]
             n_psas.append(n_psa)
         return n_psas, feasible_combinations
+
+    
+    ################################################################################
+    ############################## CLEAR METHODS ###################################
+    ################################################################################
                 
     def remove_point(self, points):
         """
@@ -1008,6 +990,10 @@ class DB:
         save_pickle(visited_bases, join(self.db_main_path,'visited_bases.pkl'))
         return
 
+    ################################################################################
+    ############################### PLOT METHODS ###################################
+    ################################################################################
+    
     def plot_points_db(self, vis, scale=1):
         """
         Method to plot db points.
