@@ -15,46 +15,6 @@ from copy import deepcopy, copy
 import csv
 import cPickle 
 
-def base_grid_validation(blade_angle, rays):
-    """
-    Given the real blade angle:
-    1) rotate the blades (update the environment);
-    2) rotate the RBF model of the blade;
-    3) rotate grid points;
-    4) organize trajectories (removing empty points, adding borders,
-    and making one full zigzagging list);
-    5) compute optimization.
-
-    Keyword arguments:
-    blade_angle -- real angle of the blade
-    rays -- points to be coated (list-n of lists-mx6) w.r.t. the 0 rotor angle.
-    """
-    
-    T = matrixFromAxisAngle([blade_angle,0,0])
-    for blade in turb.blades:
-        blade.SetTransform(T)
-        
-    blade = dict_angle_blade[0]
-    blade.rotate_models(T)
-
-    rotated_rays = deepcopy(rays)
-
-    rotated_rays = mathtools.rotate_trajectories(rotated_rays, T)
-    organized_rays = []
-    for i in range(0,len(rotated_rays)):
-        if i%2==0:
-            organized_rays += rotated_rays[i]
-        else:
-            organized_rays += reversed(rotated_rays[i])
-    organized_rays = [x for x in organized_rays if x != []]
-
-    turb.robot.GetLink('Flame').Enable(False)
-    joint_solutions = planning.compute_robot_joints_opt(turb, organized_rays, 0,
-                                                    blade.trajectory_iter_surface)
-    score = len(joint_solutions)*1.0/len(organized_rays)
-    
-    return joint_solutions, score
-
 def grid_verticalization(grid_num):
     DB = dict_angle_db[db_angles[0]]
     blade = dict_angle_blade[db_angles[0]]
