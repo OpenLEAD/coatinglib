@@ -46,13 +46,6 @@ class Turbine:
         self.env.Load(path.join(config.dir_path,config.environment.load))
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
-        
-        ikmodel = databases.inversekinematics.InverseKinematicsModel(
-            robot=self.robot,
-            iktype=IkParameterization.Type.Translation3D
-            )
-        if not  ikmodel.load():
-             ikmodel.autogenerate()
 
         ikmodel = databases.inversekinematics.InverseKinematicsModel(
             robot=self.robot,
