@@ -1,8 +1,7 @@
 from numpy import array, dot, eye, concatenate, zeros, sign, pi
 from openravepy import transformLookat, matrixFromAxisAngle, Environment, databases, IkParameterization
-from openravepy.misc import InitOpenRAVELogging
+from openravepy import RaveInitialize
 from os import path
-
 
 _PRIMARY_RAIL = "primary_rail"
 _SECONDARY_RAIL = "secondary_rail"
@@ -41,8 +40,8 @@ class Turbine:
         self.config = config
         
         # Create OpenRave environment
+        RaveInitialize(True,0)
         self.env = Environment()
-        InitOpenRAVELogging()
         self.env.Load(path.join(config.dir_path,config.environment.load))
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
