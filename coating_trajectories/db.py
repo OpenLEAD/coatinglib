@@ -63,7 +63,7 @@ class DB:
     def __init__(self, path, turbine, db_name = None):
 
         self.path = path
-        self.db_main_path = None
+        self.db_main_path = ''
         self.T = matrixFromAxisAngle([0,0,0])
         self.info = None
         self.turb = turbine
@@ -257,14 +257,21 @@ class DB:
             points_to_num = self.create_points_to_num()
         
         try:
-            db = self.load_db()
+            main_db = self.load_db()
         except IOError:
-            db = dict()
-            blade = self.load_blade()
-            for point, num in points_to_num.iteritems():
-                db[num] = set()
-            save_pickle(db, join(self.db_main_path,'db.pkl'))
-        del db
+            main_db = dict()
+
+            dbs = self.info.findall('db')
+            for dbi in dbs:
+                T = self._extract_T(dbi)
+                db_path = join(self.path,dbi.find('path').text)
+                main_dbi = load_pickle(join(db_path,'db.pkl'))
+                for point, base in main_dbi.iteritems():
+                    b = main_db.get(point,[])
+                    b.append([base,T])
+                    main_db[point] = b
+            save_pickle(main_db, join(self.db_main_path,'db.pkl'))
+        del main_db
 
         try:
             bases_to_num = self.load_bases_to_num()
