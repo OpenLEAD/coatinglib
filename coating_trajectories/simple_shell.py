@@ -1,5 +1,5 @@
 from turbine import Turbine
-from turbine_config import TurbineConfig, ConfigFileError
+from turbine_config import TurbineConfig
 import os
 from os.path import join, isfile, realpath
 
