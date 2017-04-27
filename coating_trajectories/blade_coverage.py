@@ -36,40 +36,6 @@ def base_grid_validation(DB, grid):
     score = len(joint_solutions)*1.0/len(organized_rays)
     return score, joint_solutions
 
-def remove_nonstr_lines(line_grid, line_grid_dist, threshold_str):
-    for key in line_grid.keys():
-        for grid in line_grid_dist[key].keys():
-            [point_near, distance, distance_str] = line_grid_dist[key][grid]
-            if distance_str < threshold_str:
-                grids = line_grid[key]
-                grids.remove(grid)
-                line_grid[key] = grids
-                line_grid_dist[key].pop(grid,None)
-    return line_grid, line_grid_dist
-
-def plot_line(vis, lines, key):
-    p0 = (-2,0,cfg.environment.z_floor_level)
-    p1 = (2,0,cfg.environment.z_floor_level)
-    points = array((p0,p1))
-    vis.drawline(points, key, (0,0,0), 5)
-
-    for line in lines:
-        # Ax+By+C=0
-        x1 = line[0][0]; y1 = line[0][1]
-        x2 = line[1][0]; y2 = line[1][1]
-        A = y1-y2; B = x2-x1
-        C = x1*y2-x2*y1
-        if A!=0:
-            y1=cfg.environment.y_min; y2=cfg.environment.y_max
-            p0 = ((-C-y1*B)/A,y1,cfg.environment.z_floor_level)
-            p1 = ((-C-y2*B)/A,y2,cfg.environment.z_floor_level)
-        else:
-            p0 = (cfg.environment.x_min,y1,cfg.environment.z_floor_level)
-            p1 = (cfg.environment.x_max,y1,cfg.environment.z_floor_level)
-        points = array((p0,p1))
-        vis.drawline(points, key, (0,0,1), 5)
-    return
-
 def jusante_grids():
     grid_nums = range(0,15)
     grid_nums.extend(range(17,20))
