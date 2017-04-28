@@ -1,15 +1,16 @@
-from numpy import sqrt, dot, concatenate, arange, array, abs, zeros, cumsum, minimum
-from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf, arccos, maximum
+from numpy import sqrt, dot, concatenate, arange, array
+from numpy import abs, zeros, cumsum, minimum
+from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
+from numpy import arccos, maximum
 from numpy.linalg import norm
-from openravepy import IkFilterOptions, Ray
+from openravepy import IkFilterOptions, interfaces, databases
+from openravepy import IkParameterization
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize, linprog
 from copy import copy
 from path_filters import filter_trajectories
 from mathtools import central_difference
 import mathtools
-import time
-from openravepy import databases, IkParameterization
 
 """
 Main package for robot joints' positions and velocities planning,
@@ -245,6 +246,16 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
             pos = manip.GetTransform()[0:3,3]
             dif = pos-point[0:3]
             return dot(dif,dif)/tol
+            ## New opt
+            #pn1 = mathtools.compute_perpendicular_vector(point[3:6])
+            #pn2 = cross(pn1,point[3:6])
+            #pn3 = point[3:6]
+            #pos_on_pn3 = dot(pos,point[3:6])*pos
+            #if linalg.norm(pos_on_pn3 - point[0:3])<=0.03:
+            #    pos_on_pn3 = point[0:3]
+            #pos = dot(pos,pn1)*pos + dot(pos,pn2)*pos + dot(pos,pn3)*pos
+            #dif = pos-point[0:3]
+            #return dot(dif,dif)/tol            
         
         cons = ({'type':'eq', 'fun': position_cons})
         
@@ -550,4 +561,4 @@ def set_ikmodel_transform6D(robot):
         robot=robot, iktype=IkParameterization.Type.Transform6D)
     if not ikmodel.load():
         ikmodel.autogenerate()
-    return
+    return  
