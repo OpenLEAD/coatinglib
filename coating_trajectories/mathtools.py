@@ -10,6 +10,7 @@ from copy import copy, deepcopy
 from collections import deque
 from scipy.spatial import KDTree
 from itertools import cycle, islice
+from scipy.linalg import logm, expm
 
 _base_module_precision = 0.2
 _p_step = 0.1
@@ -910,3 +911,33 @@ def union_line_grids(line_grid, lines):
     for line in lines:
         line_union = line_union.union(line_grid[line])
     return line_union
+
+def linear_interpolation_ray(ray0, ray1, threshold=1e-2):
+    """
+    Return the linear interpolation from ray0 to ray1
+    """
+
+    d = linalg.norm(ray0[0:3]-ray1[0:3])
+    n = int(d/threshold)
+    points = []
+    for i in range(0,n):
+        t = threshold*i/d
+        p = (1-t)*ray0+ray1*t
+        p[3:] = p[3:]/linalg.norm(p[3:])
+        points.append(p)
+    return points
+
+def linear_interpolation_joint(joint0, joint1, threshold=1e-4) :
+    """
+    Return the linear interpolation from joint0 to joint1
+    """
+
+    d = linalg.norm(joint0-joint1)
+    n = int(d/threshold)
+    joints = []
+    for i in range(0,n):
+        t = threshold*i/d
+        joint = (1-t)*joint0+joint1*t
+        joints.append(joint)
+    return joints
+    
