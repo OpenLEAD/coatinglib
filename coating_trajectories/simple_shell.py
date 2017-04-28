@@ -10,3 +10,14 @@ turb = Turbine(cfg)
 
 import visualizer
 vis = visualizer.Visualizer(turb.env)
+
+import blade_coverage
+import db
+import planning
+from openravepy import interfaces, IkParameterization, RaveCreateTrajectory
+
+turb.robot.GetLink('Flame').Enable(False)
+DB = db.DB('FACE',turb)
+joint_solutions = blade_coverage.trajectory_generation(DB, 7)
+
+
