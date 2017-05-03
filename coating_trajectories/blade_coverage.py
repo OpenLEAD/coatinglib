@@ -1,7 +1,7 @@
 from numpy import array
 import db
 import planning
-from openravepy import ConfigurationSpecification
+from openravepy import ConfigurationSpecification, interfaces
 import mathtools
 
 def organize_rays(DB, grid):
@@ -66,6 +66,25 @@ def trajectory_generation(DB, grid):
     customspec = ConfigurationSpecification()
     customspec.AddGroup('joint_values',6,'linear')
     return joint_solutions
+
+def waitrobot(robot):
+    """busy wait for robot completion"""
+    while not robot.GetController().IsDone():
+        print 'waitrobot'
+        time.sleep(0.01)
+
+def movetohandposition(robot, joint_solutions):
+    manip = robot.GetActiveManipulator()
+    basemanip = interfaces.BaseManipulation(robot,plannername='birrt')
+    Tgoal = []
+    for i in range(0,len(joint_solutions)):
+        robot.SetDOFValues(joint_solutions[i])
+        T = manip.GetTransform()
+        Tgoal.append(T) 
+    res = basemanip.MoveToHandPosition(matrices=Tgoal, steplength=0.1)
+    waitrobot(robot)
+    return res
+    
 
 def jusante_grids():
     grid_nums = range(0,15)
