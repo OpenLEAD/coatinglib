@@ -3,6 +3,7 @@ import db
 import planning
 from openravepy import ConfigurationSpecification, interfaces
 import mathtools
+import time
 
 def organize_rays(DB, grid):
     DB.T = DB.turb.blades[0].GetTransform()
