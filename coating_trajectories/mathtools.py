@@ -941,3 +941,14 @@ def linear_interpolation_joint(joint0, joint1, threshold=1e-4) :
         joints.append(joint)
     return joints
     
+def homogenous_matrix_cubic_interpolation(Ai,Aj,Bi,Bj,n):
+    t = linspace(0,1,n)
+    T = []
+    invAi = linalg.inv(Ai)
+    invAj = linalg.inv(Aj)
+    Ci = logm(einsum('ik,km,mj->ij',expm(Bi),invAi,Aj))
+    Di = Bj - einsum('ik,kl,ln,nm,mj->ij',invAj,Ai,Bi,invAi,Aj) - 2*Ci
+    for ti in t:
+        T.append(dot(Ai,einsum('ik,km,mj->ij',
+                               expm(ti*Bi), expm(ti**2*Ci), expm((ti**3-ti**2)*Di))))
+    return T
