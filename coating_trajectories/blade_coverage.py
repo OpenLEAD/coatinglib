@@ -1,9 +1,10 @@
-from numpy import array
+from numpy import array, linalg, dot, zeros
 import db
 import planning
-from openravepy import ConfigurationSpecification, interfaces
+from openravepy import ConfigurationSpecification, interfaces, planningutils
 import mathtools
 import time
+from scipy.linalg import logm, expm
 
 def organize_rays(DB, grid):
     DB.T = DB.turb.blades[0].GetTransform()
@@ -71,20 +72,28 @@ def trajectory_generation(DB, grid):
 def waitrobot(robot):
     """busy wait for robot completion"""
     while not robot.GetController().IsDone():
-        print 'waitrobot'
         time.sleep(0.01)
 
 def movetohandposition(robot, joint_solutions):
     manip = robot.GetActiveManipulator()
     basemanip = interfaces.BaseManipulation(robot,plannername='birrt')
-    Tgoal = []
-    for i in range(0,len(joint_solutions)):
+    #TRAJ = []
+    T = []
+    for i in range(0,len(joint_solutions)-1):
         robot.SetDOFValues(joint_solutions[i])
-        T = manip.GetTransform()
-        Tgoal.append(T) 
-    res = basemanip.MoveToHandPosition(matrices=Tgoal, steplength=0.1)
-    waitrobot(robot)
-    return res
+        Ai = manip.GetTransform()
+        robot.SetDOFValues(joint_solutions[i+1])
+        Aj = manip.GetTransform()
+        robot.SetDOFValues(joint_solutions[i])
+        #Bi = logm(dot(linalg.inv(Ai),Aj))/3
+        #Bj = logm(dot(linalg.inv(Aj),Ak))/3
+        Bi = zeros((4,4))
+        T.append(mathtools.homogenous_matrix_cubic_interpolation(Ai,Aj,Bi,Bi,10))
+        #TRAJ.append(basemanip.MoveToHandPosition(
+        #    matrices=mathtools.homogenous_matrix_cubic_interpolation(Ai,Aj,Bi,Bi,10), outputtrajobj=True))
+        #waitrobot(robot)
+    #traj = planningutils.MergeTrajectories(TRAJ)
+    return T#traj
     
 
 def jusante_grids():
