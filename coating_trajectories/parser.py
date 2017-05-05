@@ -34,6 +34,10 @@ def grids_out(args):
     print grids_available[args.Area]()
     return
 
+def areas_out(args):
+    print area_db.keys()
+    return
+    
 def validate(args):
     DB = db.DB(area_db[args.Area],turb)
     score, joints = blade_coverage.base_grid_validation(DB, args.Grid)
@@ -50,6 +54,11 @@ parser_p.add_argument('Area', choices=area_db.keys(), type=str, help='Area to be
 parser_p.add_argument('Grids', nargs='+', type=int, help='Grids to be coated.')
 parser_p.add_argument('-ans', type=int, help='Answer number.', default=0)
 parser_p.set_defaults(func=coverage)
+
+# Function to return Areas
+parser_a = subparsers.add_parser('areas', help='Return available areas.')
+parser_a.set_defaults(func=areas_out)
+
 
 # Function to return Grids
 parser_g = subparsers.add_parser('grids', help='Return available grids given area.')
