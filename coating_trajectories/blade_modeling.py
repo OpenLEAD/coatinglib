@@ -710,4 +710,4 @@ class BladeModeling:
             model = self.select_model(point)
         df = model.df(point)
         df = df/linalg.norm(df)
-        return array(list(point)+list(df))
+        return array(list(point[0:3])+list(df[0:3]))
