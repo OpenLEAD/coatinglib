@@ -471,11 +471,7 @@ def trajectory_constraints(turbine, iksol, point):
     # Verifying environment and self collision
     with robot:
         robot.SetDOFValues(iksol)
-        if turbine.check_robot_collision():
-            return False
-        if robot.CheckSelfCollision():
-            return False
-
+        
         # Verifying angle tolerance
         if not orientation_cons(turbine, point):
             return False
