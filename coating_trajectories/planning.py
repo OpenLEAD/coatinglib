@@ -1,16 +1,18 @@
 from numpy import sqrt, dot, concatenate, arange, array
 from numpy import abs, zeros, cumsum, minimum
 from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
-from numpy import arccos, maximum
+from numpy import arccos, maximum, random
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, interfaces, databases
 from openravepy import IkParameterization
+from openravepy import CollisionOptions, RaveCreateCollisionChecker, CollisionReport
 from math import pi, cos, sin, atan2
 from scipy.optimize import minimize, linprog
 from copy import copy
 from path_filters import filter_trajectories
 from mathtools import central_difference
 import mathtools
+import dijkstra2
 
 """
 Main package for robot joints' positions and velocities planning,
@@ -226,13 +228,18 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
     point -- 6x1 vector is the goal (point to be coated). (x,y,z) cartesian position
     and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
     """
-    
+    if not turbine.env.GetCollisionChecker().SetCollisionOptions(CollisionOptions.Distance):
+        collisionChecker = RaveCreateCollisionChecker(turbine.env,'pqp')
+        collisionChecker.SetCollisionOptions(CollisionOptions.Distance)
+        turbine.env.SetCollisionChecker(collisionChecker)
+        
     robot = turbine.robot
     q0 = robot.GetDOFValues()
     manip = robot.GetActiveManipulator()
     lower_limits, upper_limits = robot.GetActiveDOFLimits()
     lower_limits = lower_limits+0.01
     upper_limits = upper_limits-0.01
+    report = CollisionReport()
     
     with robot:
         def func(q):
@@ -246,6 +253,20 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
             pos = manip.GetTransform()[0:3,3]
             dif = pos-point[0:3]
             return dot(dif,dif)/tol
+        
+        def self_collision_cons(q):
+            robot.SetDOFValues(q)
+            report = CollisionReport()
+            turbine.robot.CheckSelfCollision(report)
+            return report.minDistance-0.007
+        
+        def env_collision_cons(q):
+            robot.SetDOFValues(q)
+            report = CollisionReport()
+            turbine.env.CheckCollision(turbine.robot,report)
+            return report.minDistance-0.007
+
+        
             ## New opt
             #pn1 = mathtools.compute_perpendicular_vector(point[3:6])
             #pn2 = cross(pn1,point[3:6])
@@ -257,7 +278,9 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
             #dif = pos-point[0:3]
             #return dot(dif,dif)/tol            
         
-        cons = ({'type':'eq', 'fun': position_cons})
+        cons = ({'type':'eq', 'fun': position_cons},
+                {'type':'ineq', 'fun': self_collision_cons},
+                {'type':'ineq', 'fun': env_collision_cons})
         
         bnds = tuple([(lower_limits[i],upper_limits[i]) for i in range(0,len(lower_limits))])
         
@@ -273,27 +296,6 @@ def orientation_cons(turbine, point):
     Rx = turbine.robot.GetActiveManipulator().GetTransform()[0:3,0]
     Rx = Rx/linalg.norm(Rx)
     return (dot(point[3:6], Rx)) + cos(turbine.config.coating.angle_tolerance) <= 0
-
-def backtrack(turbine, trajectory):
-    """
-    Call when optimization fails. Previous solution should be recomputed.
-
-    Keyword arguments:
-    turbine -- turbine object
-    trajectory -- already computed coated points.
-    """
-
-    logging.info('Starting backtracking at point: ' + str(trajectory[-1]))
-    robot = turbine.robot
-    Q = []
-    with robot:
-        for point in reversed(trajectory):
-            res = orientation_error_optimization(turbine, point, tol=1e-3)
-            if trajectory_constraints(turbine, res, point):
-                Q.append(res.x)
-                robot.SetDOFValues(res.x)
-            else: return []
-    return list(reversed(Q))
 
 
 def ik_angle_tolerance(turbine, point):
@@ -386,66 +388,6 @@ def ik_angle_tolerance_normal_plane(turbine, point, iter_surface, angle_discreti
             
     return iksol, angle_tolerance 
 
-def Fcost(turbine, start, actual_ik_cells, actual_tolerance_cells, goal):
-
-    robot = turbine.robot
-    manip = robot.GetActiveManipulator()
-
-    with robot:
-        robot.SetDOFValues(goal)
-        goal_p = manip.GetTransform()[0:3,3]
-        robot.SetDOFValues(start)
-        start_p = manip.GetTransform()[0:3,3]
-        delta_t = linalg.norm(start_p-goal_p)/turbine.config.coating.coating_speed
-
-    actual_ik_cells = array(actual_ik_cells)
-    actual_tolerance_cells = array(actual_tolerance_cells)   
-
-    # Verifying joint velocities consistency from start and goal
-    joint_distance_from_start = actual_ik_cells - start
-    joint_distance_from_goal = actual_ik_cells - goal
-    ws_in_limits_start = [w.all() for w in ((abs(joint_distance_from_start/delta_t) - robot.GetDOFVelocityLimits()) < 0)]
-    ws_in_limits_goal = [w.all() for w in ((abs(joint_distance_from_goal/delta_t) - robot.GetDOFVelocityLimits()) < 0)]
-    ws_in_limits = ws_in_limits_start and ws_in_limits_goal
-    
-    actual_ik_cells = actual_ik_cells[ws_in_limits]
-    actual_tolerance_cells = actual_tolerance_cells[ws_in_limits]
-    joint_distance_from_start = joint_distance_from_start[ws_in_limits]
-    joint_distance_from_goal = joint_distance_from_goal[ws_in_limits]
-
-    # Computing distance from start and goal
-    if (len(joint_distance_from_goal) > 0) and (len(joint_distance_from_start) > 0):
-        G_cost = sqrt(sum(joint_distance_from_start*joint_distance_from_start,1))
-        H_cost = sqrt(sum(joint_distance_from_goal*joint_distance_from_goal,1))
-        # Heuristic cost
-        F_cost = G_cost + H_cost + actual_tolerance_cells
-        return F_cost, actual_ik_cells
-    else:
-        return [], []
-
-def Gcost(turbine, list_from_start, actual_ik_cells):
-
-    velocity_limits = turbine.robot.GetDOFVelocityLimits()
-
-    actual_ik_cells = array(actual_ik_cells)
-
-    # Verifying joint velocities consistency from start and goal
-    w_part, alpha_part, size = mathtools.partial_backward_difference(turbine,list_from_start)
-    
-    joint_velocities, _  = mathtools.update_backward_difference(turbine, actual_ik_cells,
-                                                                w_part, alpha_part, size)
-    
-    ws_out_limits = [w.any() for w in ((abs(joint_velocities) - velocity_limits) > 0)]
-
-    
-
-    # Computing distance from start
-    if joint_velocities.size:
-        G_cost = max(abs(joint_velocities/velocity_limits),1)
-        G_cost[ws_out_limits] = inf
-        return G_cost, actual_ik_cells, actual_tolerance_cells
-    else:
-        return [], [], []
 
 def ikfast(robot, point):
     """
@@ -457,7 +399,7 @@ def ikfast(robot, point):
     point -- point to coat is a 6D array, which (x,y,z) cartesian position
     and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
     """
-    
+    point = array(point)
     with robot:
         manip = robot.GetActiveManipulator()
         Tee = manip.GetTransform()
@@ -475,23 +417,6 @@ def ikfast(robot, point):
                 solutions = solutions.reshape((1,solutions.shape[0]))
                 
         return solutions
-
-def check_dof_limits(robot, q):
-    """
-    Method checks if the joints limits are inside limits with a safe tolerance.
-    return True if limits were respected.
-    keyword arguments:
-    robot -- the robot. 
-    q -- DOF values.
-    """
-    joints = robot.GetJoints()
-    for i in range(0,len(q)):
-        l,u = joints[i].GetLimits()
-        l = l[0]
-        u = u[0]
-        if not q[i]>=l+0.01 or not q[i]<=u-0.01:
-            return False
-    return True
 
 def compute_manipulability_det(joint_configuration, robot):
     """
@@ -562,3 +487,132 @@ def set_ikmodel_transform6D(robot):
     if not ikmodel.load():
         ikmodel.autogenerate()
     return  
+
+def random_joint(robot, joint):
+    rjoints = joint+random.rand(len(robot.GetDOFValues()))
+    limitsdow = robot.GetActiveDOFLimits()[0]
+    limitsup = robot.GetActiveDOFLimits()[1]
+    for j in range(0,len(rjoints)):
+        rjoints[j] = min([rjoints[j],limitsup[j]])
+        rjoints[j] = max([rjoints[j],limitsdow[j]])
+    return rjoints
+
+def generate_random_joint_solutions(turbine, point, tries):
+    robot = turbine.robot
+    joints = []
+    for i in range(0,tries):
+        random_joint(robot, zeros(len(robot.GetDOFValues())))
+        res = orientation_error_optimization(turbine, point)
+        if res.success:
+            if trajectory_constraints(turbine, res.x, point):
+                break
+    else:
+        return joints
+
+    jointx = res.x
+    joints.append(jointx)
+    with robot:
+        for i in range(0,tries):
+            rjoints = random_joint(robot, jointx)
+            robot.SetDOFValues(rjoints)
+            res = orientation_error_optimization(turbine, point)
+            if res.success:
+                if trajectory_constraints(turbine, res.x, point):
+                    if list(res.x) not in [list(x) for x in joints]:
+                        joints.append(res.x)
+    return joints
+       
+def joint_distance(joint1, joint2):
+    dif = abs(joint1-joint2)
+    return sum(dif)
+
+def joint_planning(turbine, ordered_waypoints, tries = 12):
+    joints = []
+    robot = turbine.robot
+    for i in range(0,len(ordered_waypoints)):
+        joints.append(ikfast(robot, ordered_waypoints[i]))
+
+    for i in range(0,len(joints)):
+        if len(joints[i])==0:
+            if i==0:
+                joints[i] = generate_random_joint_solutions(turbine, ordered_waypoints[i], tries)
+            else:
+                joints_sol = []
+                for joint in joints[i-1]:
+                    robot.SetDOFValues(joint)
+                    res = orientation_error_optimization(turbine, ordered_waypoints[i])
+                    if res.success:
+                        if trajectory_constraints(turbine, res.x, ordered_waypoints[i]):
+                            joints_sol.append(res.x)
+                joints[i] = joints_sol
+
+    for i in range(0,len(joints)):
+        if len(joints[i])==0:
+            print ordered_waypoints[i]
+            raise IndexError('joints with zero length')
+    
+    return joints
+
+def compute_foward_cost(joints0,joints1):
+    cost = zeros((len(joints0),len(joints1)))
+    for i in range(0,len(joints0)):
+        for j in range(0,len(joints1)):
+            cost[i][j] = joint_distance(joints0[i], joints1[j])
+    return cost
+
+def make_dijkstra(joints, verbose = False):
+    virtual_start = (-1,-1)
+    virtual_end = (-2,-2)
+    adj = dict()
+    cost = dict()
+    for jointsi in range(0,len(joints)-1):
+         mcost = compute_foward_cost(joints[jointsi],joints[jointsi+1])
+         for u in range(0,len(mcost)):
+             for v in range(0,len(mcost[u])):
+                 l = adj.get((jointsi,u),[])
+                 l.append((jointsi+1,v))
+                 adj[(jointsi,u)] = l
+                 cost[((jointsi,u),(jointsi+1,v))] = mcost[u][v]
+
+    for joints0i in range(0,len(joints[0])):
+        l = adj.get(virtual_start,[])
+        l.append((0,joints0i))
+        adj[virtual_start] = l
+        cost[(virtual_start,(0,joints0i))] = 0
+
+    for jointsi in range(0,len(joints[-1])):
+        l = adj.get(virtual_end,[])
+        l.append((len(joints)-1,jointsi))
+        adj[virtual_end] = l
+        cost[(virtual_end,(len(joints)-1,jointsi))] = 0
+
+        l = adj.get((len(joints)-1,jointsi),[])
+        l.append(virtual_end)
+        adj[(len(joints)-1,jointsi)] = l
+        cost[((len(joints)-1,jointsi),virtual_end)] = 0
+
+    cost = dijkstra2.make_undirected(cost)
+    predecessors, min_cost = dijkstra2.dijkstra(adj, cost, virtual_start, virtual_end)
+    c = virtual_end
+    path = [c]
+    
+    while predecessors.get(c):
+        path.insert(0, predecessors[c])
+        c = predecessors[c]
+
+    joint_path = []
+    for i in range(1,len(path)-1):
+        joint_index = path[i][0]
+        joint_configuration = path[i][1]
+        joint_path.append(joints[joint_index][joint_configuration])
+
+    if verbose:
+        return joint_path, path, min_cost, adj, cost
+    else:
+        return joint_path
+
+
+
+
+
+
