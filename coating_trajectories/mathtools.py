@@ -1,6 +1,8 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt, ones, maximum, minimum, round
-from numpy import random, transpose, zeros, linalg, multiply, linspace, power, arange
-from numpy import ndindex, linspace, power,  ceil, floor, einsum, argsort, argmin, argmax
+from numpy import array, dot, cross, outer, eye, sum, sqrt
+from numpy import random, transpose, zeros, linalg, multiply
+from numpy import ndindex, linspace, power,  ceil, floor, einsum
+from numpy import argsort, argmin, argmax, linspace, power, arange
+from numpy import ones, maximum, minimum, round, sign
 from numpy import cos as npcos
 from numpy import sin as npsin
 from numpy import tan as nptan
@@ -747,18 +749,7 @@ class Plane2(IterSurface):
     def name(self):
         return 'Plane2'
 
-class _PlaneRotation(Plane2): #incompleto
 
-    def __init__(self, stopR=-4, coatingstep = 0.003, normal_plane=array([0,1,0]), rotation_axis=array([1,0,0])):
-        IterSurface.__init__(self, 0, stopR, coatingstep)
-        self.normal_plane = normal_plane
-        self.raxis = Raxis(rotation_axis,self.coatingstep/3.)
-
-    def update(self):
-        self._Rn = self._Rn
-        
-    def criteria(self):
-        return self._Rn>self.stopR
 
 _backdif2 = array([[1.0, -1.0],
                    [0,    0  ]])
@@ -887,6 +878,8 @@ def intersection(points1, points2, r):
 def distance_line_bases(x1, x2, bases, min_threshold, max_threshold):
     distance_str = 0; distance = None; point_near = []
     for base in bases:
+        if sign(x1[0])!=sign(base[0]):
+            continue
         d = distance_point_line_3d(array(x1), array(x2), array(base))
         if d<=max_threshold:
             distance_str+=1
@@ -927,16 +920,28 @@ def linear_interpolation_ray(ray0, ray1, threshold=1e-2):
         points.append(p)
     return points
 
+def linear_interpolation_points(point0, point1, threshold=1e-2):
+    """
+    Return the linear interpolation from point0 to point1
+    """
+
+    d = linalg.norm(point0-point1)
+    n = ceil(d*1./threshold)+1
+    points = []
+    for t in linspace(0,1,n):
+        p = (1-t)*point0+point1*t
+        points.append(p)
+    return points
+
 def linear_interpolation_joint(joint0, joint1, threshold=1e-4) :
     """
     Return the linear interpolation from joint0 to joint1
     """
 
     d = linalg.norm(joint0-joint1)
-    n = int(d/threshold)
+    n = ceil(d/threshold)+1
     joints = []
-    for i in range(0,n):
-        t = threshold*i/d
+    for t in linspace(0,1,n):
         joint = (1-t)*joint0+joint1*t
         joints.append(joint)
     return joints
@@ -952,3 +957,42 @@ def homogenous_matrix_cubic_interpolation(Ai,Aj,Bi,Bj,n):
         T.append(dot(Ai,einsum('ik,km,mj->ij',
                                expm(ti*Bi), expm(ti**2*Ci), expm((ti**3-ti**2)*Di))))
     return T
+
+def lenlist(list_of_lists):
+    count = 0
+    for l in list_of_lists:
+        count+=len(l)
+    return count
+
+def notempty(l):
+    return [x for x in l if x != []]
+
+def makeTbyRP(R,P):
+    T = eye(4,4)
+    T[0:3,0:3]=R
+    T[0:3,3]=P
+    return T
+
+def get_manip_transforms(robot, joints, rotation=False, position=False):
+    T = []
+    R = []
+    p = []
+    manip = robot.GetActiveManipulator()
+    with robot:
+        for joint in joints:
+            robot.SetDOFValues(joint)
+            Tee = manip.GetTransform()
+            p.append(Tee[0:3,3])
+            R.append(Tee[0:3,0:3])
+            T.append(Tee)
+    if rotation and position:
+        return Tee, R, p
+    if rotation:
+        return Tee, R
+    if position:
+        return Tee, p
+    return Tee
+    
+
+       
+    
