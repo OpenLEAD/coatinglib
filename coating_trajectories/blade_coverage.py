@@ -17,7 +17,21 @@ def organize_rays(DB, grid):
             organized_rays += rays[i]
         else:
             organized_rays += reversed(rays[i])
-    organized_rays = [x for x in organized_rays if x != []]
+    organized_rays = mathtools.notempty(rays)
+    return organized_rays
+
+def organize_rays_in_parallels(DB, grid):
+    DB.T = DB.turb.blades[0].GetTransform()
+    parallels, borders = (DB.load_grid_to_trajectories())[grid]
+    rays = DB.compute_rays_from_parallels(parallels, borders)
+
+    organized_rays = []
+    for i in range(0,len(rays)):
+        not_empty_rays = mathtools.notempty(rays)
+        if i%2==0:  
+            organized_rays.append(not_empty_rays[i])
+        else:
+            organized_rays.append(list(reversed(not_empty_rays[i])))
     return organized_rays
 
 def base_grid_validation(DB, grid):
@@ -43,6 +57,24 @@ def base_grid_validation(DB, grid):
 
     return score, joint_solutions
 
+def base_grid_validation_parallel(DB, grid):
+    """
+    Plan for each parallel.
+
+    Keyword arguments:
+    DB -- AREA DATABASE
+    grid -- int
+    """
+    
+    joint_solutions_list = []
+    organized_rays = organize_rays_in_parallels(DB, grid)
+    blade = DB.load_blade()
+    for rays in organized_rays:
+        joint_solutions_list.append(planning.compute_robot_joints(
+            DB.turb, rays, 0, blade.trajectory_iter_surface))
+    score = mathtools.lenlist(joint_solutions_list)*1.0/mathtools.lenlist(organized_rays)
+    return score, joint_solutions_list
+
 def generate_linear_interpolation_joints(joint_solutions):
     new_joints = []
     new_joints.append(joint_solutions[0])
@@ -51,12 +83,15 @@ def generate_linear_interpolation_joints(joint_solutions):
         new_joints.extend(joints[1:])
     return new_joints
 
-def generate_linear_interpolation_rays(organized_rays):
+def generate_linear_interpolation_rays(organized_rays, blade):
     new_rays = []
     new_rays.append(organized_rays[0])
+    model = blade.select_model(organized_rays[0])
     for i in range(0,len(organized_rays)-1):
-        points = mathtools.linear_interpolation_ray(organized_rays[i], organized_rays[i+1])
+        points = mathtools.linear_interpolation_points(organized_rays[i][0:3], organized_rays[i+1][0:3])
         new_rays.extend(points[1:])
+    for i in range(0,len(new_rays)):
+        new_rays[i] = blade.compute_ray_from_point(new_rays[i], model)
     return new_rays
 
 def trajectory_generation(DB, grid):
@@ -74,27 +109,39 @@ def waitrobot(robot):
     while not robot.GetController().IsDone():
         time.sleep(0.01)
 
-def movetohandposition(robot, joint_solutions):
+def movetohandposition_parallels(robot, joint_solutions_list):
     manip = robot.GetActiveManipulator()
     basemanip = interfaces.BaseManipulation(robot,plannername='birrt')
-    #TRAJ = []
-    T = []
-    for i in range(0,len(joint_solutions)-1):
-        robot.SetDOFValues(joint_solutions[i])
-        Ai = manip.GetTransform()
-        robot.SetDOFValues(joint_solutions[i+1])
-        Aj = manip.GetTransform()
-        robot.SetDOFValues(joint_solutions[i])
-        #Bi = logm(dot(linalg.inv(Ai),Aj))/3
-        #Bj = logm(dot(linalg.inv(Aj),Ak))/3
-        Bi = zeros((4,4))
-        T.append(mathtools.homogenous_matrix_cubic_interpolation(Ai,Aj,Bi,Bi,10))
-        #TRAJ.append(basemanip.MoveToHandPosition(
-        #    matrices=mathtools.homogenous_matrix_cubic_interpolation(Ai,Aj,Bi,Bi,10), outputtrajobj=True))
-        #waitrobot(robot)
-    #traj = planningutils.MergeTrajectories(TRAJ)
-    return T#traj
-    
+    TRAJ = []
+
+    for joint_solutions in joint_solutions_list:
+        Ts, Rs, Ps = mathtools.get_manip_transforms(robot, joint_solutions, True, True)
+        robot.SetDOFValues(joint_solutions[0])
+        T = []
+        for i in range(0,len(Ts)-1):
+            P = mathtools.linear_interpolation_points(Ps[i], Ps[i+1])
+            R = mathtools.homogenous_matrix_cubic_interpolation(
+                Rs[i],Rs[i+1],zeros((3,3)),zeros((3,3)),len(P))
+            for j in range(0,len(P)):
+                T.append(mathtools.makeTbyRP(R[j],P[j]))
+        TRAJ.append(basemanip.MoveToHandPosition(matrices=T, outputtrajobj=True))
+        waitrobot(robot)
+    return planningutils.MergeTrajectories(TRAJ)      
+
+
+def move_dijkstra(turbine, blade, organized_rays_list):
+    robot = turbine.robot
+    joint_path_list = []
+    for organized_rays in organized_rays_list:
+        linear_interpolation = generate_linear_interpolation_rays(organized_rays, blade)
+        joints = planning.joint_planning(turbine, linear_interpolation)
+        if len(joint_path_list)!=0:
+            joints.insert(0,[joint_path_list[-1][-1]])
+            joint_path_list.append(planning.make_dijkstra(joints)[1:])
+        else:
+            joint_path_list.append(planning.make_dijkstra(joints))
+    return joint_path_list
+
 
 def jusante_grids():
     grid_nums = range(0,15)
