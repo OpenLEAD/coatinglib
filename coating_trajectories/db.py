@@ -77,7 +77,7 @@ class DB:
             if error.errno == errno.ENOENT:
                 raise NoDBFound('info.xml')
 
-        if db_name!=None:
+        if db_name!=None and db_name!='':
             dbs = self.info.findall('db')
             db_main = None
             for db in dbs:
@@ -878,7 +878,7 @@ class DB:
                     x2 = line[1][0]; y2 = line[1][1]
                     point_near, distance, distance_str = line_grid_dist[line][grid]
                     p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
-                    psalphas[line_comb][line][grid] = (x1, linalg.norm(p-line[0]), atan2(x1-x2,y2-y1))
+                    psalphas[line_comb][line][grid] = (x1, sign(p[1])*linalg.norm(p-line[0]), sign(p[1])*atan2(x1-p[0],abs(p[1]-y1)))
                     point_near, distance, distance_str = line_grid_dist[line][grid]
                     distance_str_total+=distance_str
                     distance_str_min = min(distance_str_min,distance_str)
