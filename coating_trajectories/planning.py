@@ -1,7 +1,7 @@
 from numpy import sqrt, dot, concatenate, arange, array
 from numpy import abs, zeros, cumsum, minimum
 from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
-from numpy import arccos, maximum, random
+from numpy import arccos, maximum, random, linspace
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, interfaces, databases
 from openravepy import IkParameterization
@@ -305,27 +305,25 @@ def ik_angle_tolerance(turbine, point):
    
     iksol = ikfast(robot, point)
     if len(iksol)>0:
-        return iksol, []
+        return iksol
     
     # Compute solution with maximum distance and angle tolerances
     angle = turbine.config.coating.angle_tolerance
-    number_of_angles = 72 #HARDCODED 
+    number_of_phi = 60 
+    number_of_theta = 10
 
-    normal_tol = dot(point[3:6],transpose(mathtools.Raxis(
-        mathtools.compute_perpendicular_vector(point[3:6]), angle)))
-    normal_tol = normal_tol/linalg.norm(normal_tol)
-    
-    k = 2*pi/number_of_angles
-    counter = 0
-    for i in range(0, number_of_angles):
-        alfa = k*i
-        iksol = ikfast(robot, concatenate((point[0:3],dot(
-            normal_tol, transpose(mathtools.Raxis(point[3:6],alfa))))))
+    for theta in linspace(0,angle,number_of_theta):
+        normal_tol = dot(point[3:6],transpose(mathtools.Raxis(
+            mathtools.compute_perpendicular_vector(point[3:6]), theta)))
+        normal_tol = normal_tol/linalg.norm(normal_tol)
+        iksol = []
+        for phi in linspace(0,2*pi,number_of_phi*sin(theta)):
+            iksoli = ikfast(robot, concatenate((point[0:3],dot(
+                normal_tol, transpose(mathtools.Raxis(point[3:6],phi))))))
+            iksol.extend(iksoli)
         if len(iksol)>0:
-            counter+=1
-            if counter==2:
-                return iksol, ['angle', angle]
-    return [], []
+            return iksol
+    return []
 
 def ik_angle_tolerance_normal_plane(turbine, point, iter_surface, angle_discretization = 5*pi/180):
     """
@@ -392,6 +390,7 @@ def ikfast(robot, point):
     and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
     """
     point = array(point)
+    
     with robot:
         manip = robot.GetActiveManipulator()
         Tee = manip.GetTransform()
@@ -402,7 +401,7 @@ def ikfast(robot, point):
         T = eye(4)
         T[0:3,0:3] = dot(Rab,Tee[0:3,0:3])
         T[0:3,3] = point[0:3]
-        solutions = robot.GetActiveManipulator().FindIKSolutions(T, IkFilterOptions.CheckEnvCollisions)
+        solutions = robot.GetActiveManipulator().FindIKSolutions(T, True)
 
         if len(solutions)>0:
             if len(solutions.shape)==1:
@@ -518,7 +517,8 @@ def joint_planning(turbine, ordered_waypoints, tries = 1):
     joints = []
     robot = turbine.robot
     for i in range(0,len(ordered_waypoints)):
-        joints.append(ikfast(robot, ordered_waypoints[i]))
+##        joints.append(ikfast(robot, ordered_waypoints[i]))
+        joints.append(ik_angle_tolerance(turbine, ordered_waypoints[i]))
 
     for i in range(0,len(joints)):
         if len(joints[i])==0:
