@@ -6,11 +6,6 @@ from os.path import realpath, join
 from turbine_config import TurbineConfig
 from turbine import Turbine
 
-dir_test = join(environ['PYTHON_COAT'],'test')
-environ['OPENRAVE_DATA'] = str(dir_test)
-cfg = TurbineConfig.load('turbine_unittest.cfg',dir_test)
-turb = Turbine(cfg)
-
 area_db = {'jusante':'FACE',
            'montante': 'FACE',
            'lip': 'LIP',
@@ -25,6 +20,10 @@ grids_available = {'jusante':blade_coverage.jusante_grids,
 
 
 def coverage(args):
+    dir_test = join(environ['PYTHON_COAT'],'test')
+    environ['OPENRAVE_DATA'] = str(dir_test)
+    cfg = TurbineConfig.load('turbine_unittest.cfg',dir_test)
+    turb = Turbine(cfg)
     DB = db.DB(area_db[args.Area],turb)
     psa, fcomp = DB.get_rail_configuration_n(args.Grids, 'sum', args.ans)
     print psa
@@ -39,6 +38,10 @@ def areas_out(args):
     return
     
 def validate(args):
+    dir_test = join(environ['PYTHON_COAT'],'test')
+    environ['OPENRAVE_DATA'] = str(dir_test)
+    cfg = TurbineConfig.load('turbine_unittest.cfg',dir_test)
+    turb = Turbine(cfg)
     DB = db.DB(area_db[args.Area],turb)
     score, joints = blade_coverage.base_grid_validation(DB, args.Grid)
     print score
