@@ -258,34 +258,26 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
             robot.SetDOFValues(q)
             report = CollisionReport()
             turbine.robot.CheckSelfCollision(report)
-            return report.minDistance-0.007
+            return report.minDistance-0.01
         
         def env_collision_cons(q):
             robot.SetDOFValues(q)
+            robot.GetLink('Base').Enable(False)
             report = CollisionReport()
             turbine.env.CheckCollision(turbine.robot,report)
-            return report.minDistance-0.007
-
-        
-            ## New opt
-            #pn1 = mathtools.compute_perpendicular_vector(point[3:6])
-            #pn2 = cross(pn1,point[3:6])
-            #pn3 = point[3:6]
-            #pos_on_pn3 = dot(pos,point[3:6])*pos
-            #if linalg.norm(pos_on_pn3 - point[0:3])<=0.03:
-            #    pos_on_pn3 = point[0:3]
-            #pos = dot(pos,pn1)*pos + dot(pos,pn2)*pos + dot(pos,pn3)*pos
-            #dif = pos-point[0:3]
-            #return dot(dif,dif)/tol            
+            robot.GetLink('Base').Enable(True)
+            return report.minDistance-0.05           
         
         cons = ({'type':'eq', 'fun': position_cons},
                 {'type':'ineq', 'fun': self_collision_cons},
-                {'type':'ineq', 'fun': env_collision_cons})
+                {'type':'ineq', 'fun': env_collision_cons}
+                )
         
         bnds = tuple([(lower_limits[i],upper_limits[i]) for i in range(0,len(lower_limits))])
         
         res = minimize(func, q0, constraints=cons, method='SLSQP',
                        bounds = bnds, options={'disp': False})
+        print res
     return res    
 
 def orientation_cons(turbine, point):
@@ -522,7 +514,7 @@ def joint_distance(joint1, joint2):
     dif = abs(joint1-joint2)
     return sum(dif)
 
-def joint_planning(turbine, ordered_waypoints, tries = 12):
+def joint_planning(turbine, ordered_waypoints, tries = 1):
     joints = []
     robot = turbine.robot
     for i in range(0,len(ordered_waypoints)):
