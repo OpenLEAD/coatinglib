@@ -732,12 +732,11 @@ class DB:
                     traj.append(blade.compute_ray_from_point(borders[i][0]))
 
                 if len(parallels[i])>0:
-                    model = blade.select_model(ntp[parallel[0]])
+                    model = blade.select_model(ntp[parallels[i][0]])
                     traj += map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallels[i])
                     
                 if len(borders[i][1])>0:
-                    model = blade.select_model(ntp[parallel[0]])
-                    traj.append(blade.compute_ray_from_point(borders[i][1],model))
+                    traj.append(blade.compute_ray_from_point(borders[i][1]))
                     
                 rays.append(traj)
         return rays
@@ -949,7 +948,7 @@ class DB:
                 
     def remove_point(self, points):
         """
-        Remove given points from db, and grid_to_trajectories.
+        Remove given points from db.
         
         Keyword arguments:
         points (or rays) -- list of points to be removed
@@ -959,9 +958,8 @@ class DB:
         points_to_num = self.load_points_to_num()
         
         for point in points:
-            key_point = tuple(point[0:3])     
             try:
-                key_num = points_to_num[round(key_point,9)]
+                key_num = points_to_num[tuple(round(point[0:3],9))]
             except KeyError:
                 continue
 
