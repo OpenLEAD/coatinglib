@@ -966,7 +966,7 @@ class DB:
             db.pop(key_num,None)
     
         try:
-            save_pickle(db, join(self.path,'db.pkl'))
+            save_pickle(db, join(self.db_main_path,'db.pkl'))
         except IOError: None
 
         return
@@ -980,7 +980,7 @@ class DB:
         for key, value in db.iteritems():
             db[key] = set()
         try:
-            save_pickle(db, join(self.path,'db.pkl'))
+            save_pickle(db, join(self.db_main_path,'db.pkl'))
         except IOError: raise
         return db
 
