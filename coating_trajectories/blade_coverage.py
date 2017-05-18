@@ -1,4 +1,4 @@
-from numpy import array, linalg, dot, zeros
+from numpy import array, linalg, dot, zeros, inf
 import db
 import planning
 from openravepy import ConfigurationSpecification, interfaces, planningutils
@@ -83,12 +83,13 @@ def generate_linear_interpolation_joints(joint_solutions):
         new_joints.extend(joints[1:])
     return new_joints
 
-def generate_linear_interpolation_rays(organized_rays, blade):
+def generate_linear_interpolation_rays(organized_rays, blade, threshold):
     new_rays = []
     new_rays.append(organized_rays[0])
     model = blade.select_model(organized_rays[0])
+    organized_rays = mathtools.filter_trajectory(organized_rays, threshold)
     for i in range(0,len(organized_rays)-1):
-        points = mathtools.linear_interpolation_points(organized_rays[i][0:3], organized_rays[i+1][0:3])
+        points, d = mathtools.linear_interpolation_points(organized_rays[i][0:3], organized_rays[i+1][0:3], threshold)
         new_rays.extend(points[1:])
     for i in range(0,len(new_rays)):
         new_rays[i] = blade.compute_ray_from_point(new_rays[i], model)
@@ -129,19 +130,43 @@ def movetohandposition_parallels(robot, joint_solutions_list):
     return planningutils.MergeTrajectories(TRAJ)      
 
 
-def move_dijkstra(turbine, blade, organized_rays_list):
+def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
     robot = turbine.robot
     joint_path_list = []
+    time = interpolation/turbine.config.coating.coating_speed
+    limits = robot.GetDOFVelocityLimits()*time
+    deep = False
+    
     for organized_rays in organized_rays_list:
-        linear_interpolation = generate_linear_interpolation_rays(organized_rays, blade)
-        joints = planning.joint_planning(turbine, linear_interpolation)
-        if len(joint_path_list)!=0:
-            joints.insert(0,[joint_path_list[-1][-1]])
-            joint_path_list.append(planning.make_dijkstra(joints)[1:])
-        else:
-            joint_path_list.append(planning.make_dijkstra(joints))
-    return joint_path_list
+        linear_interpolation = generate_linear_interpolation_rays(organized_rays, blade, interpolation)
+        for deep in [False,True]:          
+            try:
+                joints = planning.joint_planning(turbine, linear_interpolation, deep)
+            except IndexError:
+                continue
+            if len(joint_path_list)!=0:
+                joints.insert(0,[joint_path_list[-1][-1]])
+                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
 
+                print min_cost
+                if min_cost != inf:
+                    joint_path_list.append(joint_path[1:])
+                    break
+##                joint_path_list.append(joint_path[1:]) # TIRA ISSO
+                
+            else:
+                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
+                print min_cost
+                if min_cost != inf:
+                    joint_path_list.append(joint_path)
+                    break
+##                joint_path_list.append(joint_path) # TIRA ISSO
+        else:
+            return [[]]
+##            return joint_path_list
+        
+    return joint_path_list
+                
 
 def jusante_grids():
     grid_nums = range(0,15)
