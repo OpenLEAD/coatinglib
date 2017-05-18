@@ -1,7 +1,7 @@
 from numpy import sqrt, dot, concatenate, arange, array
 from numpy import abs, zeros, cumsum, minimum
 from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
-from numpy import arccos, maximum, random, linspace
+from numpy import arccos, maximum, random, linspace, exp
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, interfaces, databases
 from openravepy import IkParameterization
@@ -290,7 +290,7 @@ def orientation_cons(turbine, point):
     return (dot(point[3:6], Rx)) + cos(turbine.config.coating.angle_tolerance) <= 0
 
 
-def ik_angle_tolerance(turbine, point):
+def ik_angle_tolerance(turbine, point, deep=False):
     """
     Solve the inverse kinematics given point (IKFast) with maximum tolerance angle.
 
@@ -302,82 +302,25 @@ def ik_angle_tolerance(turbine, point):
 
     robot = turbine.robot
     manip = robot.GetActiveManipulator()
-   
-    iksol = ikfast(robot, point)
-    if len(iksol)>0:
-        return iksol
+    iksol = []
     
     # Compute solution with maximum distance and angle tolerances
-    angle = turbine.config.coating.angle_tolerance
-    number_of_phi = 60 
-    number_of_theta = 10
+    angle = turbine.config.coating.angle_tolerance/1. #SUPER-HARDCODED
+    number_of_phi = 24
+    number_of_theta = 7
 
     for theta in linspace(0,angle,number_of_theta):
         normal_tol = dot(point[3:6],transpose(mathtools.Raxis(
             mathtools.compute_perpendicular_vector(point[3:6]), theta)))
         normal_tol = normal_tol/linalg.norm(normal_tol)
-        iksol = []
-        for phi in linspace(0,2*pi,number_of_phi*sin(theta)):
+        for phi in linspace(0,2*pi,number_of_phi*sin(theta)+1,endpoint=False):
             iksoli = ikfast(robot, concatenate((point[0:3],dot(
                 normal_tol, transpose(mathtools.Raxis(point[3:6],phi))))))
             iksol.extend(iksoli)
-        if len(iksol)>0:
-            return iksol
-    return []
-
-def ik_angle_tolerance_normal_plane(turbine, point, iter_surface, angle_discretization = 5*pi/180):
-    """
-    Solve the inverse kinematics given point (IKFast) with maximum tolerance angle
-    discretizing only on the normal plane.
-    Return example:
-    iksol = [joint_solution_1, joint_solution_2, ..., joint_solution_n]
-    angle_tolerance = [30*pi/180, 30*pi/180, ..., 0*pi/180, ..., -30*pi/180]
-    joint_solution_1.shape = (1,6)
-
-    Keyword arguments:
-    turbine -- turbine object
-    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
-    iter_surface -- surface used to generate the trajectories to compute the point
-    tangent.
-    angle_discretization -- in radians.
-    """
-
-    iksol = []
-    angle_tolerance = []
-    
-    robot = turbine.robot
-    
-    if angle_discretization == 0:
-        sols = ikfast(robot, point)
-        for sol in sols:
-            iksol.append(sol)
-            angle_tolerance.append(angle)
-        return iksol, angle_tolerance
-    
-    manip = robot.GetActiveManipulator()
-    tolerance = turbine.config.coating.angle_tolerance
-   
-    tan = mathtools.surfaces_tangent(point, iter_surface)
-
-    angle_discretization = min(abs(angle_discretization),
-                               tolerance)
-
-    for angle in arange(0, tolerance, angle_discretization):
-        normal_tol = dot(point[3:6],transpose(mathtools.Raxis(tan, angle)))
-        sols = ikfast(robot, concatenate((point[0:3], normal_tol)))
-        for sol in sols:
-            iksol.append(sol)
-            angle_tolerance.append(angle)
-            
-        normal_tol = dot(point[3:6],transpose(mathtools.Raxis(tan, -angle)))
-        sols = ikfast(robot, concatenate((point[0:3], normal_tol)))
-        for sol in sols:
-            iksol.append(sol)
-            angle_tolerance.append(angle)
-            
-    return iksol, angle_tolerance 
-
+        if not deep:
+            if len(iksol)>0:
+                return iksol
+    return iksol
 
 def ikfast(robot, point):
     """
@@ -509,30 +452,18 @@ def generate_random_joint_solutions(turbine, point, tries):
                         joints.append(res.x)
     return joints
        
-def joint_distance(joint1, joint2):
-    dif = abs(joint1-joint2)
-    return sum(dif)
+def joint_distance(joint1, joint2, limits):
+    dif = abs(array(joint1)-array(joint2))
+    max_dif = max(dif/limits,1)
+    max_dif[max_dif>=1]=inf
+    max_dif[max_dif!=inf] = (max_dif[max_dif!=inf]/(1-max_dif[max_dif!=inf]))*exp(9.14*max_dif[max_dif!=inf]**2)
+    return max_dif
 
-def joint_planning(turbine, ordered_waypoints, tries = 1):
+def joint_planning(turbine, ordered_waypoints, deep=False):
     joints = []
     robot = turbine.robot
     for i in range(0,len(ordered_waypoints)):
-##        joints.append(ikfast(robot, ordered_waypoints[i]))
-        joints.append(ik_angle_tolerance(turbine, ordered_waypoints[i]))
-
-    for i in range(0,len(joints)):
-        if len(joints[i])==0:
-            if i==0:
-                joints[i] = generate_random_joint_solutions(turbine, ordered_waypoints[i], tries)
-            else:
-                joints_sol = []
-                for joint in joints[i-1]:
-                    robot.SetDOFValues(joint)
-                    res = orientation_error_optimization(turbine, ordered_waypoints[i])
-                    if res.success:
-                        if trajectory_constraints(turbine, res.x, ordered_waypoints[i]):
-                            joints_sol.append(res.x)
-                joints[i] = joints_sol
+        joints.append(ik_angle_tolerance(turbine, ordered_waypoints[i], deep))
 
     for i in range(0,len(joints)):
         if len(joints[i])==0:
@@ -541,20 +472,21 @@ def joint_planning(turbine, ordered_waypoints, tries = 1):
     
     return joints
 
-def compute_foward_cost(joints0,joints1):
+def compute_foward_cost(joints0, joints1, limits):
     cost = zeros((len(joints0),len(joints1)))
     for i in range(0,len(joints0)):
-        for j in range(0,len(joints1)):
-            cost[i][j] = joint_distance(joints0[i], joints1[j])
+        cost[i] = joint_distance(joints0[i], joints1, limits)
     return cost
 
-def make_dijkstra(joints, verbose = False):
+def make_dijkstra(joints, limits = None, verbose = False):
     virtual_start = (-1,-1)
     virtual_end = (-2,-2)
     adj = dict()
     cost = dict()
+    import time
+    t0 = time.time()
     for jointsi in range(0,len(joints)-1):
-         mcost = compute_foward_cost(joints[jointsi],joints[jointsi+1])
+         mcost = compute_foward_cost(joints[jointsi], joints[jointsi+1], limits)
          for u in range(0,len(mcost)):
              for v in range(0,len(mcost[u])):
                  l = adj.get((jointsi,u),[])
@@ -579,8 +511,13 @@ def make_dijkstra(joints, verbose = False):
         adj[(len(joints)-1,jointsi)] = l
         cost[((len(joints)-1,jointsi),virtual_end)] = 0
 
+    print 'cost = ',time.time()-t0
+    t1 = time.time()
+
     cost = dijkstra2.make_undirected(cost)
     predecessors, min_cost = dijkstra2.dijkstra(adj, cost, virtual_start, virtual_end)
+    print 'dijkstra = ', time.time()-t1
+    
     c = virtual_end
     path = [c]
     
