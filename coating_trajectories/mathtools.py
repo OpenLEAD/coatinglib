@@ -878,7 +878,10 @@ def intersection(points1, points2, r):
 def distance_line_bases(x1, x2, bases, min_threshold, max_threshold):
     distance_str = 0; distance = None; point_near = []
     for base in bases:
+        angle = sign(base[1])*atan2(x1[0]-base[0],abs(base[1]-x1[1]))
         if sign(x1[0])!=sign(base[0]):
+            continue
+        if angle<0 and abs(x1[0])<abs(base[0]):
             continue
         d = distance_point_line_3d(array(x1), array(x2), array(base))
         if d<=max_threshold:
@@ -928,10 +931,11 @@ def linear_interpolation_points(point0, point1, threshold=1e-2):
     d = linalg.norm(point0-point1)
     n = ceil(d*1./threshold)+1
     points = []
-    for t in linspace(0,1,n):
+    lin = linspace(0,1,n)
+    for t in lin:
         p = (1-t)*point0+point1*t
         points.append(p)
-    return points
+    return points, lin[1]*d
 
 def linear_interpolation_joint(joint0, joint1, threshold=1e-4) :
     """
