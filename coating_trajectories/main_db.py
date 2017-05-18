@@ -14,7 +14,7 @@ from datetime import datetime
 from os import makedirs
 import cPickle
 import errno
-from math import pi as pi
+from math import pi 
 from math import tan
 import mathtools
 from copy import deepcopy
@@ -325,18 +325,16 @@ def plot_grid_coat():
                                      DB.load_bases_to_num()[bases[0]])
     return
 
-def _compute_lines(x_range, angle_range):
+def _compute_lines(x_range, angle_range, x_step=0.1, angle_step=pi/18):
     lines=[]
-    for x in arange(x_range[0],x_range[1],0.1):
-        for angle in arange(angle_range[0]+1,angle_range[1],8):
-            tanalpha = tan(angle*pi/180)
+    for x in arange(x_range[0],x_range[1],x_step):
+        for angle in arange(angle_range[0]+1,angle_range[1],angle_step):
+            tanalpha = tan(angle)
             lines.append(((x,0),(x-tanalpha,1.)))
     lines.append(((0,0),(1,0)))
     return lines
 
-def generate_rail_configurations():
-    x_range = [-2,2]
-    angle_range = [-90,90]
+def generate_rail_configurations(x_range= [-2,2], angle_range = [-pi/2,pi/2]):
     min_threshold, max_threshold = 0.1, 0.2
     lines = _compute_lines(x_range, angle_range)
     DB.compute_rail_configurations(lines, min_threshold, max_threshold)
@@ -344,8 +342,8 @@ def generate_rail_configurations():
  
 if __name__ == '__main__':
 
-    area = 'BORDER'
-    db_name = 'db_-45'
+    area = 'LIP'
+    db_name = 'db'
     path = join(area,db_name)
     
     dir_test = join(realpath('.'),'test')
@@ -359,7 +357,7 @@ if __name__ == '__main__':
     threshold = 0.90
     grid_num = 64
     
-    #vis = Visualizer(turb.env)
+    vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db()
