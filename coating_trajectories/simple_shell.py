@@ -38,9 +38,11 @@ rp = rail_place.RailPlace(psa)
 turb.place_rail(rp)
 turb.place_robot(rp)
 
+threshold = 5e-2
 organized_rays_list = blade_coverage.organize_rays_in_parallels(DB, grid)
-joint_path = blade_coverage.move_dijkstra(turb, DB.load_blade(), organized_rays_list, 3e-2)
-for path in joint_path:
+joint_path, linear_interpolated_rays = blade_coverage.move_dijkstra(turb, DB.load_blade(), organized_rays_list, threshold)
+joint_path_2 = blade_coverage.refine_dijkstra(turb, joint_path, linear_interpolated_rays, threshold)
+for path in joint_path_2:
 	for joint in path:
 		robot.SetDOFValues(joint)
 		time.sleep(0.05)
