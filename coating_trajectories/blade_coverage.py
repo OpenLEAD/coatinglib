@@ -5,6 +5,7 @@ from openravepy import ConfigurationSpecification, interfaces, planningutils
 import mathtools
 import time
 from scipy.linalg import logm, expm
+from math import acos
 
 def organize_rays(DB, grid):
     DB.T = DB.turb.blades[0].GetTransform()
@@ -136,9 +137,11 @@ def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
     time = interpolation/turbine.config.coating.coating_speed
     limits = robot.GetDOFVelocityLimits()*time
     deep = False
+    rays = []
     
     for organized_rays in organized_rays_list:
         linear_interpolation = generate_linear_interpolation_rays(organized_rays, blade, interpolation)
+        rays.append(linear_interpolation)
         for deep in [False,True]:          
             try:
                 joints = planning.joint_planning(turbine, linear_interpolation, deep)
@@ -152,7 +155,6 @@ def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
                 if min_cost != inf:
                     joint_path_list.append(joint_path[1:])
                     break
-##                joint_path_list.append(joint_path[1:]) # TIRA ISSO
                 
             else:
                 joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
@@ -160,13 +162,57 @@ def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
                 if min_cost != inf:
                     joint_path_list.append(joint_path)
                     break
-##                joint_path_list.append(joint_path) # TIRA ISSO
         else:
-            return [[]]
-##            return joint_path_list
+            return [[]], rays
         
-    return joint_path_list
+    return joint_path_list, rays
+
+def refine_dijkstra(turbine, joint_path_list, rays_list, interpolation):
+    robot = turbine.robot
+    time = interpolation/turbine.config.coating.coating_speed
+    limits = robot.GetDOFVelocityLimits()*time
+    deep = True
+    new_joint_path = []
+    with robot:
+        for i,rays in enumerate(rays_list):
+            joints_path = joint_path_list[i]
+            new_joints = []
+            for j, joint in enumerate(joints_path):
+                if j==0:
+                    new_joints.append([joint])
+                    continue
+                    
+                robot.SetDOFValues(joints_path[j-1])
+                Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
+                Rx = Rx/linalg.norm(Rx)
+                d = -dot(rays[j-1][3:6], Rx)
+                angle0 = acos(min(d,1.0))
+
+                robot.SetDOFValues(joint)
+                Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
+                Rx = Rx/linalg.norm(Rx)
+                d = -dot(rays[j][3:6], Rx)
+                angle1 = acos(min(d,1.0))
                 
+                angle_tolerance_init=min([angle0,angle1])-0.01
+                angle_tolerance_end=max([angle0,angle1])+0.01
+                new_joints.append(planning.ik_angle_tolerance(turbine, rays[j],
+                                                     angle_tolerance_init = angle_tolerance_init,
+                                                     angle_tolerance_end = angle_tolerance_end,
+                                                     number_of_phi = 30, number_of_theta = 10, deep=deep))
+            if i!=0:
+                new_joints.insert(0,[new_joint_path[-1][-1]])
+                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
+                print min_cost
+                if min_cost != inf:
+                    new_joint_path.append(joint_path[1:])
+                
+            else:
+                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
+                print min_cost
+                if min_cost != inf:
+                    new_joint_path.append(joint_path)
+    return new_joint_path
 
 def jusante_grids():
     grid_nums = range(0,15)
