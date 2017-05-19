@@ -237,8 +237,6 @@ def orientation_error_optimization(turbine, point, tol=1e-3):
     q0 = robot.GetDOFValues()
     manip = robot.GetActiveManipulator()
     lower_limits, upper_limits = robot.GetActiveDOFLimits()
-    lower_limits = lower_limits+0.01
-    upper_limits = upper_limits-0.01
     report = CollisionReport()
     
     with robot:
@@ -290,7 +288,7 @@ def orientation_cons(turbine, point):
     return (dot(point[3:6], Rx)) + cos(turbine.config.coating.angle_tolerance) <= 0
 
 
-def ik_angle_tolerance(turbine, point, deep=False):
+def ik_angle_tolerance(turbine, point, angle_tolerance_init=0, angle_tolerance_end=None, number_of_phi = 24, number_of_theta=7, deep=False):
     """
     Solve the inverse kinematics given point (IKFast) with maximum tolerance angle.
 
@@ -305,11 +303,10 @@ def ik_angle_tolerance(turbine, point, deep=False):
     iksol = []
     
     # Compute solution with maximum distance and angle tolerances
-    angle = turbine.config.coating.angle_tolerance/1. #SUPER-HARDCODED
-    number_of_phi = 24
-    number_of_theta = 7
+    if angle_tolerance_end is None: 
+        angle_tolerance_end = turbine.config.coating.angle_tolerance
 
-    for theta in linspace(0,angle,number_of_theta):
+    for theta in linspace(angle_tolerance_init, angle_tolerance_end, number_of_theta):
         normal_tol = dot(point[3:6],transpose(mathtools.Raxis(
             mathtools.compute_perpendicular_vector(point[3:6]), theta)))
         normal_tol = normal_tol/linalg.norm(normal_tol)
@@ -456,14 +453,15 @@ def joint_distance(joint1, joint2, limits):
     dif = abs(array(joint1)-array(joint2))
     max_dif = max(dif/limits,1)
     max_dif[max_dif>=1]=inf
-    max_dif[max_dif!=inf] = (max_dif[max_dif!=inf]/(1-max_dif[max_dif!=inf]))*exp(9.14*max_dif[max_dif!=inf]**2)
+    index = (max_dif!=inf)
+    max_dif[index] = (40.*max_dif[index]/(1-max_dif[index]**2))
     return max_dif
 
 def joint_planning(turbine, ordered_waypoints, deep=False):
     joints = []
     robot = turbine.robot
     for i in range(0,len(ordered_waypoints)):
-        joints.append(ik_angle_tolerance(turbine, ordered_waypoints[i], deep))
+        joints.append(ik_angle_tolerance(turbine, ordered_waypoints[i], deep = deep))
 
     for i in range(0,len(joints)):
         if len(joints[i])==0:
@@ -483,8 +481,6 @@ def make_dijkstra(joints, limits = None, verbose = False):
     virtual_end = (-2,-2)
     adj = dict()
     cost = dict()
-    import time
-    t0 = time.time()
     for jointsi in range(0,len(joints)-1):
          mcost = compute_foward_cost(joints[jointsi], joints[jointsi+1], limits)
          for u in range(0,len(mcost)):
@@ -511,12 +507,8 @@ def make_dijkstra(joints, limits = None, verbose = False):
         adj[(len(joints)-1,jointsi)] = l
         cost[((len(joints)-1,jointsi),virtual_end)] = 0
 
-    print 'cost = ',time.time()-t0
-    t1 = time.time()
-
     cost = dijkstra2.make_undirected(cost)
     predecessors, min_cost = dijkstra2.dijkstra(adj, cost, virtual_start, virtual_end)
-    print 'dijkstra = ', time.time()-t1
     
     c = virtual_end
     path = [c]
