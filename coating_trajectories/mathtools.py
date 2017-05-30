@@ -907,18 +907,17 @@ def intersection(points1, points2, r):
     intersections_tuple = [tuple(i) for i in intersections]
     return intersections_tuple
 
-def distance_line_bases(x1, x2, bases, min_threshold, max_threshold):
+def distance_line_bases(x1, x2, bases, threshold):
     distance_str = 0; distance = None; point_near = []
     for base in bases:
         angle = sign(base[1])*atan2(x1[0]-base[0],abs(base[1]-x1[1]))
         if sign(x1[0])!=sign(base[0]):
             continue
-        if angle<0 and abs(x1[0])<abs(base[0]):
+        if abs(x1[0])<abs(base[0]):
             continue
         d = distance_point_line_3d(array(x1), array(x2), array(base))
-        if d<=max_threshold:
+        if d<=threshold:
             distance_str+=1
-        if d<=min_threshold:
             if distance>d or distance==None:
                 distance = d
                 point_near = base
