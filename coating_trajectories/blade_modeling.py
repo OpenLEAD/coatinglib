@@ -706,6 +706,7 @@ class BladeModeling:
         return sqrt(all_dist)
 
     def compute_ray_from_point(self, point, model = None):
+        if len(point) == 0: return []
         if model == None:
             model = self.select_model(point)
         df = model.df(point)
