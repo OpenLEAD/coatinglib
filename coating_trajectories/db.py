@@ -2,7 +2,7 @@
 from path_filters import filter_trajectories, side_filter
 import planning
 from numpy import save, load, random, array, linspace, cross
-from numpy import sign, dot, linalg, sum, zeros, round
+from numpy import sign, dot, linalg, sum, zeros, round, delete
 from os.path import basename, splitext, join, exists, isfile, split
 from os import makedirs, listdir
 import copy
@@ -67,6 +67,7 @@ class DB:
         self.T = matrixFromAxisAngle([0,0,0])
         self.info = None
         self.turb = turbine
+        self.verticalized = False
 
         if not exists(self.path):
             makedirs(self.path)
@@ -76,6 +77,7 @@ class DB:
         except IOError as error:
             if error.errno == errno.ENOENT:
                 raise NoDBFound('info.xml')
+        self.verticalization_state()
 
         if db_name!=None and db_name!='':
             dbs = self.info.findall('db')
@@ -88,7 +90,15 @@ class DB:
             else:
                 raise NoDBFound(db_name)
         else: self.db_main_path = self.path
-                
+
+    def verticalization_state(self):
+        vertical = self.info.find('verticalized')
+        if vertical is None:
+            self.verticalized = False
+            return
+        if vertical.text=='1':
+            self.verticalized = True
+            return
 
     def _extract_T(self, info_db):
         T = info_db.find('transform').text
@@ -159,6 +169,15 @@ class DB:
             
         return new_grid_to_trajectories
 
+    def load_grid_to_trajectories_verticalized(self):
+        path = join(self.path, 'grid_to_trajectories_verticalized.pkl')
+        gttv = load_pickle(path)
+        new_gttv = dict()
+        for grid, value in gttv.iteritems():
+            new_gttv[grid] = mathtools.rotate_points(value, self.T)
+            
+        return new_gttv
+    
     def load_bases_to_num(self):
         """
         Load bases_to_num database bases:num. Bases are tuples railplace and
@@ -581,7 +600,7 @@ class DB:
                     evaluated_points = upper
         return db_base_to_joints, db_base_to_segs                           
 
-    def get_points_in_grid(self, meridian, parallel):
+    def get_points_in_grid(self, meridian, parallel, full=False):
         """
         Get parallels that belong to a grid, between given meridians and
         given parallels.
@@ -593,10 +612,14 @@ class DB:
         parallel -- tuple 1x2. Not ordered.
         """
 
-        blade = self.load_blade()
+        if full:
+            blade = self.load_blade_full()
+        else:
+            blade = self.load_blade()
         meridian1, meridian2 = meridian[0], meridian[1]
         parallel1, parallel2 = parallel[0], parallel[1]
         points_to_num = self.load_points_to_num()
+        blade = self.load_blade()
 
         parallel_index_1 = 0
         parallel_index_2 = 0
@@ -653,7 +676,7 @@ class DB:
             borders.append([tuple(p1[0:3]),tuple(p2[0:3])])
         return trajectories_in_grid, borders
 
-    def _closest_meridian_point(self, meridian, parallel):
+    def _closest_meridian_point(self, meridian, parallel, blade):
         min_dist = 100
         closest_meridian_point = []
         sorted_parallel = []
@@ -666,7 +689,7 @@ class DB:
                 min_dist = min(dist)
                 dist_list = dist
         sorted_parallel = [x for (y,x) in sorted(zip(dist_list,parallel))]
-        blade = self.load_blade()
+        
         model = blade.select_model(closest_meridian_point)
         
         return blade.compute_ray_from_point(closest_meridian_point, model), sorted_parallel
@@ -693,6 +716,21 @@ class DB:
         for point in sorted_parallel:
             if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
+
+    def compute_rays_from_grid(self, grid):
+        if self.verticalized == False:
+            gtt = load_grid_to_trajectories()
+            parallels, borders = gtt[grid]
+            rays = self.compute_rays_from_parallels(parallels, borders)
+            return rays 
+        else:
+            try:
+                gtt = self.load_grid_to_trajectories_verticalized()
+            except IOError:
+                self._grid_verticalization()
+                gtt = self.load_grid_to_trajectories_verticalized()
+            return gtt[grid]    
+        
 
     def compute_rays_from_parallels(self, parallels, borders = None):
         """
@@ -722,8 +760,11 @@ class DB:
                 if len(parallel)==0:
                     rays+=[[]]
                     continue
-                model = blade.select_model(ntp[parallel[0]])
-                rays += [ map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallel ) ]
+                if self.verticalized==False:
+                    model = blade.select_model(ntp[parallel[0]])
+                    rays += [ map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallel ) ]
+                else:
+                    rays += [ map( lambda x: blade.compute_ray_from_point(ntp[x]), parallel ) ]
 
         else:
             for i in range(len(parallels)):
@@ -738,10 +779,40 @@ class DB:
                 if len(borders[i][1])>0:
                     traj.append(blade.compute_ray_from_point(borders[i][1]))
                     
-                rays.append(traj)
+                rays.append(traj)                   
         return rays
 
-    def _check_line(self, line, grid_bases, line_grid, line_grid_dist, min_threshold, max_threshold):
+    def _grid_verticalization(self, n=60):
+        gtt = self.load_grid_to_trajectories()
+        blade = self.load_blade()
+        for grid, value in gtt.iteritems():
+            traj, bord = value
+            rays_list = self.compute_rays_from_parallels(traj,bord)
+            parallels = []
+            for r, rays in enumerate(rays_list):
+                if len(rays)<=4:
+                    continue
+                lin = linspace(0,len(rays)-1,n)
+                N = len(lin)
+                new_rays = zeros((N,6))
+                new_rays[:,0],_,_ = mathtools.MLS(array(rays)[:,0],range(len(rays)),lin,3,scale=1.5,dwf=None,ddwf=None)
+                new_rays[:,1],_,_ = mathtools.MLS(array(rays)[:,1],range(len(rays)),lin,3,scale=1.5,dwf=None,ddwf=None)
+                new_rays[:,2],_,_ = mathtools.MLS(array(rays)[:,2],range(len(rays)),lin,3,scale=1.5,dwf=None,ddwf=None)
+                remove = []
+                for i in range(len(new_rays)):
+                    try:
+                        new_rays[i] = blade.compute_ray_from_point(new_rays[i][0:3])
+                    except ValueError:
+                        remove.append(i)
+                        continue
+                new_rays = delete(new_rays,remove,0)
+                parallels.append(new_rays)
+            parallels = mathtools.uneven_trajectory_verticalization(parallels)
+            gtt[grid] = parallels
+        save_pickle(gtt,join(self.path,'grid_to_trajectories_verticalized.pkl'))
+        return
+
+    def _check_line(self, line, grid_bases, line_grid, line_grid_dist, threshold):
         """
         Verify if given line (rail) can coat given grids.
         
@@ -761,14 +832,14 @@ class DB:
         for grid, bases in grid_bases.iteritems():
             bases = list(bases)
             point_near, distance, distance_str = mathtools.distance_line_bases(
-                x1, x2, bases, min_threshold, max_threshold)
+                x1, x2, bases, threshold)
             if distance!=None:
                 line_grid[line] = line_grid.get(line,set()) | set([grid])
                 grid_dist[grid] = [point_near, distance, distance_str]
         line_grid_dist[line] = grid_dist
         return line_grid, line_grid_dist
 
-    def compute_rail_configurations(self, lines, min_threshold, max_threshold):
+    def compute_rail_configurations(self, lines, threshold):
         """
         Compute rails configurations (lines) for all dbs.
         The method saves line_grid and line_grid_dist files.
@@ -797,8 +868,7 @@ class DB:
             grid_bases = load_pickle(join(db_path,'grid_bases.pkl'))
             for line in lines:
                 line_grid, line_grid_dist = self._check_line(
-                    line, grid_bases, line_grid, line_grid_dist, min_threshold,
-                    max_threshold)
+                    line, grid_bases, line_grid, line_grid_dist, threshold)
 
             rail_path = join(db_path,'rails')
             try:
