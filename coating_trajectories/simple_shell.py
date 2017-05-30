@@ -18,6 +18,7 @@ import planning
 from openravepy import interfaces, IkParameterization, RaveCreateTrajectory
 import time
 import rail_place
+import mathtools
 grid = 0
 robot = turb.robot
 manip = robot.GetActiveManipulator()
@@ -29,7 +30,7 @@ T = array([[ 1.,  0.,  0.,  0.],
        [ 0., -1.,  0.,  0.],
        [ 0.,  0.,  0.,  1.]])
 
-psa = (1.2000000000000028, 1.2154441840549897, 0.4764012244017013)
+psa = (1.0000000000000027, 1.0517976918168939, 0.30186829920226843)
 
 for blade in turb.blades:
     blade.SetTransform(T)
@@ -42,7 +43,8 @@ threshold = 5e-2
 organized_rays_list = blade_coverage.organize_rays_in_parallels(DB, grid)
 joint_path, linear_interpolated_rays = blade_coverage.move_dijkstra(turb, DB.load_blade(), organized_rays_list, threshold)
 joint_path_2 = blade_coverage.refine_dijkstra(turb, joint_path, linear_interpolated_rays, threshold)
-for path in joint_path_2:
+new_joint_path = blade_coverage.smooth_joint_MLS(turb, joint_path_2)
+for path in new_joint_path:
 	for joint in path:
 		robot.SetDOFValues(joint)
 		time.sleep(0.05)
