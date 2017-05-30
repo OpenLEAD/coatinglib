@@ -1044,4 +1044,62 @@ def filter_trajectory(points, threshold=1e-2, remove=False):
     if remove==True:
         return new_points, to_remove
     return new_points
+
+def clean_acos(cos_angle):
+    return acos(min(1,max(cos_angle,-1)))
+
+def smooth_orientation(list_T):
+
+    def G(P0,P1,t):
+        theta = clean_acos(dot(P0,P1))
+        if sin(theta)==0:
+            return P0*(1-t)+P1*t
+        return (P0*sin((1-t)*theta)+P1*sin(t*theta))/sin(theta)
+
+    def beta(phi):
+        if sin(phi)==0:
+            return 2.
+    
+    return sin(phi)/sin(phi/2)
+    Q = [quatFromRotationMatrix(T[0:3,0:3]) for T in list_T]
+    D = copy(Q)
+    while True:
+        new_D = copy(D)
+        thetaLi0 = 0
+        for i in range(1,len(D)-1):
+            print '|D['+str(i)+']|=',linalg.norm(D[i])
+            thetaLi = clean_acos(dot(D[i-1],D[i]))
+            Li = G(D[i-1],D[i],2./3)
+            Ri = G(D[i],D[i+1],1./3)
+            
+            phi = clean_acos(dot(Li,Ri))
+            betai = beta(phi)
+
+            if sin(thetaLi0/2)==0:
+                if sin(thetaLi/2)==0:
+                    new_D[i] = (betai*Q[i]-D[i-1]*2.0/3-D[i+1]*2./3)/(8./3)
+                else:
+                    new_D[i] = (betai*Q[i]-D[i-1]*2.0/3-D[i+1]*sin(thetaLi/3)/sin(thetaLi/2))/(
+                    4./3+sin(2*thetaLi/3)/sin(thetaLi/2))
+            else:
+                if sin(thetaLi/2)==0:
+                    new_D[i] = (betai*Q[i]-D[i-1]*sin(thetaLi0/3)/sin(thetaLi0/2)-D[i+1]*2./3)/(
+                        sin(2*thetaLi0/3)/sin(thetaLi0/2)+4./3)
+                else:
+                    new_D[i] = (betai*Q[i]-D[i-1]*sin(thetaLi0/3)/sin(thetaLi0/2)-D[i+1]*sin(thetaLi/3)/sin(thetaLi/2))/(
+                        sin(2*thetaLi0/3)/sin(thetaLi0/2)+sin(2*thetaLi/3)/sin(thetaLi/2))
+            thetaLi0 = thetaLi
+
+        dif = max(linalg.norm(array(new_D)-D,axis=0))
+        D = new_D
+        if dif <1e-3:
+            break
+    T = []
+    for i in range(0,len(D)):
+        print i, D[i]
+        Ti = matrixFromQuat(D[i])
+        Ti[3,0:3] = list_T[i][3,0:3]
+        T.append(Ti)
+    return T
+
     
