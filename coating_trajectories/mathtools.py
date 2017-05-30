@@ -1029,23 +1029,19 @@ def get_manip_transforms(robot, joints, rotation=False, position=False):
     return Tee
     
 def filter_trajectory(points, threshold=1e-2, remove=False):
-    new_points = copy(points)
-    index_to_remove = []
-    comp = points[0][0:3]
-    for i in range(1,len(new_points)-1):
-        d = linalg.norm(new_points[i][0:3]-comp)
-        if d < threshold:
-            index_to_remove.append(i)
-        else: comp = new_points[i][0:3]
-
+    last_point = points[-1]
+    points = array(points)[:-1]
+    dist = linalg.norm(points[:-1,0:3]-points[1:,0:3],axis=1)
+    d = 0; new_points = [points[0]]; removed = [] 
+    for i in range(len(dist)):
+        d+=dist[i]
+        if d > threshold:
+            new_points.append(points[i+1])
+            d=0
+        else:
+            removed.append(points[i+1])
+    new_points.append(last_point)
     if remove==True:
-        to_remove = []
-        for index in index_to_remove:
-            to_remove.append(points[index])
-    
-    for index in sorted(index_to_remove, reverse=True):
-        del new_points[index]
-
-    if remove==True: return new_points, to_remove
+        return new_points, to_remove
     return new_points
     
