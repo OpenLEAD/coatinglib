@@ -325,8 +325,10 @@ def plot_grid_coat():
                                      DB.load_bases_to_num()[bases[0]])
     return
 
-def _compute_lines(x_range, angle_range, x_step=0.1, angle_step=pi/18):
+def _compute_lines(x_step=.05, angle_step=pi/18):
     lines=[]
+    x_range = [turb.config.environment.x_min,turb.config.environment.x_max]
+    angle_range = [-pi/2,pi/2]
     for x in arange(x_range[0],x_range[1],x_step):
         for angle in arange(angle_range[0]+1,angle_range[1],angle_step):
             tanalpha = tan(angle)
@@ -334,16 +336,16 @@ def _compute_lines(x_range, angle_range, x_step=0.1, angle_step=pi/18):
     lines.append(((0,0),(1,0)))
     return lines
 
-def generate_rail_configurations(x_range= [-2,2], angle_range = [-pi/2,pi/2]):
-    min_threshold, max_threshold = 0.1, 0.2
-    lines = _compute_lines(x_range, angle_range)
-    DB.compute_rail_configurations(lines, min_threshold, max_threshold)
+def generate_rail_configurations():
+    threshold = 0.2
+    lines = _compute_lines()
+    DB.compute_rail_configurations(lines, threshold)
     return
  
 if __name__ == '__main__':
 
-    area = 'LIP'
-    db_name = 'db'
+    area = 'BORDER'
+    db_name = ''
     path = join(area,db_name)
     
     dir_test = join(realpath('.'),'test')
@@ -355,7 +357,7 @@ if __name__ == '__main__':
     turbine_rotate(turb)
     
     threshold = 0.90
-    grid_num = 64
+    grid_num = 2
     
     vis = Visualizer(turb.env)
     
