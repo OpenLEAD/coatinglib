@@ -1102,4 +1102,49 @@ def smooth_orientation(list_T):
         T.append(Ti)
     return T
 
+def std_gaussian(x):
+    return exp(-x**2)
+
+def dstd_gaussian(x):
+    return -2*x*exp(-x**2)
+
+def ddstd_gaussian(x):
+    return (-2+4*(x**2))*exp(-x**2)
+
+def MLS(y,x,x0,n,scale=1., wf=std_gaussian, dwf = dstd_gaussian, ddwf = ddstd_gaussian):
+    new_y = []
+    new_dy = []
+    new_ddy = []
+    
+    if dwf is None and ddwf is not None:
+        raise ValueError('dwf is None and ddwf is not None')
+    
+    for xi in x0:
+        A = vander(x,n)
+        w = wf((x-xi)/scale)
+        v = vander([xi],n)[0]
+
+        AtwA = dot(A.T*w,A)
+        c = linalg.solve(AtwA,dot(A.T*w,y))
+        new_y += [dot(c, v)]
+
+        if dwf is not None:
+            dw = dwf((xi-x)/scale)/scale
+            dv = v*arange(n,0,-1)
+            dv = shift(dv,-1)
+            delta = y-dot(A,c)
+            
+            dc = linalg.solve(AtwA,dot(A.T*dw,delta))
+            new_dy += [dot(dc, v)+dot(c, dv)]
+
+        if ddwf is not None:
+            ddw = ddwf((x-xi)/scale)/scale**2
+            ddv = dv*arange(n,0,-1)
+            ddv = shift(ddv,-1)
+            
+            ddc = linalg.solve(AtwA,dot(A.T*ddw,delta)-2*dot(dot(A.T*dw,A),dc))
+            new_ddy += [dot(ddc, v)+2*dot(dc, dv)+dot(c, ddv)]
+
+    return new_y, new_dy, new_ddy 
+
     
