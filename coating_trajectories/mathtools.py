@@ -1,8 +1,8 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt
-from numpy import random, transpose, zeros, linalg, multiply
+from numpy import array, dot, cross, outer, eye, sum, sqrt, exp
+from numpy import random, transpose, zeros, linalg, multiply, inf
 from numpy import ndindex, linspace, power,  ceil, floor, einsum
 from numpy import argsort, argmin, argmax, linspace, power, arange
-from numpy import ones, maximum, minimum, round, sign
+from numpy import ones, maximum, minimum, round, sign, vander, unravel_index
 from numpy import cos as npcos
 from numpy import sin as npsin
 from numpy import tan as nptan
@@ -11,8 +11,10 @@ from abc import ABCMeta, abstractmethod
 from copy import copy, deepcopy
 from collections import deque
 from scipy.spatial import KDTree
+from scipy.ndimage.interpolation import shift
 from itertools import cycle, islice
 from scipy.linalg import logm, expm
+from openravepy import quatFromRotationMatrix, matrixFromQuat
 
 _base_module_precision = 0.2
 _p_step = 0.1
@@ -460,6 +462,36 @@ def trajectory_verticalization(rays, step = 1):
         else: break
     return new_rays
 
+def uneven_trajectory_verticalization(parallels, distance=3e-3):
+##    for i in range(len(parallels)):
+##        parallels[i] = filter_trajectory(parallels[i], distance)
+    mid_parallel = filter_trajectory(parallels[len(parallels)/2], distance)
+    verticalized_parallels=zeros((len(mid_parallel),len(parallels),len(mid_parallel[0])))
+    verticalized_parallels[:,len(parallels)/2] = mid_parallel
+    
+    for i in arange(verticalized_parallels.shape[1]/2,0,-1):
+        dists = zeros((verticalized_parallels.shape[0],len(parallels[i-1])))
+        for j in range(verticalized_parallels.shape[0]):
+            dists[j] = linalg.norm(array(parallels[i-1])[:,0:3]-verticalized_parallels[j][i][0:3],axis=1)
+        for _ in range(len(dists)):
+            j,k = unravel_index(argmin(dists),dists.shape)
+            verticalized_parallels[j][i-1] = parallels[i-1][k]
+            dists[j,:] = inf
+            dists[:,k] = inf
+            
+        
+    for i in arange(verticalized_parallels.shape[1]/2,verticalized_parallels.shape[1]-1,1):
+        dists = zeros((verticalized_parallels.shape[0],len(parallels[i+1])))
+        for j in range(verticalized_parallels.shape[0]):
+            dists[j] = linalg.norm(array(parallels[i+1])[:,0:3]-verticalized_parallels[j][i][0:3],axis=1)
+        for _ in range(len(dists)):
+            j,k = unravel_index(argmin(dists),dists.shape)
+            verticalized_parallels[j][i+1] = parallels[i+1][k]
+            dists[j,:] = inf
+            dists[:,k] = inf
+
+    return verticalized_parallels
+    
 def compute_perpendicular_vector(vector_1):
     """
     Compute a perpendicular vector of a given vector.
