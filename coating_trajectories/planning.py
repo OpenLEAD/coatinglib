@@ -24,6 +24,31 @@ def compute_angular_velocities(turbine, joints_trajectory, trajectory_index):
     if (trajectory_index>2) and ((len(joints_trajectory)-trajectory_index)>3):
         return central_difference(turbine, joints_trajectory, trajectory_index)
     else: return None
+
+def MLS_general_velocities(turbine, joints_trajectory, points, n = 4, scale = 1.5):
+    """
+    points = rays[:,0:3]
+    0)Compute times based on h and distances calculated from rays
+
+    1)Use MLS analytical derivative to estimate velocities and accelerations.
+    
+    """
+    h = turbine.config.coating.coating_speed
+    dtimes = norm(array(points[1:])-array(points[:-1]),axis=1)/h
+    scale *= mean(dtimes)
+    times = cumsum(array([0.]+list(dist)))
+
+    w_list = []
+    alpha_list = []
+
+    
+    for joints in array(joints_trajectory).T:
+        _,w,alpha = mathtools.MLS(joints, times,times,n,scale)
+        w_list += [w]
+        alpha_list += [alpha]
+    
+    
+    return list(array(w_list).T), list(array(alpha_list).T), times
     
 def compute_general_velocities(turbine, joints_trajectory, points):
     """
