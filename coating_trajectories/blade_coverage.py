@@ -1,4 +1,6 @@
-from numpy import array, linalg, dot, zeros, inf
+from numpy import array, linalg, dot, zeros, inf, vstack, mean, std
+from numpy import max as pymax
+from numpy import sum as pysum
 import db
 import planning
 from openravepy import ConfigurationSpecification, interfaces, planningutils
@@ -28,11 +30,13 @@ def organize_rays_in_parallels(DB, grid):
 
     organized_rays = []
     for i in range(0,len(rays)):
-        not_empty_rays = mathtools.notempty(rays)
+        not_empty_rays = mathtools.notempty(rays[i])
+        if len(not_empty_rays)==0:
+            continue
         if i%2==0:  
-            organized_rays.append(not_empty_rays[i])
+            organized_rays.append(not_empty_rays)
         else:
-            organized_rays.append(list(reversed(not_empty_rays[i])))
+            organized_rays.append(list(reversed(not_empty_rays)))
     return organized_rays
 
 def base_grid_validation(DB, grid):
@@ -176,43 +180,108 @@ def refine_dijkstra(turbine, joint_path_list, rays_list, interpolation):
     with robot:
         for i,rays in enumerate(rays_list):
             joints_path = joint_path_list[i]
-            new_joints = []
-            for j, joint in enumerate(joints_path):
-                if j==0:
-                    new_joints.append([joint])
-                    continue
-                    
-                robot.SetDOFValues(joints_path[j-1])
-                Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
-                Rx = Rx/linalg.norm(Rx)
-                d = -dot(rays[j-1][3:6], Rx)
-                angle0 = acos(min(d,1.0))
+            t=0
+            while True:
+                new_joints = []
+                t+=.01
+                for j, joint in enumerate(joints_path):
+                    if j==0:
+                        new_joints.append([joint])
+                        continue
+                        
+                    robot.SetDOFValues(joints_path[j-1])
+                    Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
+                    Rx = Rx/linalg.norm(Rx)
+                    d = -dot(rays[j-1][3:6], Rx)
+                    angle0 = acos(min(d,1.0))
 
-                robot.SetDOFValues(joint)
-                Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
-                Rx = Rx/linalg.norm(Rx)
-                d = -dot(rays[j][3:6], Rx)
-                angle1 = acos(min(d,1.0))
-                
-                angle_tolerance_init=min([angle0,angle1])-0.01
-                angle_tolerance_end=max([angle0,angle1])+0.01
-                new_joints.append(planning.ik_angle_tolerance(turbine, rays[j],
-                                                     angle_tolerance_init = angle_tolerance_init,
-                                                     angle_tolerance_end = angle_tolerance_end,
-                                                     number_of_phi = 30, number_of_theta = 10, deep=deep))
-            if i!=0:
-                new_joints.insert(0,[new_joint_path[-1][-1]])
-                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
-                print min_cost
-                if min_cost != inf:
-                    new_joint_path.append(joint_path[1:])
-                
-            else:
-                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
-                print min_cost
-                if min_cost != inf:
-                    new_joint_path.append(joint_path)
+                    robot.SetDOFValues(joint)
+                    Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
+                    Rx = Rx/linalg.norm(Rx)
+                    d = -dot(rays[j][3:6], Rx)
+                    angle1 = acos(min(d,1.0))
+
+                    angle_tolerance_init=min([angle0,angle1])-t
+                    angle_tolerance_end=max([angle0,angle1])+t
+                    new_joints.append(planning.ik_angle_tolerance(turbine, rays[j],
+                                                         angle_tolerance_init = angle_tolerance_init,
+                                                         angle_tolerance_end = angle_tolerance_end,
+                                                         number_of_phi = 24, number_of_theta = 5, deep=deep))
+                if i!=0:
+                    new_joints.insert(0,[new_joint_path[-1][-1]])
+                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
+                    print min_cost
+                    if min_cost != inf:
+                        new_joint_path.append(joint_path[1:])
+                        break
+                    
+                else:
+                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
+                    print min_cost
+                    if min_cost != inf:
+                        new_joint_path.append(joint_path)
+                        break
+                    
     return new_joint_path
+
+def smooth_trajectory(turbine, points_list, joints_list):
+    new_T = []
+    with turbine.robot:
+        for joints in joints_list:
+            T = []
+            for joint in joints:
+                turbine.robot.SetDOFValues(joint)
+                T.append(turbine.robot.GetActiveManipulator().GetTransform())
+            new_T.append(mathtools.smooth_orientation(T))
+    return new_T
+
+def smooth_joint_MLS(turbine, joint_path):
+    robot = turbine.robot
+    manip = robot.GetActiveManipulator()
+    scale = 3.
+    error = 1
+
+    def joint_error(robot, joint_path, new_joint_path):
+        error = []
+        new_points = []
+        with robot:
+            for i in range(len(new_joint_path)):
+                parallel = []
+                for j in range(len(new_joint_path[i])):
+                    robot.SetDOFValues(new_joint_path[i][j])
+                    P0 = manip.GetTransform()[0:3,3]
+                    robot.SetDOFValues(joint_path[i][j])
+                    P1 = manip.GetTransform()[0:3,3]
+                    error.append(linalg.norm(P0-P1))
+                    parallel += [P0]
+                new_points += [parallel]
+        return mean(error)+.5*std(error), new_points
+
+    while scale > 0:
+        new_joint_path = []
+        new_joint_velocity_path = []
+        new_joint_acc_path = []
+        scale-=.1
+        for joints in joint_path:
+                new_joints = []
+                new_joints_velocities = []
+                new_joints_acc = []
+                for joint in array(joints).T:
+                    j,v,a = mathtools.MLS(joint,array(range(len(joints))),2,scale)
+                    new_joints += [j]
+                    new_joints_velocities += [v]
+                    new_joints_acc += [a]
+                new_joint_path += [array(new_joints).T]
+                new_joint_velocity_path += [array(new_joints_velocities).T]
+                new_joint_acc_path += [array(new_joints_acc).T]
+        error, points = joint_error(robot, joint_path, new_joint_path)
+        print 'acc above 6 percent - ', pysum(vstack(new_joint_acc_path)>3,0)*6./pysum(vstack(new_joint_acc_path)>-1)
+        print 'error = ', error, '| scale = ', scale, '| acc = ', pymax(vstack(new_joint_acc_path)), '| vel = ', pymax(vstack(new_joint_velocity_path))
+        if error<=2.5e-3: # HARDCODED
+            break
+    return new_joint_path, new_joint_velocity_path, new_joint_acc_path
+
+    
 
 def jusante_grids():
     grid_nums = range(0,15)
