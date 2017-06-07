@@ -285,48 +285,38 @@ def refine_dijkstra(turbine, joint_path_list, rays_list, interpolation):
     with robot:
         for i,rays in enumerate(rays_list):
             joints_path = joint_path_list[i]
-            t=0
-            while True:
-                new_joints = []
-                t+=.01
-                for j, joint in enumerate(joints_path):
-                    if j==0:
-                        new_joints.append([joint])
-                        continue
-                        
-                    robot.SetDOFValues(joints_path[j-1])
-                    Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
-                    Rx = Rx/linalg.norm(Rx)
-                    d = -dot(rays[j-1][3:6], Rx)
-                    angle0 = acos(min(d,1.0))
-
-                    robot.SetDOFValues(joint)
-                    Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
-                    Rx = Rx/linalg.norm(Rx)
-                    d = -dot(rays[j][3:6], Rx)
-                    angle1 = acos(min(d,1.0))
-
-                    angle_tolerance_init=min([angle0,angle1])-t
-                    angle_tolerance_end=max([angle0,angle1])+t
-                    new_joints.append(planning.ik_angle_tolerance(turbine, rays[j],
-                                                         angle_tolerance_init = angle_tolerance_init,
-                                                         angle_tolerance_end = angle_tolerance_end,
-                                                         number_of_phi = 24, number_of_theta = 5, deep=deep))
-                if i!=0:
-                    new_joints.insert(0,[new_joint_path[-1][-1]])
-                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
-                    print min_cost
-                    if min_cost != inf:
-                        new_joint_path.append(joint_path[1:])
-                        break
+            new_joints = []
+            for j, joint in enumerate(joints_path):
+                if j==0 or j==len(joints_path)-1:
+                    new_joints.append([joint])
+                    continue
                     
-                else:
-                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
-                    print min_cost
-                    if min_cost != inf:
-                        new_joint_path.append(joint_path)
-                        break
-                    
+                robot.SetDOFValues(joints_path[j-1])
+                Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
+                Rx = Rx/linalg.norm(Rx)
+                d = -dot(rays[j-1][3:6], Rx)
+                angle0 = mathtools.clean_acos(d)
+
+                robot.SetDOFValues(joint)
+                Rx = robot.GetActiveManipulator().GetTransform()[0:3,0]
+                Rx = Rx/linalg.norm(Rx)
+                d = -dot(rays[j][3:6], Rx)
+                angle1 = mathtools.clean_acos(d)
+
+                angle_tolerance_init=max([min([angle0,angle1])-0.01,0])
+                angle_tolerance_end=min([max([angle0,angle1])+0.01,3.14])
+                iksol = planning.ik_angle_tolerance(turbine, rays[j],
+                                                     angle_tolerance_init = angle_tolerance_init,
+                                                     angle_tolerance_end = angle_tolerance_end,
+                                                     number_of_phi = 36, number_of_theta = 8, deep=deep)
+                iksol += [joint]
+                new_joints.append(iksol)
+
+            joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
+            if min_cost != inf:
+                new_joint_path.append(joint_path)
+            else:
+                return joint_path_list
     return new_joint_path
 
 def smooth_trajectory(turbine, points_list, joints_list):
