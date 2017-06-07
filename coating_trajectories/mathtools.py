@@ -3,6 +3,7 @@ from numpy import random, transpose, zeros, linalg, multiply, inf
 from numpy import ndindex, linspace, power,  ceil, floor, einsum
 from numpy import argsort, argmin, argmax, linspace, power, arange
 from numpy import ones, maximum, minimum, round, sign, vander, unravel_index
+from numpy import max as npmax
 from numpy import cos as npcos
 from numpy import sin as npsin
 from numpy import tan as nptan
@@ -405,17 +406,29 @@ def rotate_trajectories(trajectories, T):
     T -- the homogeneous transform matrix 4x4.
     """
 
+    rtrajectories = deepcopy(trajectories)
+    if len(T)==0:
+        return rtrajectories
+    
     R = T[0:3,0:3]
-    for i in range(0,len(trajectories)):
-        if len(trajectories[i])>0:
-            traj = array(trajectories[i])
-            Ra = zeros(traj.shape)
-            
-            Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
-            Ra[:,3:6] = dot(traj[:,3:6], transpose(R))
-            
-            trajectories[i] = Ra.tolist()
-    return trajectories
+    for i in range(len(rtrajectories)):
+        traj = notempty(rtrajectories[i])
+        if len(traj)==0:
+            continue
+        traj = array(traj)
+        Ra = zeros(traj.shape)
+        
+        Ra[:,0:3] = dot(traj[:,0:3], transpose(R))
+        Ra[:,3:6] = dot(traj[:,3:6], transpose(R))
+
+        counter = 0
+        for j in range(len(rtrajectories[i])):
+            if len(rtrajectories[i][j])>0:
+                rtrajectories[i][j] = Ra[counter]
+                counter+=1
+            else:
+                continue
+    return rtrajectories
 
 def rotate_points(trajectories, T=[]):
     """
@@ -430,8 +443,8 @@ def rotate_points(trajectories, T=[]):
         return rtrajectories
     
     R = T[0:3,0:3]
-    for i in range(0,len(rtrajectories)):
-        traj = [x for x in rtrajectories[i] if len(x)>0]
+    for i in range(len(rtrajectories)):
+        traj = notempty(rtrajectories[i])
         if len(traj)==0:
             continue
         traj = array(traj)
