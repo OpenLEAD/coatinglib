@@ -159,7 +159,9 @@ class DB:
         Grids are numbers and the bases are lists of trajectories (num, db format)
         and borders (tuples Nx3).
         """
-
+        if self.verticalized == True:
+            return self._load_grid_to_trajectories_verticalized()
+        
         path = join(self.path, 'grid_to_trajectories.pkl')
         grid_to_trajectories = load_pickle(path)
         new_grid_to_trajectories = dict()
@@ -169,12 +171,12 @@ class DB:
             
         return new_grid_to_trajectories
 
-    def load_grid_to_trajectories_verticalized(self):
+    def _load_grid_to_trajectories_verticalized(self):
         path = join(self.path, 'grid_to_trajectories_verticalized.pkl')
         gttv = load_pickle(path)
         new_gttv = dict()
         for grid, value in gttv.iteritems():
-            new_gttv[grid] = mathtools.rotate_points(value, self.T)
+            new_gttv[grid] = mathtools.rotate_trajectories(value, self.T)
             
         return new_gttv
     
@@ -226,7 +228,7 @@ class DB:
 
         folder = folder.text
         xml_trajectories_path = join(self.path,folder,"trajectory/trajectory.xml")
-        blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[0])
+        blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[3])
         blade.load_trajectory(xml_trajectories_path)
         blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,self.T)
         blade.rotate_models(self.T)
@@ -458,7 +460,7 @@ class DB:
         grid_num -- grid to be coated
         """
         
-        gtt = self.load_grid_to_trajectories()
+        gtt = load_pickle(join(self.path,'grid_to_trajectories.pkl'))
         trajectories, borders = gtt[grid_num]
         bases, scores = self.get_best_bases_trajectories(trajectories)
         return bases, scores
@@ -719,16 +721,16 @@ class DB:
 
     def compute_rays_from_grid(self, grid):
         if self.verticalized == False:
-            gtt = load_grid_to_trajectories()
+            gtt = self.load_grid_to_trajectories()
             parallels, borders = gtt[grid]
             rays = self.compute_rays_from_parallels(parallels, borders)
             return rays 
         else:
             try:
-                gtt = self.load_grid_to_trajectories_verticalized()
+                gtt = self._load_grid_to_trajectories_verticalized()
             except IOError:
                 self._grid_verticalization()
-                gtt = self.load_grid_to_trajectories_verticalized()
+                gtt = self._load_grid_to_trajectories_verticalized()
             return gtt[grid]    
         
 
@@ -807,7 +809,7 @@ class DB:
                         continue
                 new_rays = delete(new_rays,remove,0)
                 parallels.append(new_rays)
-            parallels = mathtools.uneven_trajectory_verticalization(parallels)
+            parallels = mathtools.equally_spacer(parallels, distance=3e-3)
             gtt[grid] = parallels
         save_pickle(gtt,join(self.path,'grid_to_trajectories_verticalized.pkl'))
         return
