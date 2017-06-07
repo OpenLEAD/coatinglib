@@ -9,19 +9,6 @@ import time
 from scipy.linalg import logm, expm
 from math import acos
 
-def organize_rays(DB, grid):
-    DB.T = DB.turb.blades[0].GetTransform()
-    parallels, borders = (DB.load_grid_to_trajectories())[grid]
-    rays = DB.compute_rays_from_parallels(parallels, borders)
-
-    organized_rays = []
-    for i in range(0,len(rays)):
-        if i%2==0:
-            organized_rays += rays[i]
-        else:
-            organized_rays += reversed(rays[i])
-    organized_rays = mathtools.notempty(rays)
-    return organized_rays
 
 def organize_rays_in_parallels(DB, grid):
     DB.T = DB.turb.blades[0].GetTransform()
@@ -49,18 +36,6 @@ def base_grid_validation(DB, grid):
     and making one full zigzagging list);
     5) compute optimization.
 
-    Keyword arguments:
-    DB -- AREA DATABASE
-    grid -- int
-    """
-
-    organized_rays = organize_rays(DB, grid)
-    blade = DB.load_blade()
-    joint_solutions = planning.compute_robot_joints_opt(DB.turb, organized_rays, 0,
-                                                    blade.trajectory_iter_surface)
-    score = len(joint_solutions)*1.0/len(organized_rays)
-
-    return score, joint_solutions
 
 def base_grid_validation_parallel(DB, grid):
     """
@@ -80,13 +55,6 @@ def base_grid_validation_parallel(DB, grid):
     score = mathtools.lenlist(joint_solutions_list)*1.0/mathtools.lenlist(organized_rays)
     return score, joint_solutions_list
 
-def generate_linear_interpolation_joints(joint_solutions):
-    new_joints = []
-    new_joints.append(joint_solutions[0])
-    for i in range(0,len(joint_solutions)-1):
-        joints = mathtools.linear_interpolation_joint(joint_solutions[i], joint_solutions[i+1])
-        new_joints.extend(joints[1:])
-    return new_joints
 
 def generate_linear_interpolation_rays(organized_rays, blade, threshold):
     new_rays = []
@@ -99,41 +67,6 @@ def generate_linear_interpolation_rays(organized_rays, blade, threshold):
     for i in range(0,len(new_rays)):
         new_rays[i] = blade.compute_ray_from_point(new_rays[i], model)
     return new_rays
-
-def trajectory_generation(DB, grid):
-    organized_rays = organize_rays(DB, grid)
-    new_rays = generate_linear_interpolation_rays(organized_rays)
-    blade = DB.load_blade()
-    joint_solutions = planning.compute_robot_joints(
-        DB.turb, new_rays, 0, blade.trajectory_iter_surface)
-    customspec = ConfigurationSpecification()
-    customspec.AddGroup('joint_values',6,'linear')
-    return joint_solutions
-
-def waitrobot(robot):
-    """busy wait for robot completion"""
-    while not robot.GetController().IsDone():
-        time.sleep(0.01)
-
-def movetohandposition_parallels(robot, joint_solutions_list):
-    manip = robot.GetActiveManipulator()
-    basemanip = interfaces.BaseManipulation(robot,plannername='birrt')
-    TRAJ = []
-
-    for joint_solutions in joint_solutions_list:
-        Ts, Rs, Ps = mathtools.get_manip_transforms(robot, joint_solutions, True, True)
-        robot.SetDOFValues(joint_solutions[0])
-        T = []
-        for i in range(0,len(Ts)-1):
-            P = mathtools.linear_interpolation_points(Ps[i], Ps[i+1])
-            R = mathtools.homogenous_matrix_cubic_interpolation(
-                Rs[i],Rs[i+1],zeros((3,3)),zeros((3,3)),len(P))
-            for j in range(0,len(P)):
-                T.append(mathtools.makeTbyRP(R[j],P[j]))
-        TRAJ.append(basemanip.MoveToHandPosition(matrices=T, outputtrajobj=True))
-        waitrobot(robot)
-    return planningutils.MergeTrajectories(TRAJ)      
-
 
 def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
     robot = turbine.robot
@@ -154,20 +87,17 @@ def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
             if len(joint_path_list)!=0:
                 joints.insert(0,[joint_path_list[-1][-1]])
                 joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
-
-                print min_cost
                 if min_cost != inf:
                     joint_path_list.append(joint_path[1:])
                     break
                 
             else:
                 joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
-                print min_cost
                 if min_cost != inf:
                     joint_path_list.append(joint_path)
                     break
         else:
-            return [[]], rays
+            return [], rays
         
     return joint_path_list, rays
 
