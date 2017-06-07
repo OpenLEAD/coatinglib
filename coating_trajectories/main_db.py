@@ -5,7 +5,7 @@ from turbine import Turbine
 from turbine_config import TurbineConfig, ConfigFileError
 import os
 from visualizer import Visualizer
-from os.path import join, isfile, realpath
+from os.path import join, isfile, realpath, basename
 from os import listdir
 import rail_place
 from numpy import array, random, zeros, dot, arange, linalg, sum
@@ -14,13 +14,13 @@ from datetime import datetime
 from os import makedirs
 import cPickle
 import errno
-from math import pi 
-from math import tan
+from math import pi, tan, atan2 
 import mathtools
 from copy import deepcopy
 import ast
 from openravepy import matrixFromAxisAngle
 import sensibility
+import blade_coverage
 
 def generate_db_joints():
     """
@@ -297,7 +297,6 @@ def bases_grids_coating(threshold):
     grid_to_trajectories = DB.load_grid_to_trajectories()
     grid_bases = dict()
     for grid_num in grid_to_trajectories.keys():
-        trajectories, borders = grid_to_trajectories[grid_num]
         bases, scores = DB.base_grid_coating(grid_num)
         xy = []
         for i, base in enumerate(bases):
@@ -341,10 +340,89 @@ def generate_rail_configurations():
     lines = _compute_lines()
     DB.compute_rail_configurations(lines, threshold)
     return
- 
+
+def make_validate_file():
+    
+    grids = []
+    gr = DB.info.findall('grids')
+    for g in gr:
+        grids+=eval('blade_coverage.'+g.text+'()')
+    grids = list(set(grids))
+
+    db_grids = DB.get_dbs_grids()
+    grid_db_lines = dict()
+    for grid in grids:
+        db_lines = dict()
+        for dbi in db_grids.keys():
+            if grid in db_grids[dbi]:
+                line_grid = db.load_pickle(join(dbi,'rails','line_grid.pkl'))
+                line_grid_dist = db.load_pickle(join(dbi,'rails','line_grid_dist.pkl'))
+                visited_lines = dict()
+                lines = line_grid.keys()
+                for line in lines:
+                    if grid in line_grid[line]:
+                        visited_lines[line] = False
+                db_lines[dbi] = visited_lines
+        grid_db_lines[grid] = db_lines
+    db.save_pickle(grid_db_lines,join(DB.path,'visited_lines.pkl'))
+
+def validate_bases():
+    """
+    Function to validate the bases generated.
+    It can be called multiple times by different process.
+    """
+    
+    turb.robot.GetLink('Flame').Enable(False)
+    
+    while True:
+        visited_lines = db.load_pickle(join(DB.path,'visited_lines.pkl'))
+        grids = visited_lines.keys()
+        for grid in grids:
+            dbs = visited_lines[grid].keys()
+            for dbi in dbs:
+                lines = visited_lines[grid][dbi].keys()
+                for line in lines:
+                    if visited_lines[grid][dbi][line] == False:
+                        visited_lines[grid][dbi][line] = True
+                        db_to_test = dbi
+                        line_to_test = line
+                        grid_to_test = grid
+                        break
+                else: continue
+                break
+            else: continue
+            break
+        else: break
+        
+        db.save_pickle(visited_lines,join(path,'visited_lines.pkl'))
+        del visited_lines
+
+        dbs = DB.info.findall('db')
+        for dbi in dbs:
+            if dbi.find('name').text == basename(db_to_test):
+                DB.T = DB._extract_T(dbi)
+                DB.db_main_path = join(DB.path,dbi.find('path').text)
+        line_grid = db.load_pickle(join(db_to_test,'rails','line_grid.pkl'))
+        line_grid_dist = db.load_pickle(join(db_to_test,'rails','line_grid_dist.pkl'))
+        try:
+            point_near, distance, distance_str = line_grid_dist[line_to_test][grid_to_test]
+        except KeyError:
+            continue
+        x1 = line_to_test[0][0]; y1 = line_to_test[0][1]
+        x2 = line_to_test[1][0]; y2 = line_to_test[1][1]
+        p = mathtools.closest_point_line_3d(array(line_to_test[0]), array(line_to_test[1]), point_near)
+        psa = (x1, sign(p[1])*linalg.norm(p-line_to_test[0]), sign(p[1])*atan2(x1-p[0],abs(p[1]-y1)))
+        res = blade_coverage.base_grid_validation(turb, psa, DB, grid)
+        if not res.success:
+            line_grid[line_to_test] = line_grid[line_to_test] - set([grid])
+            db.save_pickle(line_grid,join(db_to_test,'rails','line_grid.pkl'))
+            _ = line_grid_dist[line_to_test].pop(grid,None)
+            db.save_pickle(line_grid_dist,join(db_to_test,'rails','line_grid_dist.pkl'))
+    return
+
 if __name__ == '__main__':
 
-    area = 'BORDER'
+    area = 'FACE'
     db_name = ''
     path = join(area,db_name)
     
@@ -359,7 +437,7 @@ if __name__ == '__main__':
     threshold = 0.90
     grid_num = 2
     
-    vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
     
     #generate_robot_positions()
     #create_db()
@@ -388,4 +466,7 @@ if __name__ == '__main__':
     #DB.plot_convex_grid(threshold,grid_num)
 
     #generate_rail_configurations()
+
+    #make_validate_file()
+    validate_bases()
     
