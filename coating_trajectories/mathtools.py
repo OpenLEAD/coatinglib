@@ -475,6 +475,46 @@ def trajectory_verticalization(rays, step = 1):
         else: break
     return new_rays
 
+def linear_filter_trajectory(points, path_length, n):
+    """
+    n -- desired number of points
+    """
+
+    threshold = path_length/n
+    last_point = points[-1]
+    points = array(points)[:-1]
+    dist = linalg.norm(points[:-1,0:3]-points[1:,0:3],axis=1)
+    d = 0; new_points = [points[0]]
+    for i in range(len(dist)):
+        d+=dist[i]
+        if d > threshold:
+            p = ones(6)
+            d -= threshold
+            p[0:len(points[i])] = (points[i]-points[i+1])*d + points[i+1]
+            p[3:] = p[3:]/linalg.norm(p[3:])
+            new_points.append(p[0:len(points[i])])
+
+    if len(new_points) == n:
+        del new_points[-1]
+    new_points.append(last_point)
+    return new_points
+
+def equally_spacer(parallels, distance=3e-3):
+    """
+    All parallels should have more points than len(parallel)/distance
+    """
+    
+    dist = []
+    for parallel in parallels:
+        dist += [sum(linalg.norm(parallel[:-1,0:3]-parallel[1:,0:3],axis=1))]
+    n = ceil(npmax(dist)/distance)
+
+    new_parallels = []
+    for i in range(len(parallels)):
+        new_parallels.append(linear_filter_trajectory(parallels[i], dist[i], n))
+    return trajectory_verticalization(new_parallels)
+        
+
 def uneven_trajectory_verticalization(parallels, distance=3e-3):
 ##    for i in range(len(parallels)):
 ##        parallels[i] = filter_trajectory(parallels[i], distance)
@@ -1057,6 +1097,7 @@ def filter_trajectory(points, threshold=1e-2, remove=False):
     if remove==True:
         return new_points, to_remove
     return new_points
+
 
 def clean_acos(cos_angle):
     return acos(min(1,max(cos_angle,-1)))
