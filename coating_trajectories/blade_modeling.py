@@ -676,14 +676,14 @@ class BladeModeling:
             pos_border.append(rays[rays[:,1]>0])
         return neg_border, pos_border
 
-    def verify_accuracy():
+    def verify_accuracy(self):
         all_dist = array([])
         for trajectories in self.trajectories:
             rays = array(trajectories)
             dists = zeros((len(rays),2))+100
 
             rays[:,3:6] = -rays[:,3:6]*1000
-            collision, info = self.turbine.env.CheckCollisionRays(rays, blade_obj)
+            collision, info = self.turbine.env.CheckCollisionRays(rays, self.blade)
             newinfo = info[collision,:]
             newrays = rays[collision,:]
             dif = newrays[:,0:3]-newinfo[:,0:3]
@@ -692,7 +692,7 @@ class BladeModeling:
             
             rays = array(trajectories)
             rays[:,3:6] = rays[:,3:6]*1000
-            collision, info = self.turbine.env.CheckCollisionRays(rays, blade_obj)
+            collision, info = self.turbine.env.CheckCollisionRays(rays, self.blade)
             newinfo = info[collision,:]
             newrays = rays[collision,:]
             dif = newrays[:,0:3]-newinfo[:,0:3]
@@ -704,6 +704,26 @@ class BladeModeling:
             
             all_dist = concatenate((all_dist,dists))
         return sqrt(all_dist)
+
+    def normal_correction(self, rays, obj):
+        """
+        obj -- turb.blades[3]
+        """
+        rays = array(rays)
+        r = copy(rays)
+        r[:,3:6] = r[:,3:6]*1e-1
+        for _ in range(2):
+            r[:,3:6] = -r[:,3:6]
+            collision, info = self.turbine.env.CheckCollisionRays(r, obj)
+            newrays = info[collision,3:6]
+            oldrays = rays[collision,3:6]
+            similar_normal = sum(newrays*oldrays,1)>0
+            if any(similar_normal):
+                collision[collision] = similar_normal
+                rays[collision,3:6] = newrays[similar_normal]
+        return rays
+
+        
 
     def compute_ray_from_point(self, point, model = None):
         if len(point) == 0: return []
