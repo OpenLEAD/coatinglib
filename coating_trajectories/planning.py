@@ -490,7 +490,6 @@ def joint_planning(turbine, ordered_waypoints, deep=False):
 
     for i in range(0,len(joints)):
         if len(joints[i])==0:
-            print ordered_waypoints[i]
             raise IndexError('joints with zero length')
     
     return joints
