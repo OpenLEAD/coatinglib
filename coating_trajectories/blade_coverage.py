@@ -319,22 +319,26 @@ def refine_dijkstra(turbine, joint_path_list, rays_list, interpolation):
                 return joint_path_list
     return new_joint_path
 
-def smooth_trajectory(turbine, points_list, joints_list):
-    new_T = []
+def dtimes_from_joints(turbine, joints):
+    P0 = zeros(3)
+    dtimes = []
+    v = turbine.config.coating.coating_speed
+    
     with turbine.robot:
-        for joints in joints_list:
-            T = []
-            for joint in joints:
-                turbine.robot.SetDOFValues(joint)
-                T.append(turbine.robot.GetActiveManipulator().GetTransform())
-            new_T.append(mathtools.smooth_orientation(T))
-    return new_T
+        for joint in joints:
+            turbine.robot.SetDOFValues(joint)
+            P1 = turbine.robot.GetActiveManipulator().GetTransform()[:3,3]
+            dtimes += [linalg.norm(P1-P0)/v]
+            P0 = P1
+
+    dtimes[0] = 0.
+
+    return dtimes
 
 def smooth_joint_MLS(turbine, joint_path):
     robot = turbine.robot
     manip = robot.GetActiveManipulator()
     scale = 3.
-    error = 1
 
     def joint_error(robot, joint_path, new_joint_path):
         error = []
@@ -356,27 +360,27 @@ def smooth_joint_MLS(turbine, joint_path):
         new_joint_path = []
         new_joint_velocity_path = []
         new_joint_acc_path = []
+        new_dtimes_path = []
         scale-=.1
         for joints in joint_path:
                 new_joints = []
                 new_joints_velocities = []
                 new_joints_acc = []
                 for joint in array(joints).T:
-                    j,v,a = mathtools.MLS(joint,array(range(len(joints))),2,scale)
+                    x = array(range(len(joints)))
+                    j,v,a = mathtools.MLS(joint,x,x,4,scale)
                     new_joints += [j]
                     new_joints_velocities += [v]
                     new_joints_acc += [a]
+
                 new_joint_path += [array(new_joints).T]
+                new_dtimes_path += [dtimes_from_joints(turbine, new_joint_path[-1])]
                 new_joint_velocity_path += [array(new_joints_velocities).T]
                 new_joint_acc_path += [array(new_joints_acc).T]
         error, points = joint_error(robot, joint_path, new_joint_path)
-        print 'acc above 6 percent - ', pysum(vstack(new_joint_acc_path)>3,0)*6./pysum(vstack(new_joint_acc_path)>-1)
-        print 'error = ', error, '| scale = ', scale, '| acc = ', pymax(vstack(new_joint_acc_path)), '| vel = ', pymax(vstack(new_joint_velocity_path))
         if error<=2.5e-3: # HARDCODED
             break
-    return new_joint_path, new_joint_velocity_path, new_joint_acc_path
-
-    
+    return new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path
 
 def jusante_grids():
     grid_nums = range(0,15)
