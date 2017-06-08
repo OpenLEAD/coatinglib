@@ -99,16 +99,6 @@ def create_db():
     DB.create_db()
     return
 
-def load_blade(folder):
-    """
-    Function to load blade model given folder.
-    """
-    xml_trajectories_path = join(folder,"trajectory/trajectory.xml")
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
-    blade.load_trajectory(xml_trajectories_path)
-    blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,T)
-    return blade
-   
 def make_grid(number_of_meridians, number_of_parallels, init_parallel):
     """
     See make_grid method in db.py.
@@ -121,7 +111,7 @@ def blade_borders(meridians):
     Find borders of the jiraublade and add it to meridians.
     """
     
-    blade = load_blade(blade_folder_full)
+    blade = DB.load_blade_full()
     N = len(blade.trajectories)
     neg_border, pos_border = blade.find_borders(17, N-37)
     neg_1 = []; neg_2 = []; pos_1 = []; pos_2 = []
@@ -143,14 +133,14 @@ def create_db_grid():
     DB.create_db_grid()
     return
 
-def grid_pick():
+def grid_pick(vis):
     """
     After the db_grid creation, some grids may not make sense.
     Iteractive remove those grids with this function.
     """
 
     grid_to_mp = DB.load_grid_to_mp()
-    grid_to_mp_copy = deepcopy(db_grid_to_mp)
+    grid_to_mp_copy = deepcopy(grid_to_mp)
     grid_to_trajectories = DB.load_grid_to_trajectories()
     meridians = DB.load_grid_meridian()
     parallels = DB.load_grid_parallel()
@@ -163,7 +153,6 @@ def grid_pick():
         s = vis.plot(parallels[value[1][0]],'parallel')
         s = vis.plot(parallels[value[1][1]],'parallel')
         s = vis.plot_lists(rays,'points', color=(1,0,0))
-        print 'number of bases = ', len(grid_to_bases[key])
         x = raw_input('Remove base ? (y,n)')
         if x=='y':
             grid_to_mp_copy.pop(key, None)
@@ -183,7 +172,7 @@ def grid_pick():
 
     return
 
-def grid_add():
+def grid_add(vis):
     """
     After db_grid creation, some grids may be added.
     """
@@ -218,8 +207,8 @@ def grid_add():
         x = raw_input('Save ? (y,n)')
         if x == 'y':
             bases = DB.get_bases_trajectories(trajectories_in_grid)
-            db_grid_to_mp[key] = grid
-            db_grid_to_trajectories[key] = [trajectories_in_grid, border]
+            grid_to_mp[key] = grid
+            grid_to_trajectories[key] = [trajectories_in_grid, border]
             try:
                 db.save_pickle(grid_to_mp, join(DB.path,'grid_to_mp.pkl'))
             except IOError: None
@@ -227,9 +216,9 @@ def grid_add():
                 db.save_pickle(grid_to_trajectories, join(DB.path,'grid_to_trajectories.pkl'))
             except IOError: None
 
-def compute_points_to_remove(grid_num):
+def compute_points_to_remove(grid_num, vis):
 
-    blade = load_blade(blade_folder)
+    blade = DB.load_blade()
     grid_to_trajectories = DB.load_grid_to_trajectories()
     trajectories, borders = grid_to_trajectories[grid_num]
     rays = DB.compute_rays_from_parallels(trajectories, borders)
@@ -272,7 +261,7 @@ def remove_points_from_db(grid_num, new_border, points_to_remove):
     trajectories, _ = grid_to_trajectories[grid_num]
     grid_to_trajectories[grid_num] = [trajectories, new_border]
     try:
-        db.save_pickle(db_grid_to_trajectories, join(DB.path,'grid_to_trajectories.pkl'))
+        db.save_pickle(grid_to_trajectories, join(DB.path,'grid_to_trajectories.pkl'))
     except IOError: None
     DB.remove_point(points_to_remove)
     return 
@@ -318,7 +307,7 @@ def verify_base_grid_threshold():
         print 'Grid: ', grid_num, '/ score: ', scores[0]
     return
 
-def plot_grid_coat():
+def plot_grid_coat(vis):
     bases, scores = DB.base_grid_coating(grid_num)
     non_coatable = DB.plot_grid_coat(vis, grid_num,
                                      DB.load_bases_to_num()[bases[0]])
@@ -468,5 +457,5 @@ if __name__ == '__main__':
     #generate_rail_configurations()
 
     #make_validate_file()
-    validate_bases()
+    #validate_bases()
     
