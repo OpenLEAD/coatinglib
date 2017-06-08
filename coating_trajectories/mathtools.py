@@ -1,7 +1,7 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt, exp
 from numpy import random, transpose, zeros, linalg, multiply, inf
-from numpy import ndindex, linspace, power,  ceil, floor, einsum
-from numpy import argsort, argmin, argmax, linspace, power, arange
+from numpy import ndindex, ceil, floor, einsum
+from numpy import argsort, argmin, linspace, power, arange
 from numpy import ones, maximum, minimum, round, sign, vander, unravel_index
 from numpy import max as npmax
 from numpy import cos as npcos
@@ -89,47 +89,6 @@ def secondary_positions_by_angle(points2D, angle):
     p0 = ceil(near/step)
     pf = floor(far/step)
     return max(int(pf-p0),0)
-    
-    
-def base_region_by_angle( polygon_vertex2D, angle, turb = None ):
-    
-    pv = array(polygon_vertex2D)
-    
-    if all(pv[-1] == pv[0]):
-        pv = pv[:-1]
-        
-    step = _base_module_precision * cos(angle)
-    near = min(pv[:,1])
-    far = max(pv[:,1])
-
-    p0 = ceil(near/step)
-    pf = floor(far/step)
-
-    H = array( [ array([[1,0],pv[n]-pv[n-1]]).T for n in range(len(pv)) ] )
-
-    border = []
-    
-    for sy in arange(p0*step, (pf+1)*step, step):
-        O = array([0,sy])
-        dt = linalg.solve(H, pv - O)
-        hits = dt[(dt[:,1]>=0) & (dt[:,1]<=1)]
-        hits = sorted(hits[:,0])
-
-        for segment in zip(hits[0::2],hits[1::2]):
-            segborder = []
-            first, last = True, False
-            for point in range(segment[0],segment[1]+_p_step,_p_step):
-                p,s = xya2ps(point, sy, angle)
-                rp = RailPlace((p,s,angle))
-                turb.place_rail(rp)
-                turb.place_robot(rp)
-                viable = not( turb.check_rail_collision() &
-                           turb.check_robotbase_collision())
-                if viable and first:
-                    segborder += [(point,sy)]
-                    first = False
-                #if not#CONTINUE
-            
         
 def direction_in_halfplane(rays,direction):
     """
@@ -1094,7 +1053,7 @@ def filter_trajectory(points, threshold=1e-2, remove=False):
         else:
             removed.append(points[i+1])
     new_points.append(last_point)
-    if remove==True:
+    if remove:
         return new_points, to_remove
     return new_points
 
