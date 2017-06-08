@@ -29,7 +29,7 @@ class path:
         """
         Constructor fo class path.
 
-        @param rays (nx6 np.array) are the points and normal vectors of the points to coat (x,y,z,nx,ny,nz).
+        :param rays: (nx6 np.array) are the points and normal vectors of the points to coat (x,y,z,nx,ny,nz).
         """
         self.rays = rays
         self.data = []
@@ -40,9 +40,9 @@ class path:
         Method to compute joint_values, joint_velocities, joint_accelerations and deltatimes.
         It uses the Dijkstra planning algorithm (see move_dijkstra function).
         
-        @param turbine is the turbine object.
-        @param blade is the blade object (you may use DB.load_blade(), for instance)
-        @param threshold (float) is the interpolation threshold, as rays are usually well spaced.
+        :param turbine: is the turbine object.
+        :param blade: is the blade object (you may use DB.load_blade(), for instance)
+        :param threshold: (float) is the interpolation threshold, as rays are usually well spaced.
         """
         
         if self.rays is None: return
@@ -87,7 +87,7 @@ class path:
     def serialize(self, directory=''):
         """
         Method to serialize data in OpenRave format output is an xml file.
-        @param directory (str) is the relative path to the folder.
+        :param directory: (str) is the relative path to the folder.
         """
         
         try:
@@ -105,8 +105,8 @@ class path:
     def deserialize(self, turbine, directory):
         """
         Method to deserialize data in OpenRave format.
-        @param turbine is the turbine object.
-        @param directory (str) is the relative path to the folder.
+        :param turbine: is the turbine object.
+        :param directory: (str) is the relative path to the folder.
         """
         
         cs = ConfigurationSpecification()
@@ -132,8 +132,8 @@ class path:
     def simulate(self, robot, parallel_number):
         """
         Method to simulate and visualize, in real time, the robot performing the coat.
-        @param robot is the robot object.
-        @param parallel_number (int) is parallel to be simulated.
+        :param robot: is the robot object.
+        :param parallel_number: (int) is parallel to be simulated.
         """
         
         ans = robot.GetController().SetPath(path.data[parallel_number])
@@ -141,9 +141,9 @@ class path:
     def get_joint(self, robot, parallel_number, point_number):
         """
         Method to get a specific joint_value from path.
-        @param robot is the robot object.
-        @param parallel_number (int) is the parallel number to get the joint.
-        @param point_number (int) is the specific point in the parallel to get the joint _value.
+        :param robot: is the robot object.
+        :param parallel_number: (int) is the parallel number to get the joint.
+        :param point_number: (int) is the specific point in the parallel to get the joint _value.
         """
         traj = path.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
@@ -152,9 +152,9 @@ class path:
     def get_velocity(self, robot, parallel_number, point_number):
         """
         Method to get a specific joint_velocity from path.
-        @param robot is the robot object.
-        @param parallel_number (int) is the parallel number to get the joint_velocity.
-        @param point_number (int) is the specific point in the parallel to get the joint_velocity.
+        :param robot: is the robot object.
+        :param parallel_number: (int) is the parallel number to get the joint_velocity.
+        :param point_number: (int) is the specific point in the parallel to get the joint_velocity.
         """
         traj = path.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
@@ -163,9 +163,9 @@ class path:
     def get_acc(self, robot, parallel_number, point_number):
         """
         Method to get a specific joint_acceleration from path.
-        @param robot is the robot object.
-        @param parallel_number (int) is the parallel number to get the joint_acceleration.
-        @param point_number (int) is the specific point in the parallel to get the joint_acceleration.
+        :param robot: is the robot object.
+        :param parallel_number: (int) is the parallel number to get the joint_acceleration.
+        :param point_number: (int) is the specific point in the parallel to get the joint_acceleration.
         """
         traj = path.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
@@ -174,9 +174,9 @@ class path:
     def get_deltatime(self, robot, parallel_number, point_number):
         """
         Method to get a specific deltatime from path.
-        @param robot is the robot object.
-        @param parallel_number (int) is the parallel number to get the deltatime.
-        @param point_number (int) is the specific point in the parallel to get the deltatime.
+        :param robot: is the robot object.
+        :param parallel_number: (int) is the parallel number to get the deltatime.
+        :param point_number: (int) is the specific point in the parallel to get the deltatime.
         """
         traj = path.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
@@ -185,6 +185,12 @@ class path:
         
 
 def organize_rays_in_parallels(DB, grid):
+    """
+Function makes a zigzagging path from parallels.
+    :param DB: database object.
+    :param grid: (int) grid to be coated.
+    :return: organized rays to be coated.
+    """
     rays = DB.compute_rays_from_grid(grid)
 
     organized_rays = []
@@ -206,15 +212,14 @@ def base_grid_validation(turbine, psa, DB, grid, threshold = 5e-2):
     and making zigzagging lists);
     3) Dijkstra algorithm.
 
-    @param turbine is the turbine object.
-    @param psa (tuple 1x3) primary, secondary, alpha (base position)
-    @param DB database object.
-    @param grid (int) grid to be coated.
-    @param threshold (float) is the interpolation threshold, as rays are usually well spaced.
+    :param turbine: is the turbine object.
+    :param psa: (tuple 1x3) primary, secondary, alpha (base position)
+    :param DB: database object.
+    :param grid: (int) grid to be coated.
+    :param threshold: (float) is the interpolation threshold, as rays are usually well spaced.
     """
     
     robot = turbine.robot
-    manip = robot.GetActiveManipulator()
     
     T = DB.T
     T = dot(T,linalg.inv(turbine.blades[3].GetTransform())) #HARDCODED
@@ -248,7 +253,6 @@ def move_dijkstra(turbine, blade, organized_rays_list, interpolation):
     joint_path_list = []
     time = interpolation/turbine.config.coating.coating_speed
     limits = robot.GetDOFVelocityLimits()*time
-    deep = False
     rays = []
     
     for organized_rays in organized_rays_list:
