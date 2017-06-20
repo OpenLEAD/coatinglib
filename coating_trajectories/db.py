@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-from path_filters import filter_trajectories, side_filter
+from path_filters import filter_trajectories
 import planning
-from numpy import save, load, random, array, linspace, cross
+from numpy import random, array, linspace, cross
 from numpy import sign, dot, linalg, sum, zeros, round, delete
-from os.path import basename, splitext, join, exists, isfile, split
+from os.path import splitext, join, exists, isfile, split
 from os import makedirs, listdir
 import copy
 import rail_place
@@ -17,54 +17,68 @@ from scipy.spatial import ConvexHull
 from itertools import combinations
 from math import atan2
 
+## @file
+# @brief This contains functions to manage the database.
+# @author Renan S. Freitas
+# @bug No known bugs
 
-class NoDBFound(Exception):    
+
+class NoDBFound(Exception):
     def __init__(self, value):
-        Exception.__init__(self,"No DB file named " + value + " found.")
+        Exception.__init__(self, "No DB file named " + value + " found.")
 
-def save_pickle(obj, name ):
+
+def save_pickle(obj, name):
     """
     Save a general file in pickle format.
 
-    Keyword arguments:
-    obj -- object to be saved.
-    name -- name of the file ('example/file.pkl').
+    Args:
+        obj: object to be saved.
+        name: name of the file ('example/file.pkl').
+
+    Examples:
+        >>> save_pickle(my_var, 'my_var.pkl')
     """
-    
+
     with open(name, 'wb') as f:
         cPickle.dump(obj, f, cPickle.HIGHEST_PROTOCOL)
     return
+
 
 def load_pickle(filename):
     """
     Load a general file in pickle format.
 
-    Keyword arguments:
-    filename -- path/name of the file ('example/file.pkl').
+    Arguments:
+        filename: path/name of the file.
+
+    Examples:
+        >>> load_pickle('my_folder/my_file.pkl')
     """
-    
-    with open(filename,'rb') as f:
+
+    with open(filename, 'rb') as f:
         return cPickle.load(f)
+
 
 def get_sorted(filename):
     b2n = load_db_pickle(filename)
-    return [ b for (v,b) in sorted(zip(b2n.values(),b2n.keys()))]
-    
+    return [b for (v, b) in sorted(zip(b2n.values(), b2n.keys()))]
+
 
 class DB:
-    """
-    DB for robot's base position and coated points.
+    """ DB for robot's base position and coated points.
+    @page DB
 
-    Keyword arguments:
-    path -- is the folder to store all data bases;
-    blade -- BladeModeling object;
+    Args:
+        path: is the folder to store all data bases;
+        blade: BladeModeling object;
     """
 
-    def __init__(self, path, turbine, db_name = None):
+    def __init__(self, path, turbine, db_name=None):
 
         self.path = path
         self.db_main_path = ''
-        self.T = matrixFromAxisAngle([0,0,0])
+        self.T = matrixFromAxisAngle([0, 0, 0])
         self.info = None
         self.turb = turbine
         self.verticalized = False
@@ -73,60 +87,63 @@ class DB:
             makedirs(self.path)
 
         try:
-            self.info = ET.parse(open(join(self.path,'info.xml')))
+            self.info = ET.parse(open(join(self.path, 'info.xml')))
         except IOError as error:
             if error.errno == errno.ENOENT:
                 raise NoDBFound('info.xml')
         self.verticalization_state()
 
-        if db_name!=None and db_name!='':
+        if db_name != None and db_name != '':
             dbs = self.info.findall('db')
             db_main = None
             for db in dbs:
                 if db.find('name').text == db_name:
-                    self.db_main_path = join(self.path,db.find('path').text)
+                    self.db_main_path = join(self.path, db.find('path').text)
                     self.T = self._extract_T(db)
                     break
             else:
                 raise NoDBFound(db_name)
-        else: self.db_main_path = self.path
+        else:
+            self.db_main_path = self.path
 
     def verticalization_state(self):
         vertical = self.info.find('verticalized')
         if vertical is None:
             self.verticalized = False
             return
-        if vertical.text=='1':
+        if vertical.text == '1':
             self.verticalized = True
             return
 
     def _extract_T(self, info_db):
         T = info_db.find('transform').text
-        T = T.replace('\n',' ')
-        T = T.replace('\t',' ')
+        T = T.replace('\n', ' ')
+        T = T.replace('\t', ' ')
         T = T.split(' ')
         T[:] = [x for x in T if x != '']
-        m = []; mi = []
+        m = [];
+        mi = []
         for t in T:
             try:
                 mi.append(float(t))
-            except: None
-            if len(mi)==4:
+            except:
+                None
+            if len(mi) == 4:
                 m.append(mi)
-                mi=[]
+                mi = []
         m = array(m)
-        if m.shape==(4,4):
+        if m.shape == (4, 4):
             return m
         else:
             raise SyntaxError("Invalid transform shape in info.xml")
-                
+
     def load_db(self):
         """
         Load main database num:num. The first num represents the points and
         the second represents the bases.
         """
 
-        name = join(self.db_main_path,'db.pkl')
+        name = join(self.db_main_path, 'db.pkl')
         return load_pickle(name)
 
     def load_points_to_num(self):
@@ -139,9 +156,8 @@ class DB:
         ptn = load_pickle(path)
         real_ptn = dict()
         for key, value in ptn.iteritems():
-            real_ptn[tuple(round(dot(self.T,[key[0],key[1],key[2],1])[0:3],9))] = value
+            real_ptn[tuple(round(dot(self.T, [key[0], key[1], key[2], 1])[0:3], 9))] = value
         return real_ptn
-
 
     def load_grid_to_mp(self):
         """
@@ -161,14 +177,14 @@ class DB:
         """
         if self.verticalized == True:
             return self._load_grid_to_trajectories_verticalized()
-        
+
         path = join(self.path, 'grid_to_trajectories.pkl')
         grid_to_trajectories = load_pickle(path)
         new_grid_to_trajectories = dict()
         for grid, value in grid_to_trajectories.iteritems():
             trajectories, borders = value
-            new_grid_to_trajectories[grid] = [trajectories,mathtools.rotate_points(borders, self.T)]
-            
+            new_grid_to_trajectories[grid] = [trajectories, mathtools.rotate_points(borders, self.T)]
+
         return new_grid_to_trajectories
 
     def _load_grid_to_trajectories_verticalized(self):
@@ -177,17 +193,17 @@ class DB:
         new_gttv = dict()
         for grid, value in gttv.iteritems():
             new_gttv[grid] = mathtools.rotate_trajectories(value, self.T)
-            
+
         return new_gttv
-    
+
     def load_bases_to_num(self):
         """
         Load bases_to_num database bases:num. Bases are tuples railplace and
         the num maps the bases (counter to reduce database complexity).
         """
 
-        path = join(self.path,'bases_to_num.pkl')
-        
+        path = join(self.path, 'bases_to_num.pkl')
+
         return load_pickle(path)
 
     def load_visited_bases(self):
@@ -196,7 +212,7 @@ class DB:
         the bool show if it was already computed.
         """
 
-        path = join(self.db_main_path,'visited_bases.pkl')
+        path = join(self.db_main_path, 'visited_bases.pkl')
         return load_pickle(path)
 
     def load_grid_meridian(self):
@@ -205,7 +221,7 @@ class DB:
         """
 
         path = join(self.path, 'meridians.pkl')
-        return mathtools.rotate_trajectories(load_pickle(path),self.T)
+        return mathtools.rotate_trajectories(load_pickle(path), self.T)
 
     def load_grid_parallel(self):
         """
@@ -213,7 +229,7 @@ class DB:
         """
 
         path = join(self.path, 'parallels.pkl')
-        return mathtools.rotate_trajectories(load_pickle(path),self.T)
+        return mathtools.rotate_trajectories(load_pickle(path), self.T)
 
     def load_blade(self):
         """
@@ -227,10 +243,10 @@ class DB:
             raise NameError("No blade model found in info.xml")
 
         folder = folder.text
-        xml_trajectories_path = join(self.path,folder,"trajectory/trajectory.xml")
+        xml_trajectories_path = join(self.path, folder, "trajectory/trajectory.xml")
         blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[3])
         blade.load_trajectory(xml_trajectories_path)
-        blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,self.T)
+        blade.trajectories = mathtools.rotate_trajectories(blade.trajectories, self.T)
         blade.rotate_models(self.T)
         return blade
 
@@ -244,10 +260,10 @@ class DB:
             raise NameError("No blade model found in info.xml")
 
         folder = folder.text
-        xml_trajectories_path = join(self.path,folder,"trajectory/trajectory.xml")
+        xml_trajectories_path = join(self.path, folder, "trajectory/trajectory.xml")
         blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[0])
         blade.load_trajectory(xml_trajectories_path)
-        blade.trajectories = mathtools.rotate_trajectories(blade.trajectories,self.T)
+        blade.trajectories = mathtools.rotate_trajectories(blade.trajectories, self.T)
         blade.rotate_models(self.T)
         return blade
 
@@ -258,8 +274,8 @@ class DB:
         counter = 0
         for trajectory in blade.trajectories:
             for point in trajectory:
-                points_to_num[tuple(round(point[0:3],9))] = counter
-                counter+=1
+                points_to_num[tuple(round(point[0:3], 9))] = counter
+                counter += 1
         save_pickle(points_to_num, join(self.path, 'points_to_num.pkl'))
         return points_to_num
 
@@ -267,16 +283,15 @@ class DB:
         """
         Create the database.
 
-        Keyword argument:
-        blade -- the blade object. The database point should be created
-        with the parallel points.
+        Args:
+            blade: the blade object. The database point should be created with the parallel points.
         """
 
         try:
             points_to_num = self.load_points_to_num()
         except IOError:
             points_to_num = self.create_points_to_num()
-        
+
         try:
             main_db = self.load_db()
         except IOError:
@@ -285,13 +300,13 @@ class DB:
             dbs = self.info.findall('db')
             for dbi in dbs:
                 T = self._extract_T(dbi)
-                db_path = join(self.path,dbi.find('path').text)
-                main_dbi = load_pickle(join(db_path,'db.pkl'))
+                db_path = join(self.path, dbi.find('path').text)
+                main_dbi = load_pickle(join(db_path, 'db.pkl'))
                 for point, base in main_dbi.iteritems():
-                    b = main_db.get(point,[])
-                    b.append([base,T])
+                    b = main_db.get(point, [])
+                    b.append([base, T])
                     main_db[point] = b
-            save_pickle(main_db, join(self.db_main_path,'db.pkl'))
+            save_pickle(main_db, join(self.db_main_path, 'db.pkl'))
         del main_db
 
         try:
@@ -300,7 +315,7 @@ class DB:
             if error.errno == errno.ENOENT:
                 raise NoDBFound('bases_to_num.pkl')
             else:
-                raise        
+                raise
         return
 
     def get_sorted_bases(self):
@@ -309,7 +324,7 @@ class DB:
         """
 
         btn = self.load_bases_to_num()
-        return [ b for (v,b) in sorted(zip(btn.values(),btn.keys()))]
+        return [b for (v, b) in sorted(zip(btn.values(), btn.keys()))]
 
     def get_sorted_points(self):
         """
@@ -317,12 +332,12 @@ class DB:
         """
 
         ptn = self.load_points_to_num()
-        return [ b for (v,b) in sorted(zip(ptn.values(),ptn.keys()))]
+        return [b for (v, b) in sorted(zip(ptn.values(), ptn.keys()))]
 
     def get_bases(self, db):
         bases = set()
         for val in db.values():
-            bases = val|bases
+            bases = val | bases
         return bases
 
     def get_dbs_grids(self):
@@ -330,16 +345,16 @@ class DB:
         Load grid_bases.pkl and info.xml files to return all coatable grids.
         The method returns a dictionary {db_path:coatable_grids}.
         """
-        
+
         dbs = self.info.findall('db')
         db_grids = dict()
         for dbi in dbs:
-            db_path = join(self.path,dbi.find('path').text)
-            grid_bases = load_pickle(join(db_path,'grid_bases.pkl'))
+            db_path = join(self.path, dbi.find('path').text)
+            grid_bases = load_pickle(join(db_path, 'grid_bases.pkl'))
             grids = set([])
             for grid, base in grid_bases.iteritems():
-                if len(base)>0:
-                    grids=grids|set([grid])
+                if len(base) > 0:
+                    grids = grids | set([grid])
             db_grids[db_path] = grids
         return db_grids
 
@@ -355,7 +370,7 @@ class DB:
         for key, value in db_file.iteritems():
             if type(value) == int:
                 value = set([value])
-            main_db[key] = main_db.get(key,set()) | value
+            main_db[key] = main_db.get(key, set()) | value
         return main_db
 
     def merge_seg(self, seg, main_db):
@@ -371,10 +386,10 @@ class DB:
         for segments in seg[base]:
             for segment in segments:
                 for point in segment:
-                    main_db[point] = main_db.get(point,set()) | set([base])
+                    main_db[point] = main_db.get(point, set()) | set([base])
         return main_db
 
-    def create_db_from_segments(self, path, merge = 0):
+    def create_db_from_segments(self, path, merge=0):
         """
         Method to create db (num to num) with segments in given path.
 
@@ -382,13 +397,14 @@ class DB:
         path -- where the segments are.
         """
 
-        if merge==0:
+        if merge == 0:
             db = dict()
             ptn = self.load_points_to_num()
             for key, value in ptn.iteritems():
                 db[value] = set()
-        else: db = self.load_db()
-                  
+        else:
+            db = self.load_db()
+
         onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
         N = len(onlyfiles)
         index = 0
@@ -396,10 +412,10 @@ class DB:
             filename, file_extension = splitext(afile)
             if file_extension == '.pkl':
                 try:
-                    seg = load_pickle(join(path,afile))
+                    seg = load_pickle(join(path, afile))
                 except EOFError:
                     continue
-                db = self.merge_seg(seg, db)        
+                db = self.merge_seg(seg, db)
         return db
 
     def get_bases_trajectories(self, trajectories):
@@ -417,7 +433,7 @@ class DB:
         bases_tuple = self.get_sorted_bases()
 
         set_of_feasible_bases_num = self.get_bases(db)
-        
+
         for trajectory in trajectories:
             for point in trajectory:
                 try:
@@ -441,16 +457,16 @@ class DB:
         bases_tuple = self.get_sorted_bases()
         score = zeros(len(bases_tuple))
         N = 0
-        
+
         for trajectory in trajectories:
             for point in trajectory:
                 try:
-                    score[list(db[point])]-=1
-                    N+=1
+                    score[list(db[point])] -= 1
+                    N += 1
                 except KeyError:
                     pass
-        best_bases = [x for (y,x) in sorted(zip(score,bases_tuple))]
-        return best_bases, -array(sorted(score))*1.0/N
+        best_bases = [x for (y, x) in sorted(zip(score, bases_tuple))]
+        return best_bases, -array(sorted(score)) * 1.0 / N
 
     def base_grid_coating(self, grid_num):
         """
@@ -459,12 +475,12 @@ class DB:
         keyword arguments:
         grid_num -- grid to be coated
         """
-        
-        gtt = load_pickle(join(self.path,'grid_to_trajectories.pkl'))
+
+        gtt = load_pickle(join(self.path, 'grid_to_trajectories.pkl'))
         trajectories, borders = gtt[grid_num]
         bases, scores = self.get_best_bases_trajectories(trajectories)
         return bases, scores
-        
+
     def make_grid(self, number_of_meridians, number_of_parallels, init_parallel):
         """
         Make a grid in the blade with parallels and meridians.
@@ -480,11 +496,11 @@ class DB:
         """
 
         blade = self.load_blade_full()
-        parallel = blade.trajectories[int(len(blade.trajectories)/2)]
+        parallel = blade.trajectories[int(len(blade.trajectories) / 2)]
         meridians = blade.draw_meridians(parallel, 1e-3, number_of_meridians)
-        
+
         parallels = []
-        list_index = linspace(init_parallel,len(blade.trajectories),number_of_parallels).astype(int)
+        list_index = linspace(init_parallel, len(blade.trajectories), number_of_parallels).astype(int)
         list_index[-1] -= 1
         for i in list_index:
             parallels.append(blade.trajectories[i])
@@ -509,31 +525,34 @@ class DB:
         parallels = self.load_grid_parallel()
 
         counter = 0
-        for i in range(0,len(meridians)):
-            for j in range(0,len(parallels)-1):
-                grid = [(i, (i+1)%len(meridians)), (j,j+1)]
+        for i in range(0, len(meridians)):
+            for j in range(0, len(parallels) - 1):
+                grid = [(i, (i + 1) % len(meridians)), (j, j + 1)]
                 trajectories_in_grid, borders = self.get_points_in_grid(
                     blade, [meridians[grid[0][0]], meridians[grid[0][1]]],
                     [parallels[grid[1][0]], parallels[grid[1][1]]])
                 bases = self.get_bases_trajectories(trajectories_in_grid)
 
                 grid_to_mp[counter] = grid
-                db_grid_to_bases[counter] = bases 
+                db_grid_to_bases[counter] = bases
                 grid_to_trajectories[counter] = [trajectories_in_grid, borders]
-                counter+=1
+                counter += 1
 
         try:
-            save_pickle(grid_to_mp, join(self.path,'grid_to_mp.pkl'))
-        except IOError: None
+            save_pickle(grid_to_mp, join(self.path, 'grid_to_mp.pkl'))
+        except IOError:
+            None
 
         try:
-            save_pickle(db_grid_to_bases, join(self.path,'db_grid_to_bases.pkl'))
-        except IOError: None
+            save_pickle(db_grid_to_bases, join(self.path, 'db_grid_to_bases.pkl'))
+        except IOError:
+            None
 
         try:
-            save_pickle(grid_to_trajectories, join(self.path,'grid_to_trajectories.pkl'))
-        except IOError: None
-       
+            save_pickle(grid_to_trajectories, join(self.path, 'grid_to_trajectories.pkl'))
+        except IOError:
+            None
+
         return
 
     def generate_db_joints(self, base_num, minimal_number_of_points_per_trajectory=3, do_side_filter=True):
@@ -559,7 +578,7 @@ class DB:
 
         ptn = self.load_points_to_num()
         blade = self.load_blade()
-        db_base_to_joints = dict()  
+        db_base_to_joints = dict()
         db_base_to_segs = dict()
         db_base_to_joints[base_num] = dict()
         db_base_to_segs[base_num] = list()
@@ -579,7 +598,7 @@ class DB:
                             filtered_trajectory_part[evaluated_points:],
                             blade.trajectory_iter_surface)
                         evaluated_points = evaluated_points + lower
-                    except ValueError: 
+                    except ValueError:
                         evaluated_points = len(filtered_trajectory_part)
                         continue
 
@@ -587,20 +606,20 @@ class DB:
                                                                     filtered_trajectory_part,
                                                                     evaluated_points,
                                                                     blade.trajectory_iter_surface)
-                        
+
                     upper = evaluated_points + len(joint_solutions)
-                    
+
                     if len(joint_solutions) >= minimal_number_of_points_per_trajectory:
                         db_base_to_segs[base_num][-1] += [[]]
                         # save point_num in each dictionary 
                         for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joint_solutions):
-                            point_num = ptn[tuple(round(point[0:3],9))]
+                            point_num = ptn[tuple(round(point[0:3], 9))]
                             db_base_to_joints[base_num][point_num] = joints
                             db_base_to_segs[base_num][-1][-1] += [point_num]
 
                     # restart at end point
                     evaluated_points = upper
-        return db_base_to_joints, db_base_to_segs                           
+        return db_base_to_joints, db_base_to_segs
 
     def get_points_in_grid(self, meridian, parallel, full=False):
         """
@@ -625,57 +644,57 @@ class DB:
 
         parallel_index_1 = 0
         parallel_index_2 = 0
-        for i in range(0,len(blade.trajectories)):
+        for i in range(0, len(blade.trajectories)):
             traj_list = [list(a) for a in blade.trajectories[i]]
             if list(parallel1[0]) in traj_list:
                 parallel_index_1 = i
                 break
-        for i in range(0,len(blade.trajectories)):
+        for i in range(0, len(blade.trajectories)):
             traj_list = [list(a) for a in blade.trajectories[i]]
             if list(parallel2[0]) in traj_list:
                 parallel_index_2 = i
                 break
 
-        init = min(parallel_index_1,parallel_index_2)
-        end = max(parallel_index_1,parallel_index_2)+1
+        init = min(parallel_index_1, parallel_index_2)
+        end = max(parallel_index_1, parallel_index_2) + 1
         trajectories_in_grid = []
 
         def get_point_value(point):
             try:
-                return points_to_num[round(point,9)]
+                return points_to_num[round(point, 9)]
             except KeyError:
                 return None
 
         borders = []
-        for i in range(init,end):
+        for i in range(init, end):
             trajectory_in_grid = []
             parallel = array(blade.trajectories[i])
             p1, sorted_parallel1 = self._closest_meridian_point(meridian1, parallel, blade)
             p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel, blade)
-            parallel1 = mathtools.direction_in_halfplane(parallel,p1[3:6])
-            parallel2 = mathtools.direction_in_halfplane(parallel,p2[3:6])
+            parallel1 = mathtools.direction_in_halfplane(parallel, p1[3:6])
+            parallel2 = mathtools.direction_in_halfplane(parallel, p2[3:6])
             p1, sorted_parallel1 = self._closest_meridian_point(meridian1, parallel1, blade)
             p2, sorted_parallel2 = self._closest_meridian_point(meridian2, parallel2, blade)
             index_left = self._get_first_left_meridian_point_index(parallel, sorted_parallel1, p1)
             index_right = self._get_first_right_meridian_point_index(parallel, sorted_parallel2, p2)
 
-            if index_left==None or index_right==None:
+            if index_left == None or index_right == None:
                 pass
-            elif abs(index_right - index_left)%(len(parallel)-1) == 1:
+            elif abs(index_right - index_left) % (len(parallel) - 1) == 1:
                 pass
             elif index_left <= index_right:
                 trajectory_in_grid += filter(lambda x: x is not None,
                                              map(get_point_value,
-                                                 map(tuple, array(parallel)[index_left:index_right+1, 0:3].tolist())))
+                                                 map(tuple, array(parallel)[index_left:index_right + 1, 0:3].tolist())))
             else:
                 trajectory_in_grid += filter(lambda x: x is not None,
                                              map(get_point_value,
-                                                 map(tuple, array(parallel)[index_left:, 0:3].tolist())))+\
+                                                 map(tuple, array(parallel)[index_left:, 0:3].tolist()))) + \
                                       filter(lambda x: x is not None,
                                              map(get_point_value,
-                                                 map(tuple, array(parallel)[:index_right+1, 0:3].tolist())))   
+                                                 map(tuple, array(parallel)[:index_right + 1, 0:3].tolist())))
             trajectories_in_grid.append(trajectory_in_grid)
-            borders.append([tuple(p1[0:3]),tuple(p2[0:3])])
+            borders.append([tuple(p1[0:3]), tuple(p2[0:3])])
         return trajectories_in_grid, borders
 
     def _closest_meridian_point(self, meridian, parallel, blade):
@@ -684,39 +703,39 @@ class DB:
         sorted_parallel = []
         dist_list = []
         for meridian_point in meridian:
-            dist = sum((parallel[:,0:3]-meridian_point[0:3])*
-                       (parallel[:,0:3]-meridian_point[0:3]),1)
+            dist = sum((parallel[:, 0:3] - meridian_point[0:3]) *
+                       (parallel[:, 0:3] - meridian_point[0:3]), 1)
             if min(dist) <= min_dist:
                 closest_meridian_point = meridian_point
                 min_dist = min(dist)
                 dist_list = dist
-        sorted_parallel = [x for (y,x) in sorted(zip(dist_list,parallel))]
-        
+        sorted_parallel = [x for (y, x) in sorted(zip(dist_list, parallel))]
+
         model = blade.select_model(closest_meridian_point)
-        
+
         return blade.compute_ray_from_point(closest_meridian_point, model), sorted_parallel
 
     def _get_first_left_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
         """
         This method assumes the use of spheres as iter_surface.
         """
-        
+
         tan = cross(meridian_point[3:6],
-                    meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
+                    meridian_point[0:3] / linalg.norm(meridian_point[0:3]))
         for point in sorted_parallel:
-            if sign(dot(tan,meridian_point[0:3]-point[0:3])) == 1:
+            if sign(dot(tan, meridian_point[0:3] - point[0:3])) == 1:
                 return parallel.tolist().index(list(point))
 
     def _get_first_right_meridian_point_index(self, parallel, sorted_parallel, meridian_point):
         """
         This method assumes the use of spheres as iter_surface.
         """
-        
+
         tan = cross(meridian_point[3:6],
-                    meridian_point[0:3]/linalg.norm(meridian_point[0:3]))
+                    meridian_point[0:3] / linalg.norm(meridian_point[0:3]))
 
         for point in sorted_parallel:
-            if sign(dot(tan,meridian_point[0:3]-point[0:3])) == -1:
+            if sign(dot(tan, meridian_point[0:3] - point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
 
     def compute_rays_from_grid(self, grid):
@@ -724,17 +743,16 @@ class DB:
             gtt = self.load_grid_to_trajectories()
             parallels, borders = gtt[grid]
             rays = self.compute_rays_from_parallels(parallels, borders)
-            return rays 
+            return rays
         else:
             try:
                 gtt = self._load_grid_to_trajectories_verticalized()
             except IOError:
                 self._grid_verticalization()
                 gtt = self._load_grid_to_trajectories_verticalized()
-            return gtt[grid]    
-        
+            return gtt[grid]
 
-    def compute_rays_from_parallels(self, parallels, borders = None):
+    def compute_rays_from_parallels(self, parallels, borders=None):
         """
         This method gets a list of point numbers (parallel db format) and
         create a list of rays (point-normal) with possible border points.
@@ -751,37 +769,37 @@ class DB:
         parallels = copy.deepcopy(parallels)
         db = self.load_db()
         blade = self.load_blade()
-        
+
         for parallel in parallels:
             for point in parallel:
                 if point not in db.keys():
                     parallel.remove(point)
-       
+
         if borders is None:
             for parallel in parallels:
-                if len(parallel)==0:
-                    rays+=[[]]
+                if len(parallel) == 0:
+                    rays += [[]]
                     continue
-                if self.verticalized==False:
+                if self.verticalized == False:
                     model = blade.select_model(ntp[parallel[0]])
-                    rays += [ map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallel ) ]
+                    rays += [map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallel)]
                 else:
-                    rays += [ map( lambda x: blade.compute_ray_from_point(ntp[x]), parallel ) ]
+                    rays += [map(lambda x: blade.compute_ray_from_point(ntp[x]), parallel)]
 
         else:
             for i in range(len(parallels)):
                 traj = []
-                if len(borders[i][0])>0:
+                if len(borders[i][0]) > 0:
                     traj.append(blade.compute_ray_from_point(borders[i][0]))
 
-                if len(parallels[i])>0:
+                if len(parallels[i]) > 0:
                     model = blade.select_model(ntp[parallels[i][0]])
-                    traj += map( lambda x: blade.compute_ray_from_point(ntp[x],model), parallels[i])
-                    
-                if len(borders[i][1])>0:
+                    traj += map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallels[i])
+
+                if len(borders[i][1]) > 0:
                     traj.append(blade.compute_ray_from_point(borders[i][1]))
-                    
-                rays.append(traj)                   
+
+                rays.append(traj)
         return rays
 
     def _grid_verticalization(self, n=60):
@@ -789,17 +807,20 @@ class DB:
         blade = self.load_blade()
         for grid, value in gtt.iteritems():
             traj, bord = value
-            rays_list = self.compute_rays_from_parallels(traj,bord)
+            rays_list = self.compute_rays_from_parallels(traj, bord)
             parallels = []
             for r, rays in enumerate(rays_list):
-                if len(rays)<=4:
+                if len(rays) <= 4:
                     continue
-                lin = linspace(0,len(rays)-1,n)
+                lin = linspace(0, len(rays) - 1, n)
                 N = len(lin)
-                new_rays = zeros((N,6))
-                new_rays[:,0],_,_ = mathtools.MLS(array(rays)[:,0],range(len(rays)),lin,3,scale=1.5,dwf=None,ddwf=None)
-                new_rays[:,1],_,_ = mathtools.MLS(array(rays)[:,1],range(len(rays)),lin,3,scale=1.5,dwf=None,ddwf=None)
-                new_rays[:,2],_,_ = mathtools.MLS(array(rays)[:,2],range(len(rays)),lin,3,scale=1.5,dwf=None,ddwf=None)
+                new_rays = zeros((N, 6))
+                new_rays[:, 0], _, _ = mathtools.MLS(array(rays)[:, 0], range(len(rays)), lin, 3, scale=1.5, dwf=None,
+                                                     ddwf=None)
+                new_rays[:, 1], _, _ = mathtools.MLS(array(rays)[:, 1], range(len(rays)), lin, 3, scale=1.5, dwf=None,
+                                                     ddwf=None)
+                new_rays[:, 2], _, _ = mathtools.MLS(array(rays)[:, 2], range(len(rays)), lin, 3, scale=1.5, dwf=None,
+                                                     ddwf=None)
                 remove = []
                 for i in range(len(new_rays)):
                     try:
@@ -807,11 +828,12 @@ class DB:
                     except ValueError:
                         remove.append(i)
                         continue
-                new_rays = delete(new_rays,remove,0)
+                new_rays = delete(new_rays, remove, 0)
                 parallels.append(new_rays)
             parallels = mathtools.equally_spacer(parallels, distance=3e-3)
+            parallels = mathtools.trajectory_verticalization(parallels)
             gtt[grid] = parallels
-        save_pickle(gtt,join(self.path,'grid_to_trajectories_verticalized.pkl'))
+        save_pickle(gtt, join(self.path, 'grid_to_trajectories_verticalized.pkl'))
         return
 
     def _check_line(self, line, grid_bases, line_grid, line_grid_dist, threshold):
@@ -828,15 +850,16 @@ class DB:
         line_grid_dist -- dictionary relates rail/grid to dist, a score for
         that line/grid combination.
         """
-        
-        x1 = line[0]; x2 = line[1]
+
+        x1 = line[0];
+        x2 = line[1]
         grid_dist = dict()
         for grid, bases in grid_bases.iteritems():
             bases = list(bases)
             point_near, distance, distance_str = mathtools.distance_line_bases(
                 x1, x2, bases, threshold)
-            if distance!=None:
-                line_grid[line] = line_grid.get(line,set()) | set([grid])
+            if distance != None:
+                line_grid[line] = line_grid.get(line, set()) | set([grid])
                 grid_dist[grid] = [point_near, distance, distance_str]
         line_grid_dist[line] = grid_dist
         return line_grid, line_grid_dist
@@ -861,26 +884,26 @@ class DB:
         min_threshold -- minimum radius of each base
         max_threshold -- maximum radius of each base
         """
-        
+
         dbs = self.info.findall('db')
         for dbi in dbs:
             line_grid = dict()
             line_grid_dist = dict()
             db_path = join(self.path, dbi.find('path').text)
-            grid_bases = load_pickle(join(db_path,'grid_bases.pkl'))
+            grid_bases = load_pickle(join(db_path, 'grid_bases.pkl'))
             for line in lines:
                 line_grid, line_grid_dist = self._check_line(
                     line, grid_bases, line_grid, line_grid_dist, threshold)
 
-            rail_path = join(db_path,'rails')
+            rail_path = join(db_path, 'rails')
             try:
                 makedirs(rail_path)
             except OSError as exception:
                 if exception.errno != errno.EEXIST:
-                    raise    
-            save_pickle(line_grid,join(rail_path, 'line_grid.pkl'))
-            save_pickle(line_grid_dist,join(rail_path, 'line_grid_dist.pkl'))
-        return         
+                    raise
+            save_pickle(line_grid, join(rail_path, 'line_grid.pkl'))
+            save_pickle(line_grid_dist, join(rail_path, 'line_grid_dist.pkl'))
+        return
 
     def _select_db(self, grids_to_coat):
         """
@@ -896,17 +919,18 @@ class DB:
         grids_to_coat -- list of grids to coat
         """
         db_grids = self.get_dbs_grids()
-        for ncombination in range(1,len(db_grids)+1):
+        for ncombination in range(1, len(db_grids) + 1):
             feasible_combination = []
-            for dbs in combinations(db_grids.keys(),ncombination):
+            for dbs in combinations(db_grids.keys(), ncombination):
                 coatable = set([])
                 for dbi in dbs:
-                    coatable = coatable|db_grids[dbi]
+                    coatable = coatable | db_grids[dbi]
                 for grid in grids_to_coat:
                     if grid not in coatable:
                         break
-                else: feasible_combination.append(dbs)
-            if len(feasible_combination)>0:
+                else:
+                    feasible_combination.append(dbs)
+            if len(feasible_combination) > 0:
                 return feasible_combination
         return
 
@@ -914,25 +938,26 @@ class DB:
         lines = line_grid.keys()
         set_grid_nums = set(grid_nums)
         sol = []
-        for i in range(1,len(lines)):
-            for line_comb in combinations(lines,i):
+        for i in range(1, len(lines)):
+            for line_comb in combinations(lines, i):
                 line_union = mathtools.union_line_grids(line_grid, line_comb)
-                if len(grid_nums-line_union)==0:
+                if len(grid_nums - line_union) == 0:
                     sol.append(line_comb)
-            if len(sol)>0:
+            if len(sol) > 0:
                 return sol
         return
 
-    def _compute_psalpha_ordered_by_score(self, line_combs, grids_intersection, line_grid, line_grid_dist, criteria = 'sum'):
+    def _compute_psalpha_ordered_by_score(self, line_combs, grids_intersection, line_grid, line_grid_dist,
+                                          criteria='sum'):
         """
         Given rail combinations, lines solutions to coat specific grids, 
         line_grid_dist dictionary, and criteria, it returns the ordered psalpha by score (criteria)
         of the rails.
         """
-        
+
         min_str = []
         sum_str = []
-        criteria = {'min':1,'sum':0}[criteria]
+        criteria = {'min': 1, 'sum': 0}[criteria]
         psalphas = dict()
         counter = 0
         for line_comb in line_combs:
@@ -945,29 +970,33 @@ class DB:
                 grids_intersec = grids & line_grid[line]
                 psalphas[line_comb][line] = dict()
                 for grid in grids:
-                    x1 = line[0][0]; y1 = line[0][1]
-                    x2 = line[1][0]; y2 = line[1][1]
+                    x1 = line[0][0];
+                    y1 = line[0][1]
+                    x2 = line[1][0];
+                    y2 = line[1][1]
                     point_near, distance, distance_str = line_grid_dist[line][grid]
                     p = mathtools.closest_point_line_3d(array(line[0]), array(line[1]), point_near)
-                    psalphas[line_comb][line][grid] = (x1, sign(p[1])*linalg.norm(p-line[0]), sign(p[1])*atan2(x1-p[0],abs(p[1]-y1)))
+                    psalphas[line_comb][line][grid] = (
+                    x1, sign(p[1]) * linalg.norm(p - line[0]), sign(p[1]) * atan2(x1 - p[0], abs(p[1] - y1)))
                     point_near, distance, distance_str = line_grid_dist[line][grid]
-                    distance_str_total+=distance_str
-                    distance_str_min = min(distance_str_min,distance_str)
+                    distance_str_total += distance_str
+                    distance_str_min = min(distance_str_min, distance_str)
                 grids = grids - grids_intersec
             sum_str.append(distance_str_total)
             min_str.append(distance_str_min)
 
-        values = zeros((len(line_combs),2))
-        values[:,0] = sum_str; values[:,1] = min_str
-        ordered_sol = [x for (y,x) in sorted(zip(-values[:,criteria],line_combs))]
+        values = zeros((len(line_combs), 2))
+        values[:, 0] = sum_str;
+        values[:, 1] = min_str
+        ordered_sol = [x for (y, x) in sorted(zip(-values[:, criteria], line_combs))]
         return ordered_sol, psalphas
 
-    def get_rail_configurations(self, grids_to_coat, criteria = 'sum'):
+    def get_rail_configurations(self, grids_to_coat, criteria='sum'):
         feasible_combinations = self._select_db(grids_to_coat)
-        if  feasible_combinations == None:
+        if feasible_combinations == None:
             print "Grids are not coatable"
             return
-        
+
         db_grids = self.get_dbs_grids()
         sol_dict = dict()
         coated_grids = dict()
@@ -978,8 +1007,8 @@ class DB:
             sol_dict[fcomb] = dict()
             grids = set(grids_to_coat)
             for dbi in fcomb:
-                line_grid = load_pickle(join(dbi,'rails','line_grid.pkl'))
-                line_grid_dist = load_pickle(join(dbi,'rails','line_grid_dist.pkl'))
+                line_grid = load_pickle(join(dbi, 'rails', 'line_grid.pkl'))
+                line_grid_dist = load_pickle(join(dbi, 'rails', 'line_grid_dist.pkl'))
                 grids_intersection = grids & db_grids[dbi]
                 line_combs = self._compute_minimal_lines(line_grid, grids_intersection)
                 line_combs, psalpha = self._compute_psalpha_ordered_by_score(
@@ -990,7 +1019,7 @@ class DB:
                 grids = grids - db_grids[dbi]
         return sol_dict, psalphas, coated_grids, feasible_combinations
 
-    def get_rail_configuration_n(self, grids_to_coat, criteria = 'sum', n=0):
+    def get_rail_configuration_n(self, grids_to_coat, criteria='sum', n=0):
         sol_dict, psalphas, coated_grids, feasible_combinations = self.get_rail_configurations(grids_to_coat, criteria)
         n_psas = []
         for fcomb in feasible_combinations:
@@ -1004,20 +1033,19 @@ class DB:
                     line_comb = sol_dict[fcomb][dbi][n]
                 except IndexError:
                     break
-                else: 
+                else:
                     for line in psalphas[fcomb][dbi][line_comb].keys():
                         for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
                             n_psa.append(psa)
                 break
-            n_psa = [T,n_psa]
+            n_psa = [T, n_psa]
             n_psas.append(n_psa)
         return n_psas, feasible_combinations
 
-    
     ################################################################################
     ############################## CLEAR METHODS ###################################
     ################################################################################
-                
+
     def remove_point(self, points):
         """
         Remove given points from db.
@@ -1025,24 +1053,25 @@ class DB:
         Keyword arguments:
         points (or rays) -- list of points to be removed
         """
-        
+
         db = self.load_db()
         points_to_num = self.load_points_to_num()
-        
+
         for point in points:
             try:
-                key_num = points_to_num[tuple(round(point[0:3],9))]
+                key_num = points_to_num[tuple(round(point[0:3], 9))]
             except KeyError:
                 continue
 
-            db.pop(key_num,None)
-    
+            db.pop(key_num, None)
+
         try:
-            save_pickle(db, join(self.db_main_path,'db.pkl'))
-        except IOError: None
+            save_pickle(db, join(self.db_main_path, 'db.pkl'))
+        except IOError:
+            None
 
         return
-                
+
     def clear_db(self):
         """
         Clear the db.
@@ -1052,8 +1081,9 @@ class DB:
         for key, value in db.iteritems():
             db[key] = set()
         try:
-            save_pickle(db, join(self.db_main_path,'db.pkl'))
-        except IOError: raise
+            save_pickle(db, join(self.db_main_path, 'db.pkl'))
+        except IOError:
+            raise
         return db
 
     def clear_visited_bases(self):
@@ -1064,13 +1094,13 @@ class DB:
         visited_bases = self.load_visited_bases()
         for key in visited_bases:
             visited_bases[key] = False
-        save_pickle(visited_bases, join(self.db_main_path,'visited_bases.pkl'))
+        save_pickle(visited_bases, join(self.db_main_path, 'visited_bases.pkl'))
         return
 
     ################################################################################
     ############################### PLOT METHODS ###################################
     ################################################################################
-    
+
     def plot_points_db(self, vis, scale=1):
         """
         Method to plot db points.
@@ -1081,11 +1111,11 @@ class DB:
         """
 
         db = self.load_db()
-        index = map(int,random.uniform(0,len(db)-1,int(len(db)*1.0/scale)))
+        index = map(int, random.uniform(0, len(db) - 1, int(len(db) * 1.0 / scale)))
         points_num = array(db.keys())[index]
 
         points_tuple = self.get_sorted_points()
-        
+
         for i in points_num:
             p = vis.plot(points_tuple[i], 'points_db')
         return
@@ -1103,7 +1133,7 @@ class DB:
         bases = self.get_bases(db)
         for base in bases:
             rp = rail_place.RailPlace(db_bases[base])
-            vis.plot(rp.getXYZ(self.turb.config),'base',(0,0,1))
+            vis.plot(rp.getXYZ(self.turb.config), 'base', (0, 0, 1))
         return
 
     def plot_grid(self, grid_num, vis):
@@ -1114,14 +1144,14 @@ class DB:
         grid_num -- grid to be plotted.
         vis -- visualizer object.
         """
-        
+
         grid_to_trajectories = self.load_grid_to_trajectories()
         trajectories, borders = grid_to_trajectories[grid_num]
         ntp = DB.get_sorted_points()
         for trajectory in trajectories:
             for point in trajectory:
-                p = vis.plot(ntp[point], 'p', color=(1,0,0))
-        p = vis.plot_lists(borders, 'p', color=(1,0,0))
+                p = vis.plot(ntp[point], 'p', color=(1, 0, 0))
+        p = vis.plot_lists(borders, 'p', color=(1, 0, 0))
         return
 
     def plot_grid_coat(self, vis, grid_num, base):
@@ -1133,7 +1163,7 @@ class DB:
         vis -- visualizer object.
         base -- base (DB) for the robot (int).
         """
-        
+
         non_coatable = []
         coatable = []
         grid_to_trajectories = self.load_grid_to_trajectories()
@@ -1148,9 +1178,10 @@ class DB:
                         non_coatable.append(ntp[point])
                     else:
                         coatable.append(ntp[point])
-                except KeyError: continue
-        p = vis.plot(non_coatable,'noncoat',color=(1,0,0))
-        p = vis.plot(coatable,'coat',color=(0,0,1))
+                except KeyError:
+                    continue
+        p = vis.plot(non_coatable, 'noncoat', color=(1, 0, 0))
+        p = vis.plot(coatable, 'coat', color=(0, 0, 1))
         return non_coatable
 
     def plot_convex_grid(self, threshold, grid_num):
@@ -1161,7 +1192,7 @@ class DB:
         threshold -- minimum score to consider that the grid is coated.
         grid_num -- grid to coat.
         """
-        
+
         import matplotlib.pyplot as plt
         bases, scores = self.base_grid_coating(grid_num)
         xy = []
@@ -1170,17 +1201,18 @@ class DB:
             if abs(scores[i]) >= threshold:
                 rp = rail_place.RailPlace(base)
                 xyz = rp.getXYZ(self.turb.config)
-                feasible_bases.append([scores[i],base])
-                xy.append([xyz[0],xyz[1]])
-            else: break
+                feasible_bases.append([scores[i], base])
+                xy.append([xyz[0], xyz[1]])
+            else:
+                break
 
-        if len(xy)>0:
+        if len(xy) > 0:
             fig = plt.figure()
             try:
                 hull2D = ConvexHull(xy)
                 plt = mathtools.plot_hull(xy, hull2D, plt)
             except:
-                plt.scatter(array(xy)[:,0],array(xy)[:,1])
-            fig.savefig(join(self.db_main_path,str(grid_num)+'.pdf'))
+                plt.scatter(array(xy)[:, 0], array(xy)[:, 1])
+            fig.savefig(join(self.db_main_path, str(grid_num) + '.pdf'))
             plt.close()
-        return         
+        return
