@@ -12,10 +12,20 @@ from lxml import etree as ET
 import ast
 from rbf import RBF
 
+## @file
+# @brief This contains functions to create a mathematical representation of objects.
+# @author Renan S. Freitas
+# @bug No known bugs
 
 class BladeModeling:
-    """
-    BladeModeling class for blade modelling.
+    """ BladeModeling class for blade modelling.
+
+    Args:
+        turbine: (@ref Turbine) turbine object.
+        blade: (@ref Turbine) blade object.
+
+    Example:
+        >>> blade = BladeModeling(turbine, turbine.blades[0])
     """
 
     turbine = None
@@ -23,9 +33,7 @@ class BladeModeling:
 
     def __init__(self, turbine, blade):
         """
-Constructor
-        :param turbine: (object) turbine object.
-        :param blade: (object) blade object.
+        Constructor.
         """
 
         self.turbine = turbine
@@ -45,11 +53,10 @@ Constructor
 
     def save_samples(self, directory_to_save, name):
         """
-        A method to save object samples and samples's info.
+        Method saves object samples and samples's info.
 
-
-        :param directory_to_save: (str) directory to save.
-        :param name: (str) name of the object.
+        :param str directory_to_save: directory to save.
+        :param str name: name of the object.
         """
 
         delta = self.samples_delta
@@ -80,10 +87,10 @@ Constructor
 
     def save_model(self, directory_to_save, name):
         """
-        A method to save model and model info
+        Method saves model and model info
 
-        :param directory_to_save: (str) where to save.
-        :param name: (str) name of the object.
+        :param str directory_to_save: where to save.
+        :param str name: name of the object.
         """
 
         models = self.models
@@ -133,10 +140,10 @@ Constructor
 
     def save_trajectory(self, directory_to_save, name):
         """
-        A method to save trajectory and trajectory info. An .npz file is saved.
+        Method saves trajectory and trajectory info. An npz file is saved.
 
-        :param directory_to_save: (str) where to save.
-        :param name: (str) name of the object.
+        :param str directory_to_save: where to save.
+        :param str name: name of the object.
         """
 
         trajectories = self.trajectories
@@ -172,9 +179,9 @@ Constructor
 
     def load_samples(self, xml_file):
         """
-        A method to load the samples and the used sampling configurations.
+        Method loads samples and sample configurations.
 
-        :param xml_file: (str) the xml file path of the samples.
+        :param str xml_file: the xml file path of the samples.
         """
 
         try:
@@ -192,9 +199,9 @@ Constructor
 
     def load_model(self, xml_file):
         """
-        A method to load the models and the used modeling configurations.
+        Method loads the models and the used modeling configurations.
 
-        :param xml_file: (str) the xml file path of the model.
+        :param str xml_file: the xml file path of the model.
         """
 
         path = dirname(dirname(dirname(xml_file)))
@@ -232,7 +239,7 @@ Constructor
         """
         A method to load the trajectories and the used trajectory configurations.
 
-        :param xml_file: (str) the xml file path of the trajectories.
+        :param str xml_file: the xml file path of the trajectories.
         """
 
         path = dirname(dirname(dirname(xml_file)))
@@ -247,7 +254,7 @@ Constructor
             float(xml.find('iter_surface').find('Rn').text),
             float(xml.find('iter_surface').find('stopR').text),
             float(xml.find('iter_surface').find('coatingstep').text)
-            )
+        )
         self.load_model(join(path, xml.find('xml_model').text))
         self.trajectories = (load(join(path, xml.find('npz_file').text))['array']).tolist()
         return
@@ -319,9 +326,11 @@ Constructor
 
         This is a data-intensive computing and might freeze your computer.
 
-        :param model: (object) model type for the implicit computation.
-        :param model_iter_surface: (object) This is the surface to be iterated, as mathtools.sphere.
+        :param object model: model type for the implicit computation.
+        :param object model_iter_surface: this is the surface to be iterated, as mathtools.sphere.
         This argument must be specified if the model has more than 9000 points.
+        :return: objects models and models_index
+        :rtype: object
         """
 
         number_of_points_per_model = self.number_of_points_per_model
@@ -356,19 +365,20 @@ Constructor
         self.intersection_between_divisions = intersection_between_divisions
         return models, models_index
 
-    def _divide_model_points(self, points, iter_surface, number_of_points_per_part,
+    @staticmethod
+    def _divide_model_points(points, iter_surface, number_of_points_per_part,
                              intersection_between_divisions):
-        # type: (list, object, int, float) -> list
         """
         This method divides the points for multiple model generation, e.g. multiple RBFs.
         It is required for objects with heavy sampling density, as the computation
         of large RBFs is not possible due to the computer memory capacity.
 
         :return: model_points, model_index. The result is the samples which belong to two RBFs simultaneously.
-        :param points: samples to be divided. Each division will produce a model.
-        :param iter_surface: This is the surface to be iterated, as mathtools.sphere.
-        :param number_of_points_per_part: number of samples per division (5000 default)
-        :param intersection_between_divisions: coeficient that multiplies the number_of_points_per_part.
+        :rtype: object
+        :param list points: samples to be divided. Each division will produce a model.
+        :param object iter_surface: This is the surface to be iterated, as mathtools.sphere.
+        :param int number_of_points_per_part: number of samples per division (5000 default)
+        :param float intersection_between_divisions: coeficient that multiplies the number_of_points_per_part.
         """
 
         if number_of_points_per_part >= len(points):
@@ -406,9 +416,10 @@ Constructor
         The compute_initial_point computes the initial point to start the generating trajectories
         algorithm. If trajectories were loaded, the initial point is the last computed point projected
 
-        :return: (float[6]) point and normal of point between two curves.
-        :param iter_surface: (object) surface to be iterated, as mathtools.sphere.
-        :param trajectories: (float[n][6]) list of trajectories.
+        :return: point and normal of point between two curves.
+        :rtype: float[6]
+        :param object iter_surface: surface to be iterated, as mathtools.sphere.
+        :param float[n][6] trajectories: list of trajectories.
         """
 
         if len(trajectories) > 0:
@@ -424,7 +435,8 @@ Constructor
         model = self.select_model(point)
         return mathtools.curvepoint(model, iter_surface, point[0:3])
 
-    def draw_parallel(self, point_on_surfaces, model, iter_surface, step):
+    @staticmethod
+    def draw_parallel(point_on_surfaces, model, iter_surface, step):
         """
         The draw_parallel generates one coating trajectory. The trajectory is
         the intersection between two surfaces: the blade model, and the surface
@@ -437,11 +449,12 @@ Constructor
 
         This is a data-intensive computing and might freeze your computer.
 
-        :param point_on_surfaces: (float[3]) initial point on both surfaces.
-        :param model: (object) model object.
-        :param iter_surface: (object) surface to be iterated, as mathtools.sphere.
-        :param step: (float) algorithm step. it must be small, e.g. 1e-3. Otherwise the method will fail.
-        :return: (float[n][6]) list of points, intersection of surfaces.
+        :param float[3] point_on_surfaces: initial point on both surfaces.
+        :param object model: model object.
+        :param object iter_surface: surface to be iterated, as mathtools.sphere.
+        :param float step: algorithm step. it must be small, e.g. 1e-3. Otherwise the method will fail.
+        :return: list of points, intersection of surfaces.
+        :rtype: float[n][6]
         """
 
         initial_point = copy(point_on_surfaces)
@@ -471,10 +484,12 @@ Constructor
     def draw_meridian_by_point(self, origin, meridian_step=1e-3):
 
         """
-Compute the perpendicular curve wrt the parallels, given initial point.
-        :param origin: (float[3]) initial point.
-        :param meridian_step: (float) step
-        :return: (float[n][6]) points of the curve.
+        Compute the perpendicular curve wrt the parallels, given initial point.
+
+        :param float[3] origin: initial point.
+        :param float meridian_step: step
+        :return: points of the curve.
+        :rtype: float[n][6]
         """
         iter_surface = self.trajectory_iter_surface
         stopR = iter_surface.stopR
@@ -531,11 +546,13 @@ Compute the perpendicular curve wrt the parallels, given initial point.
     def draw_meridians(self, parallel, meridian_step, number_of_meridians):
 
         """
-Given one parallel, this method will compute linspace meridians.
-        :param parallel: (float[n][6]) list of points of the parallel.
-        :param meridian_step: (float) step, eg. 1e-3.
-        :param number_of_meridians: (int) eg., 10.
-        :return: (float[m][n][6]) list of all meridians
+        Given one parallel, this method will compute linspace meridians.
+
+        :param float[n][6] parallel: list of points of the parallel.
+        :param float meridian_step: step, eg. 1e-3.
+        :param int number_of_meridians: eg., 10.
+        :return: list of all meridians
+        :rtype: float[m][n][6]
         """
         meridians = []
 
@@ -547,6 +564,7 @@ Given one parallel, this method will compute linspace meridians.
         return meridians
 
     def generate_trajectories(self, iter_surface):
+
         """
         Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
@@ -557,8 +575,9 @@ Given one parallel, this method will compute linspace meridians.
 
         This is a data-intensive computing and might freeze your computer.
 
-        :param iter_surface: (object) surface to be iterated, as mathtools.sphere.
-        :return: (float[n][6]) list of points and normals, intersection between two surfaces.
+        :param object iter_surface: surface to be iterated, as mathtools.sphere.
+        :rtype: float[n][6]
+        :return: list of points and normals, intersection between two surfaces.
         """
 
         step = self.trajectory_step
@@ -592,17 +611,18 @@ Given one parallel, this method will compute linspace meridians.
         return trajectories
 
     def select_model(self, point):
+
         """
         From a list of models generated for a highly sampled object,
         this method selects the model that interpolates the parallel to be computed.
 
-        :param point: (float[3]) a point of the parallel.
-        :return: (object) best model. The point belongs to the model.
+        :param float[3] point: a point of the parallel.
+        :rtype: object
+        :return: best model. The point belongs to the model.
         """
 
         models = array(self.models)
         models_index = array(self.models_index)
-        intersection_between_divisions = self.intersection_between_divisions
         model_iter_surface = self.model_iter_surface
 
         if len(models) == 1:
@@ -630,11 +650,13 @@ Given one parallel, this method will compute linspace meridians.
     def filter_trajectory_opt(self, interpolation='linear', max_error=None):
 
         """
-Trajectories is a dense list of points. It may be possible to remove some points and get similar trajectories with an
-expected error (max_error) using interpolation methods. This is a downsampling method.
-        :param interpolation: (str) how to interpolate the trajectories.
-        :param max_error: (float) max expected error due to interpolation.
-        :return: (float[n][6]) new trajectory.
+        Trajectories is a dense list of points. It may be possible to remove some points and get similar trajectories with an
+        expected error (max_error) using interpolation methods. This is a downsampling method.
+
+        :param str interpolation: how to interpolate the trajectories.
+        :param float max_error: max expected error due to interpolation.
+        :return: new trajectory.
+        :rtype: float[n][6]
         """
         if interpolation == 'linear':
             f = mathtools.distance_point_line_3d
@@ -670,33 +692,38 @@ expected error (max_error) using interpolation methods. This is a downsampling m
 
     def rotate_models(self, T):
         """
-Method applies homogeneous transform to rotate and translate the object model.
-        :param T: homogeneous transform
+        Method applies homogeneous transform to rotate and translate the object model.
+
+        :param float[4][4] T: homogeneous transform
         """
         for model in self.models:
             model._points = array(mathtools.rotate_trajectories([model._points], T)[0])
         return
 
-    def find_borders(self, init_parallel, end_parallel, normal_variantion=0.9995):
+    def find_borders(self, init_parallel, end_parallel, normal_variation=0.9995):
         """
-Method to find points which belong to object's curves. It will return points which neighboors have big normal variantion.
-        :param normal_variantion: (float) 0 to 1. When it is close to 1, it will return more variations wrt the normal vectors.
-        :return: (list) (float[n][6],float[n][6]) negative and positive points.
-        :param init_parallel: (int) parallel position. eg 0
-        :param end_parallel: (int) parallel position. eg 30
+        Method to find points which belong to object's curves. It will return points which neighboors have big normal variantion.
+
+        :param float normal_variation: 0 to 1. When it is close to 1, it will return more variations wrt the normal vectors.
+        :return: negative and positive points.
+        :rtype: float[n][6],float[n][6]
+        :param int init_parallel: parallel position. eg 0
+        :param int end_parallel: parallel position. eg 30
         """
         neg_border = []
         pos_border = []
         for i in range(init_parallel, end_parallel):
-            rays = mathtools.filter_by_distance(array(self.trajectories[i]), None, normal_variantion, True)
+            rays = mathtools.filter_by_distance(array(self.trajectories[i]), None, normal_variation, True)
             neg_border.append(rays[rays[:, 1] < 0])
             pos_border.append(rays[rays[:, 1] > 0])
         return neg_border, pos_border
 
     def verify_accuracy(self):
         """
-Compute error between the RBF model and samples
-        :return: (float) accuracy error.
+        Compute error between the RBF model and samples
+
+        :return: accuracy error.
+        :rtype: float
         """
         all_dist = array([])
         for trajectories in self.trajectories:
@@ -728,11 +755,13 @@ Compute error between the RBF model and samples
 
     def normal_correction(self, rays, obj):
         """
-    The normal vectors may be wrong. Normal correction will project the point to the trimesh, and it will compute new
-    normal vectors.
-        :param rays: (float[n][6]) rays to compute new normal vectors.
-        :param obj: (object) trimesh object.
-        :return: (float[n][6]) new rays, with new normals.
+        The normal vectors may be wrong. Normal correction will project the point to the trimesh, and it will compute new
+        normal vectors.
+
+        :param float[n][6] rays: rays to compute new normal vectors.
+        :param object obj: trimesh object.
+        :return: new rays, with new normals.
+        :rtype: float[n][6]
         """
         rays = array(rays)
         r = copy(rays)
@@ -752,12 +781,13 @@ Compute error between the RBF model and samples
         """
         Compute the normal vector, given point (float[3]), using the rbf model.
 
-        :param point: (float[3]) (x,y,z) cartesian points.
-        :param model: (object) the rbf model. May be given to compute it faster.
-        :return: (float[6]) point-normal.
+        :param float[3] point: (x,y,z) cartesian points.
+        :param object model: the rbf model. May be given to compute it faster.
+        :return: point-normal.
+        :rtype: float[6]
         """
         if len(point) == 0: return []
-        if model == None:
+        if model is None:
             model = self.select_model(point)
         df = model.df(point)
         df = df / linalg.norm(df)
