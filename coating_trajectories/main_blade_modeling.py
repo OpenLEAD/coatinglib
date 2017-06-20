@@ -1,14 +1,12 @@
 from rbf import RBF
 import blade_modeling
 from turbine import Turbine
-from numpy import dot, sqrt, sum, concatenate, array
+from numpy import dot, sqrt, sum, concatenate
 import mathtools
-from turbine_config import TurbineConfig, ConfigFileError
+from turbine_config import TurbineConfig
 from visualizer import Visualizer
-from os.path import join, exists, realpath
-from os import makedirs, environ
-from openravepy import matrixFromAxisAngle
-from math import pi
+from os.path import join, realpath
+from os import environ
 
 def load_samples():
     blade.load_samples(join(name,'samples','samples.xml'))
