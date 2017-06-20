@@ -1,7 +1,5 @@
-from numpy import dot, array, sqrt, log, exp, vstack, load, savez_compressed
+from numpy import dot, array, sqrt, log, exp, vstack
 from numpy import sum, zeros, ndarray, linalg
-from os import makedirs
-import errno
 from copy import copy
 
 
@@ -107,6 +105,7 @@ class RBF:
         Keyword arguments: 
         c -- point to evaluate the function.
         """
+
         c = array(c[0:3])
         return dot(self._w, self._phi(c, self._points[:,0:3]))
         
