@@ -1,15 +1,10 @@
-from numpy import sqrt, dot, concatenate, arange, array
-from numpy import abs, zeros, cumsum, minimum
-from numpy import transpose, linalg, sum, cross, zeros, eye, max, inf
-from numpy import arccos, maximum, random, linspace, exp
+from numpy import sqrt, dot, concatenate, array, transpose, linalg, cross, zeros, eye, max, inf
+from numpy import abs, cumsum, minimum, arccos, random, linspace, mean
 from numpy.linalg import norm
-from openravepy import IkFilterOptions, interfaces, databases
-from openravepy import IkParameterization
+from openravepy import IkFilterOptions, interfaces, databases, IkParameterization
 from openravepy import CollisionOptions, RaveCreateCollisionChecker, CollisionReport
-from math import pi, cos, sin, atan2
+from math import pi, cos, sin
 from scipy.optimize import minimize, linprog
-from copy import copy
-from path_filters import filter_trajectories
 from mathtools import central_difference
 import mathtools
 import dijkstra2
