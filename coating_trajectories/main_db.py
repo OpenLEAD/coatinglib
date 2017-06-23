@@ -521,4 +521,4 @@ if __name__ == '__main__':
 
     # make_validate_file()
     # validate_bases()
-    merge_validation()
+    # merge_validation()
