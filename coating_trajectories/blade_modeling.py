@@ -24,7 +24,7 @@ class BladeModeling:
         turbine: (@ref Turbine) turbine object.
         blade: (@ref Turbine) blade object.
 
-    Example:
+    Examples:
         >>> blade = BladeModeling(turbine, turbine.blades[0])
     """
 
@@ -32,9 +32,6 @@ class BladeModeling:
     blade = None
 
     def __init__(self, turbine, blade):
-        """
-        Constructor.
-        """
 
         self.turbine = turbine
         self._blade = blade
@@ -52,11 +49,14 @@ class BladeModeling:
         self.gap = turbine.config.coating.parallel_gap
 
     def save_samples(self, directory_to_save, name):
-        """
-        Method saves object samples and samples's info.
+        """ Method saves object samples and samples's info.
 
-        :param str directory_to_save: directory to save.
-        :param str name: name of the object.
+        Args:
+            directory_to_save: (str) directory to save.
+            name: (str) name of the object.
+
+        Examples:
+            >>> save_samples('my_folder', 'my_object')
         """
 
         delta = self.samples_delta
@@ -86,8 +86,7 @@ class BladeModeling:
         return
 
     def save_model(self, directory_to_save, name):
-        """
-        Method saves model and model info
+        """ Method saves model and model info
 
         :param str directory_to_save: where to save.
         :param str name: name of the object.
