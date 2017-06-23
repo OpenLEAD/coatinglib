@@ -19,7 +19,10 @@ class path:
         [joints_values, joints_vel_values, joints_acc_values, deltatimes]
 
         Args:
-            rays: (float[n][6]) cartesian points and normals
+            rays: (float[m][n<SUB>i</SUB>][6]) cartesian points and normals
+
+        Examples
+            >>> res = path(rays)
     """
 
     def __init__(self, rays=None):
@@ -240,6 +243,31 @@ class path:
         traj = path.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
         return spec.ExtractDeltaTime(traj.GetWaypoint(point_number))
+
+    @staticmethod
+    def get_torques(robot, parallel_number, point_number):
+        """ Method gets a specific joint_acceleration from path.
+
+            Args:
+                robot: (Robot) is the robot object.
+                parallel_number: (int) is the parallel number to get the joint.
+                point_number: (int) is the specific point in the parallel to get the joint _value.
+
+            Returns:
+                List float[m][n<SUB>i</SUB>][nDOF] of joint values
+
+            Examples:
+                >>> path.get_torques(turbine.robot, 0, 0)
+                >>> N = path.data[0].GetNumWaypoints()
+                >>> torques = []
+                >>> for i in range(N): torques.append(path.get_torques(turbine.robot,0,i)) # Get all torques in parallel 0
+        """
+
+        with robot:
+            robot.SetDOFValues(path.get_joint(robot, parallel_number, point_number))
+            robot.SetDOFVelocities(path.get_velocity(robot, parallel_number, point_number))
+            return robot.ComputeInverseDynamics(path.get_acc(robot, parallel_number, point_number))
+
 
     @staticmethod
     def move_dijkstra(turbine, organized_rays_list, interpolation):
