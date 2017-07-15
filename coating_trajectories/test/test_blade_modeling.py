@@ -1,11 +1,11 @@
-from numpy import array, load, array_equal, abs, max, mean, sum, min, vstack
-from numpy import argmax, sign, zeros, dot, argmin, random, sqrt, concatenate
+from numpy import array, abs, max, mean, sum, min, vstack
+from numpy import argmax, sign, zeros, dot, random, sqrt
 
 import unittest
 from . import TestCase
 from .. import rbf
 from .. turbine import Turbine
-from .. turbine_config import TurbineConfig, ConfigFileError
+from .. turbine_config import TurbineConfig
 from .. import blade_modeling
 from .. import mathtools
 import shutil
