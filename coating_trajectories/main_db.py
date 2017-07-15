@@ -2,7 +2,7 @@
 import db
 import blade_modeling
 from turbine import Turbine
-from turbine_config import TurbineConfig, ConfigFileError
+from turbine_config import TurbineConfig
 import os
 from visualizer import Visualizer
 from os.path import join, isfile, splitext, basename, realpath
@@ -521,4 +521,4 @@ if __name__ == '__main__':
 
     # make_validate_file()
     # validate_bases()
-    # merge_validation()
+    merge_validation()
