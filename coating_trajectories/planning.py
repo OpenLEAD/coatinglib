@@ -479,14 +479,11 @@ def joint_distance(joint1, joint2, limits):
 
 def joint_planning(turbine, ordered_waypoints, deep=False):
     joints = []
-    robot = turbine.robot
     for i in range(0,len(ordered_waypoints)):
-        joints.append(ik_angle_tolerance(turbine, ordered_waypoints[i], deep = deep))
-
-    for i in range(0,len(joints)):
-        if len(joints[i])==0:
+        iksol = ik_angle_tolerance(turbine, ordered_waypoints[i], deep = deep)
+        if len(iksol) == 0:
             raise IndexError('joints with zero length')
-    
+        joints.append(iksol)
     return joints
 
 def compute_foward_cost(joints0, joints1, limits):
