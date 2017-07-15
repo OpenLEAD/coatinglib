@@ -14,27 +14,20 @@ vis = visualizer.Visualizer(turb.env)
 
 import blade_coverage
 import db
-import planning
-from openravepy import interfaces, IkParameterization, RaveCreateTrajectory
-import time
-import rail_place
-import mathtools
-from numpy import dot
-from numpy import linalg
 
-grid = 0
+grid = 44
 robot = turb.robot
 manip = robot.GetActiveManipulator()
 robot.GetLink('Flame').Enable(False)
 DB = db.DB('FACE',turb)
 
-T = array([[ 1.,  0.,  0.,  0.],
-       [ 0.,  0.,  1.,  0.],
-       [ 0., -1.,  0.,  0.],
-       [ 0.,  0.,  0.,  1.]])
+T = array([[ 1.        ,  0.        ,  0.        ,  0.        ],
+       [ 0.        ,  0.70710678,  0.70710678,  0.        ],
+       [ 0.        , -0.70710678,  0.70710678,  0.        ],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
 DB.T = T
-psa = (1.3000000000000029, 0.93948062679911604, 0.30186829920226832)
+psa = (-0.99999999999999911, -0.52098509437189311, 1.5235987755982991)
 
 threshold = 5e-2
-path = blade_coverage.base_grid_validation(turb, psa, DB, grid, threshold = 5e-2)
+#path = blade_coverage.base_grid_validation(turb, psa, DB, grid, threshold)
 
