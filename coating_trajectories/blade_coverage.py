@@ -30,7 +30,7 @@ class Path:
         self.data = []
         self.success = False
 
-    def execute(self, turbine, blade, threshold=5e-2):
+    def execute(self, turbine, threshold=5e-2):
         """ Method to compute joint_values, joint_velocities, joint_accelerations and deltatimes.
             It uses the Dijkstra planning algorithm (see move_dijkstra function).
 
@@ -52,12 +52,10 @@ class Path:
 
         new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path = self.smooth_joint_MLS(
             turbine, joint_path)
-        maxAccel = turbine.robot.GetDOFMaxAccel()
-        maxVel = turbine.robot.GetDOFMaxVel()
         vel = vstack(new_joint_velocity_path)
         acc = vstack(new_joint_acc_path)
-        if (vel > maxVel).any(): return
-        if (acc > maxAccel).any(): return
+        if (vel > turbine.robot.GetDOFMaxVel()).any(): return
+        if (acc > turbine.robot.GetDOFMaxAccel()).any(): return
         self.success = True
 
         ind = str()
@@ -137,8 +135,7 @@ class Path:
         self.data = TRAJ
         return
 
-    @staticmethod
-    def simulate(robot, parallel_number):
+    def simulate(self, robot, parallel_number):
         """ Method simulates and call visualization, in real time: the robot performing coat.
 
         Args:
@@ -150,11 +147,11 @@ class Path:
             >>> for i in range(len(path.data)): path.simulate(turbine.robot, i)
         """
 
-        _ = robot.GetController().SetPath(path.data[parallel_number])
+        _ = robot.GetController().SetPath(self.data[parallel_number])
+        robot.WaitForController(0)
         return
 
-    @staticmethod
-    def get_joint(robot, parallel_number, point_number):
+    def get_joint(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_value from path.
 
         Args:
@@ -172,12 +169,11 @@ class Path:
             >>> for i in range(N): joints.append(path.get_joint(turbine.robot,0,i))
         """
 
-        traj = path.data[parallel_number]
+        traj = self.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
         return spec.ExtractJointValues(traj.GetWaypoint(point_number), robot, range(robot.GetDOF()))
 
-    @staticmethod
-    def get_velocity(robot, parallel_number, point_number):
+    def get_velocity(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_velocity from path.
 
         Args:
@@ -195,12 +191,11 @@ class Path:
             >>> for i in range(N): velocities.append(path.get_velocity(turbine.robot,0,i))
         """
 
-        traj = path.data[parallel_number]
+        traj = self.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
         return spec.ExtractJointValues(traj.GetWaypoint(point_number), robot, range(robot.GetDOF()), 1)
 
-    @staticmethod
-    def get_acc(robot, parallel_number, point_number):
+    def get_acc(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
 
         Args:
@@ -218,12 +213,11 @@ class Path:
             >>> for i in range(N): accelerations.append(path.get_acc(turbine.robot,0,i))
         """
 
-        traj = path.data[parallel_number]
+        traj = self.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
         return spec.ExtractJointValues(traj.GetWaypoint(point_number), robot, range(robot.GetDOF()), 2)
 
-    @staticmethod
-    def get_deltatime(parallel_number, point_number):
+    def get_deltatime(self, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
 
         Args:
@@ -240,12 +234,11 @@ class Path:
             >>> for i in range(N): times.append(path.get_deltatime(turbine.robot,0,i))
         """
 
-        traj = path.data[parallel_number]
+        traj = self.data[parallel_number]
         spec = traj.GetConfigurationSpecification()
         return spec.ExtractDeltaTime(traj.GetWaypoint(point_number))
 
-    @staticmethod
-    def get_torques(robot, parallel_number, point_number):
+    def get_torques(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
 
             Args:
@@ -264,9 +257,9 @@ class Path:
         """
 
         with robot:
-            robot.SetDOFValues(path.get_joint(robot, parallel_number, point_number))
-            robot.SetDOFVelocities(path.get_velocity(robot, parallel_number, point_number))
-            return robot.ComputeInverseDynamics(path.get_acc(robot, parallel_number, point_number))
+            robot.SetDOFValues(self.get_joint(robot, parallel_number, point_number))
+            robot.SetDOFVelocities(self.get_velocity(robot, parallel_number, point_number))
+            return robot.ComputeInverseDynamics(self.get_acc(robot, parallel_number, point_number))
 
 
     @staticmethod
@@ -292,11 +285,15 @@ class Path:
         time = interpolation / turbine.config.coating.coating_speed
         limits = robot.GetDOFVelocityLimits() * time
         organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
-        for organized_rays in organized_rays_list:
+        true_deep = False
+        for i,organized_rays in enumerate(organized_rays_list):
             for deep in [False, True]:
+                if deep == False and true_deep == True:
+                    continue
                 try:
                     joints = planning.joint_planning(turbine, organized_rays, deep)
                 except IndexError:
+                    true_deep = True
                     continue
                 if len(joint_path_list) != 0:
                     joints.insert(0, [joint_path_list[-1][-1]])
@@ -499,8 +496,8 @@ def base_grid_validation(turbine, psa, DB, grid, threshold=5e-2):
     turbine.place_rail(rp)
     turbine.place_robot(rp)
     organized_rays_list = organize_rays_in_parallels(DB, grid)
-    trajectory = path(organized_rays_list)
-    trajectory.execute(turbine, DB.load_blade(), threshold)
+    trajectory = Path(organized_rays_list)
+    trajectory.execute(turbine, threshold)
     return trajectory
 
 
