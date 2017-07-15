@@ -2,7 +2,7 @@ import blade_coverage
 import argparse
 import db
 from os import environ
-from os.path import realpath, join
+from os.path import join
 from turbine_config import TurbineConfig
 from turbine import Turbine
 
