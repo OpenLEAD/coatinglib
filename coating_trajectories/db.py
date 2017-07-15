@@ -61,7 +61,7 @@ def load_pickle(filename):
 
 
 def get_sorted(filename):
-    b2n = load_db_pickle(filename)
+    b2n = load_pickle(filename)
     return [b for (v, b) in sorted(zip(b2n.values(), b2n.keys()))]
 
 
