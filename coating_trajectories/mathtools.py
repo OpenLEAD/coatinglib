@@ -485,7 +485,7 @@ def equally_spacer(parallels, distance=3e-3):
 
     dist = []
     for parallel in parallels:
-        dist += [sum(linalg.norm(parallel[:-1, 0:3] - parallel[1:, 0:3], axis=1))]
+        dist += [sum(linalg.norm(array(parallel)[:-1, 0:3] - array(parallel)[1:, 0:3], axis=1))]
     n = ceil(npmax(dist) / distance)
 
     new_parallels = []
