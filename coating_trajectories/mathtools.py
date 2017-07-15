@@ -596,6 +596,7 @@ def filter_by_distance(points, r=None, variation=0.9, is_sorted=False):
 
 
 class IterSurface:
+    ##@page IterSurface
     """ Inheritable class to surfaces that can be iterated and generate the coating
     trajectories.
 

@@ -9,11 +9,11 @@ from os import listdir, makedirs
 from os.path import realpath, splitext, join, isfile
 
 ## @file
-# @brief This contains functions to compute the joint solutions given trajectories (operational to joint space)
+# @brief This contains functions and a class (path) to compute the joint solutions given trajectories (operational to joint space)
 # @author Renan S. Freitas
 # @bug No known bugs
 
-class path:
+class Path:
     """ Class to compute, store, and serialize joint path.
         Robot's full trajectories are stored in OpenRave format Trajectory Class, as below:
         [joints_values, joints_vel_values, joints_acc_values, deltatimes]

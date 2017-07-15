@@ -2,7 +2,13 @@ from numpy import dot, array, sqrt, log, exp, vstack
 from numpy import sum, zeros, ndarray, linalg
 from copy import copy
 
+## @file
+# @brief This contains functions to make the RBF model
+# @author Renan S. Freitas
+# @bug No known bugs
 
+
+##@page RBF
 class RBF:
     """
     Radial basis function class for blade modeling.
