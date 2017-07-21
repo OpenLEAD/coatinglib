@@ -496,36 +496,32 @@ def make_dijkstra(joints, limits = None, verbose = False):
     virtual_start = (-1,-1)
     virtual_end = (-2,-2)
     adj = dict()
-    cost = dict()
+
     for jointsi in range(0,len(joints)-1):
-         mcost = compute_foward_cost(joints[jointsi], joints[jointsi+1], limits)
-         for u in range(0,len(mcost)):
-             for v in range(0,len(mcost[u])):
+         for u in range(0,len(joints[jointsi])):
+             for v in range(0,len(joints[jointsi+1])):
                  l = adj.get((jointsi,u),[])
                  l.append((jointsi+1,v))
                  adj[(jointsi,u)] = l
-                 cost[((jointsi,u),(jointsi+1,v))] = mcost[u][v]
 
     for joints0i in range(0,len(joints[0])):
         l = adj.get(virtual_start,[])
         l.append((0,joints0i))
         adj[virtual_start] = l
-        cost[(virtual_start,(0,joints0i))] = 0
 
     for jointsi in range(0,len(joints[-1])):
         l = adj.get(virtual_end,[])
         l.append((len(joints)-1,jointsi))
         adj[virtual_end] = l
-        cost[(virtual_end,(len(joints)-1,jointsi))] = 0
 
         l = adj.get((len(joints)-1,jointsi),[])
         l.append(virtual_end)
         adj[(len(joints)-1,jointsi)] = l
-        cost[((len(joints)-1,jointsi),virtual_end)] = 0
 
-    cost = dijkstra2.make_undirected(cost)
+    cost = dijkstra2.dijkstra_cost(joint_distance,joints,virtual_start,virtual_end,limits)
+
     predecessors, min_cost = dijkstra2.dijkstra(adj, cost, virtual_start, virtual_end)
-    
+
     c = virtual_end
     path = [c]
     
