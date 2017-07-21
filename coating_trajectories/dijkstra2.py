@@ -43,3 +43,33 @@ def make_undirected(cost):
         ucost[k] = w
         ucost[(k[1],k[0])] = w
     return ucost
+
+class dijkstra_cost:
+    joint_distance = None
+    vs = None
+    vt = None
+    stored = dict()
+    limits = None
+    joints = None
+    def __init__(self,distance_cost,joints,vs,vt,limits = None):
+        self.joint_distance = distance_cost
+        self.vs = vs
+        self.vt = vt
+        self.limits = limits
+        self.joints = joints
+        return
+
+    def __getitem__(self, item):
+        from_node = item[0]
+        to_node = item[1]
+
+        if (self.vs in item) or (self.vt in item):
+            return 0
+
+        if not self.stored.has_key(item):
+            mdistance = self.joint_distance(self.joints[from_node[0]][from_node[1]], self.joints[to_node[0]], self.limits)
+            for target in range(0, len(mdistance)):
+                self.stored[(item[0],(to_node[0],target))] = mdistance[target]
+
+
+        return self.stored.get(item)
