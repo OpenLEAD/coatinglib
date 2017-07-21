@@ -436,7 +436,7 @@ class BladeModeling:
             iter_surface: (@ref IterSurface) surface to be iterated, as mathtools.sphere.
             trajectories: (float[n][6]) list of trajectories.
 
-        Returns
+        Returns:
             (float[6]) point and normal of point between two curves.
         """
 
@@ -472,7 +472,7 @@ class BladeModeling:
             iter_surface: (@ref IterSurface) surface to be iterated, as mathtools.sphere.
             step: (float) algorithm step. it must be small, e.g. 1e-3. Otherwise the method will fail.
 
-        Returns
+        Returns:
             (float[n][6]) list of points, intersection of surfaces.
         """
 
@@ -507,7 +507,7 @@ class BladeModeling:
             origin: (float[3]) initial point.
             meridian_step: (float) step
 
-        Returns
+        Returns:
             (float[n][6]) points of the curve.
         """
         iter_surface = self.trajectory_iter_surface
@@ -569,7 +569,7 @@ class BladeModeling:
             parallel: (float[n][6]) list of points of the parallel.
             meridian_step: (float) step, eg. 1e-3.
 
-        Returns
+        Returns:
             (float[m][n][6]) list of all meridians
         """
         meridians = []
@@ -594,7 +594,7 @@ class BladeModeling:
         Args:
             iter_surface: (@ref IterSurface) surface to be iterated, as mathtools.sphere.
 
-        Returns
+        Returns:
             (float[n][6]) list of points and normals, intersection between two surfaces.
         """
 
