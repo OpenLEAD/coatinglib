@@ -409,8 +409,7 @@ class Path:
                     return joint_path_list
         return new_joint_path
 
-    @staticmethod
-    def smooth_joint_MLS(turbine, joint_path):
+    def smooth_joint_MLS(self, turbine, joint_path, dtimes=None):
         """ The Dijkstra optimization method will calculate the best path for the given discretization. Discretization
         will generate some "jumps", and infeasible velocities/accelerations. A moving least square method was developed
         for path smoothness.
@@ -426,50 +425,72 @@ class Path:
             >>> joint_path, joint_velocity_path, joint_acc_path, dtimes = path.smooth_joint_MLS(turbine, joint_path)
         """
 
-        robot = turbine.robot
-        manip = robot.GetActiveManipulator()
-        scale = 3.
+        new_joint_path = []
+        new_joint_velocity_path = []
+        new_joint_acc_path = []
+        new_dtimes_path = []
 
-        def joint_error(robot, joint_path, new_joint_path):
-            error = []
-            new_points = []
-            with robot:
-                for i in range(len(new_joint_path)):
-                    parallel = []
-                    for j in range(len(new_joint_path[i])):
-                        robot.SetDOFValues(new_joint_path[i][j])
-                        P0 = manip.GetTransform()[0:3, 3]
-                        robot.SetDOFValues(joint_path[i][j])
-                        P1 = manip.GetTransform()[0:3, 3]
-                        error.append(linalg.norm(P0 - P1))
-                        parallel += [P0]
-                    new_points += [parallel]
-            return mean(error) + .5 * std(error), new_points
+        for joints in joint_path:
+            scale = 3.
+            try:
+                self.joints_MLS(turbine, joints, scale, dtimes)
+            except TypeError:
+                print 'jnts shape3 - ', array(joints).shape
+                print 'scale 3- ', scale
+
+
+            try:
+                new_joints, new_joints_velocities, new_joints_acc, new_dtimes = self.joints_MLS(turbine, joints, scale, dtimes)
+            except TypeError:
+                print 'jnts shape2 - ', array(joints).shape
+                print 'scale 2- ', scale
+                raise
+
+            new_joint_path += [new_joints]
+            new_dtimes_path += [new_dtimes]
+            new_joint_velocity_path += [new_joints_velocities]
+            new_joint_acc_path += [new_joints_acc]
+
+        return new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path
+
+    def joints_MLS(self, turbine, joints, scale=3., times=None):
+
+        if times is None:
+            times = cumsum(compute_dtimes_from_joints(turbine, joints))
 
         while scale > 0:
-            new_joint_path = []
-            new_joint_velocity_path = []
-            new_joint_acc_path = []
-            new_dtimes_path = []
-            scale -= .1
-            for joints in joint_path:
-                new_joints = []
-                new_joints_velocities = []
-                new_joints_acc = []
-                for joint in array(joints).T:
-                    x = array(range(len(joints)))
-                    j, v, a = mathtools.MLS(joint, x, x, 4, scale)
-                    new_joints += [j]
-                    new_joints_velocities += [v]
-                    new_joints_acc += [a]
-
-                new_joint_path += [array(new_joints).T]
-                new_dtimes_path += [compute_dtimes_from_joints(turbine, new_joint_path[-1])]
-                new_joint_velocity_path += [array(new_joints_velocities).T]
-                new_joint_acc_path += [array(new_joints_acc).T]
-            error, points = joint_error(robot, joint_path, new_joint_path)
+            new_joints = []
+            new_joints_velocities = []
+            new_joints_acc = []
+            for i, joint in enumerate(array(joints).T):
+                j, v, a = mathtools.legMLS(joint, times, times, 6, scale)
+                new_joints += [j]
+                new_joints_velocities += [v]
+                new_joints_acc += [a]
+            new_joints = array(new_joints).T
+            new_dtimes = compute_dtimes_from_joints(turbine, new_joints)
+            new_joints_velocities = array(new_joints_velocities).T
+            new_joints_acc = array(new_joints_acc).T
+            error, _ = self.joint_error(turbine.robot, joints, new_joints)
             if error <= 2.5e-3:  # HARDCODED
                 break
+            scale -= .1
+        return array(new_joints), array(new_joints_velocities), array(new_joints_acc), array(new_dtimes)
+
+    @staticmethod
+    def joint_error(robot, joints, new_joints):
+        manip = robot.GetActiveManipulator()
+        error = []
+        new_points = []
+        with robot:
+            for j in range(len(new_joints)):
+                robot.SetDOFValues(new_joints[j])
+                P0 = manip.GetTransform()[0:3, 3]
+                robot.SetDOFValues(joints[j])
+                P1 = manip.GetTransform()[0:3, 3]
+                error.append(linalg.norm(P0 - P1))
+                new_points += [P0]
+        return mean(error) + .5 * std(error), new_points
         return new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path
 
 
