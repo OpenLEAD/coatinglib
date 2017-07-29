@@ -116,7 +116,7 @@ class Path:
 
         for i, traj in enumerate(self.data):
             tree = ET.XML(traj.serialize())
-            with open(join(directory, 'trajectory_' + str(i) + '.xml'), 'w') as f:
+            with open(join(directory, str(i)), 'w') as f:
                 f.write(ET.tostring(tree))
         return
 
@@ -131,8 +131,12 @@ class Path:
             >>> path.deserialize(turbine,'my_folder')
         """
 
+        ind = str()
+        for i in range(turbine.robot.GetDOF()): ind += str(i) + ' '
+
         cs = ConfigurationSpecification()
-        _ = cs.AddGroup('joint_values', len(turbine.robot.GetActiveDOFIndices()), 'linear')
+        _ = cs.AddGroup('joint_values ' + turbine.robot.GetName() + ' ' + ind, len(turbine.robot.GetActiveDOFIndices()),
+                        'cubic')
         cs.AddDerivativeGroups(1, False)
         cs.AddDerivativeGroups(2, False)
         _ = cs.AddDeltaTimeGroup()
@@ -140,13 +144,12 @@ class Path:
         directory = realpath(directory)
         TRAJ = []
         onlyfiles = [f for f in listdir(directory) if isfile(join(directory, f))]
+        onlyfiles.sort(key=int)
         for afile in onlyfiles:
-            filename, file_extension = splitext(afile)
-            if file_extension == '.xml':
-                traj = RaveCreateTrajectory(turbine.env, '')
-                traj.Init(cs)
-                xml = ET.parse(open(join(directory, afile)))
-                traj.deserialize(ET.tostring(xml.getroot()))
+            traj = RaveCreateTrajectory(turbine.env, '')
+            traj.Init(cs)
+            xml = ET.parse(open(join(directory, afile)))
+            traj.deserialize(ET.tostring(xml.getroot()))
             TRAJ.append(traj)
         self.data = TRAJ
         return
