@@ -1,4 +1,4 @@
-from numpy import array, linalg, dot, zeros, inf, vstack, mean, std
+from numpy import array, linalg, dot, zeros, inf, vstack, mean, std, cumsum, abs, sign
 import planning
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory
 import mathtools
@@ -7,6 +7,8 @@ import rail_place
 from xml.etree import ElementTree as ET
 from os import listdir, makedirs
 from os.path import realpath, splitext, join, isfile
+import time as Time
+from math import log
 
 ## @file
 # @brief This contains functions and a class (path) to compute the joint solutions given trajectories (operational to joint space)
@@ -30,7 +32,7 @@ class Path:
         self.data = []
         self.success = False
 
-    def execute(self, turbine, threshold=5e-2):
+    def execute(self, turbine, threshold=5e-2, dtimes = None):
         """ Method to compute joint_values, joint_velocities, joint_accelerations and deltatimes.
             It uses the Dijkstra planning algorithm (see move_dijkstra function).
 
@@ -51,11 +53,25 @@ class Path:
         # joint_path = self.refine_dijkstra(turbine, joint_path, rays_list, threshold)
 
         new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path = self.smooth_joint_MLS(
-            turbine, joint_path)
-        vel = vstack(new_joint_velocity_path)
-        acc = vstack(new_joint_acc_path)
-        if (vel > turbine.robot.GetDOFMaxVel()).any(): return
-        if (acc > turbine.robot.GetDOFMaxAccel()).any(): return
+            turbine, joint_path, dtimes)
+
+        # new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path = \
+        #    self.replanning(turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path)
+
+        vel = abs(array(new_joint_velocity_path))
+        acc = abs(vstack(new_joint_acc_path))
+        print 'max vel = ', turbine.robot.GetDOFMaxVel()
+        for i,vel_paralell in enumerate(new_joint_velocity_path):
+            for j,vel in enumerate(vel_paralell):
+                if (vel[:-1] > turbine.robot.GetDOFMaxVel()[:-1]).any():
+                    print '(',i, ',', j,')', '| parallel length = ', str(j),'/',len(vel_paralell)-1, '| parallel number = ', str(i),'/',len(new_joint_velocity_path)-1
+                    print 'vel =', vel
+
+        if (acc > turbine.robot.GetDOFMaxAccel()).any():
+            print 'acc max fail'
+            # print 'max = ', turbine.robot.GetDOFMaxAccel()
+            # print acc[(acc > turbine.robot.GetDOFMaxAccel()).any(axis=1)]
+            #return
         self.success = True
 
         ind = str()
