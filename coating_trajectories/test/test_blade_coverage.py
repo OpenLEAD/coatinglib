@@ -2,7 +2,8 @@ import unittest
 from . import TestCase
 from .. turbine import Turbine
 from .. turbine_config import TurbineConfig
-from numpy import zeros, linspace, linalg, array, dot, logspace, hstack, einsum, ones
+from numpy import zeros, linspace, linalg, array, dot, logspace, hstack, einsum, ones, insert
+from numpy import max as npmax
 from math import cos
 from .. import blade_coverage
 from openravepy import ConfigurationSpecification, RaveCreateTrajectory
@@ -51,7 +52,11 @@ class TestBladeCoverage(TestCase):
         """
 
         path = blade_coverage.Path(self.rays)
-        path.execute(self.turbine, self.threshold)
+
+        dtimes = npmax((self.joints[1:]-self.joints[:-1])/(0.9*self.robot.GetDOFMaxAccel()),1)
+        dtimes = insert(dtimes,0,0)
+
+        path.execute(self.turbine, self.threshold, dtimes)
         self.assertTrue(path.success, msg='path was not successfully executed')
 
     def test_serialize(self):
