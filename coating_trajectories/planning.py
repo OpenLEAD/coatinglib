@@ -1,5 +1,5 @@
 from numpy import sqrt, dot, concatenate, array, transpose, linalg, cross, zeros, eye, max, inf
-from numpy import abs, cumsum, minimum, arccos, random, linspace, mean
+from numpy import abs, cumsum, minimum, arccos, random, linspace, mean, finfo
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, interfaces, databases, IkParameterization
 from openravepy import CollisionOptions, RaveCreateCollisionChecker, CollisionReport
@@ -31,7 +31,7 @@ def MLS_general_velocities(turbine, joints_trajectory, points, n = 4, scale = 1.
     h = turbine.config.coating.coating_speed
     dtimes = norm(array(points[1:])-array(points[:-1]),axis=1)/h
     scale *= mean(dtimes)
-    times = cumsum(array([0.]+list(dist)))
+    times = cumsum(array([0.]+list(dtimes)))
 
     w_list = []
     alpha_list = []
@@ -309,8 +309,7 @@ def orientation_cons(turbine, point):
 
 
 def ik_angle_tolerance(turbine, point, angle_tolerance_init=0, angle_tolerance_end=None, number_of_phi = 24, number_of_theta=7, deep=False):
-    """
-    Solve the inverse kinematics given point (IKFast) with maximum tolerance angle.
+    """ Solve the inverse kinematics given point (IKFast) with maximum tolerance angle.
 
     Keyword arguments:
     turbine -- turbine object
@@ -468,14 +467,14 @@ def generate_random_joint_solutions(turbine, point, tries):
                     if list(res.x) not in [list(x) for x in joints]:
                         joints.append(res.x)
     return joints
+
+def single_vel_distance( vel1, vel2, dt, vel_limits, acc_limits):
+    dif = abs(array(vel1)-array(vel2))/dt
+    return max([max(dif/acc_limits),max(vel2/vel_limits)])
        
-def joint_distance(joint1, joint2, limits):
-    dif = abs(array(joint1)-array(joint2))
-    max_dif = max(dif/limits,1)
-    max_dif[max_dif>=1]=inf
-    index = (max_dif!=inf)
-    max_dif[index] = (40.*max_dif[index]/(1-max_dif[index]**2))
-    return max_dif
+def joint_distance_mh12(joint1, joint2, dt, vel_limits):
+    dif = abs(array(joint1)-array(joint2))/dt
+    return max(dif/vel_limits,1)
 
 def joint_planning(turbine, ordered_waypoints, deep=False):
     joints = []
@@ -489,10 +488,53 @@ def joint_planning(turbine, ordered_waypoints, deep=False):
 def compute_foward_cost(joints0, joints1, limits):
     cost = zeros((len(joints0),len(joints1)))
     for i in range(0,len(joints0)):
-        cost[i] = joint_distance(joints0[i], joints1, limits)
+        cost[i] = joint_distance_mh12(joints0[i], joints1, limits)
     return cost
 
-def make_dijkstra(joints, limits = None, verbose = False):
+
+def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
+    virtual_start = (-1,-1) #falta velocidade inicial
+    virtual_end = (-2,-1) #falta velocidade final
+    adj = dijkstra2.dijkstra_adj(joints,dtimes)
+
+    for jointsi in range(len(joints)-1):
+         for u in range(len(joints[jointsi])):
+             for v in range(len(joints[jointsi+1])):
+                 adj.add_link((jointsi,u),(jointsi+1,v))
+
+    for joints0i in range(len(joints[0])):
+        adj.add_link(virtual_start,(0,joints0i))
+
+    for jointsi in range(len(joints[-1])):
+        adj.add_link((len(joints)-1,jointsi),virtual_end)
+
+    vs = dijkstra2.virtual_node((-1,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade inicial
+    ve = dijkstra2.virtual_node((-2,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade final
+    dtimes[0] = 1
+
+    cost = dijkstra2.dijkstra_acc_cost(single_vel_distance,vs,ve,dtimes,vel_limits,acc_limits)
+
+    predecessors, min_cost = dijkstra2.dijkstra(adj, cost, vs, ve)
+
+    c = [y for x, y in enumerate(predecessors.keys()) if y == ve][0]
+    path = [c]
+    while predecessors.get(c):
+        path.insert(0, predecessors[c])
+        c = predecessors[c]
+
+    joint_path = []
+    for i in range(1,len(path)-1):
+        joint_index = path[i][0][0]
+        joint_configuration = path[i][0][1]
+        joint_path.append(joints[joint_index][joint_configuration])
+
+    if verbose:
+        return joint_path, path, min_cost, adj, cost
+    else:
+        return joint_path
+
+
+def make_dijkstra_vel(joints, dtimes, vel_limits, acc_limits, verbose = False):
     virtual_start = (-1,-1)
     virtual_end = (-2,-2)
     adj = dict()
@@ -510,21 +552,17 @@ def make_dijkstra(joints, limits = None, verbose = False):
         adj[virtual_start] = l
 
     for jointsi in range(0,len(joints[-1])):
-        l = adj.get(virtual_end,[])
-        l.append((len(joints)-1,jointsi))
-        adj[virtual_end] = l
-
         l = adj.get((len(joints)-1,jointsi),[])
         l.append(virtual_end)
         adj[(len(joints)-1,jointsi)] = l
 
-    cost = dijkstra2.dijkstra_cost(joint_distance,joints,virtual_start,virtual_end,limits)
+    cost = dijkstra2.dijkstra_vel_cost(joint_distance_mh12,joints,virtual_start,virtual_end,dtimes,vel_limits)
 
     predecessors, min_cost = dijkstra2.dijkstra(adj, cost, virtual_start, virtual_end)
 
     c = virtual_end
     path = [c]
-    
+
     while predecessors.get(c):
         path.insert(0, predecessors[c])
         c = predecessors[c]
@@ -539,9 +577,3 @@ def make_dijkstra(joints, limits = None, verbose = False):
         return joint_path, path, min_cost, adj, cost
     else:
         return joint_path
-
-
-
-
-
-
