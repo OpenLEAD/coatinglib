@@ -663,6 +663,12 @@ def compute_dtimes_from_joints(turbine, joints):
     return compute_dtimes_from_rays(turbine,rays)
 
 
+def compute_dtimes_from_rays(turbine,rays):
+
+    rays = array(rays)
+    v = turbine.config.coating.coating_speed
+
+    return array([0.]+list(linalg.norm(rays[1:,0:3]-rays[:-1,0:3],axis=1)/v))
 
 
 def jusante_grids():
