@@ -491,8 +491,87 @@ class Path:
                 error.append(linalg.norm(P0 - P1))
                 new_points += [P0]
         return mean(error) + .5 * std(error), new_points
+
+    def replanning(self, turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path):
+
+        for k in range(len(new_joint_path)):
+            q, dq, ddq, dt = array(new_joint_path[k]), array(new_joint_velocity_path[k]), array(new_joint_acc_path[k]), array(new_dtimes_path[k])
+
+            for j in range(len(ddq[0])):
+                timeshift_list = []
+                # start_h = -1
+                # start = -1
+                max_accel = turbine.robot.GetDOFMaxAccel()[j]
+                for i, ddqij in enumerate(ddq[:,j]):
+                #     if ddqij >  max_accel*0.95:
+                #         if start == -1:
+                #             start_h = i
+                #     if ddqij >  max_accel:
+                #         if start == -1:
+                #             start = 1
+                #     if ddqij <  max_accel*0.95:
+                #         if start == 1:
+                #             timeshift_list.append([start_h, i])
+                #             start = -1
+                #         start_h = -1
+
+                    if abs(ddqij) > max_accel*0.95:
+                        timeshift_list.append(i)
+
+                if len(timeshift_list) > 0:
+                    q[:,j], dt = self.timeshift(timeshift_list, max_accel*0.95, q[:,j], dq[:,j], ddq[:,j], dt)
+                    try:
+                        q, dq, ddq, dt = self.joints_MLS(turbine, q, 3., cumsum(dt))
+                    except TypeError:
+                        print 'dt type - ', type(dt)
+
+            new_joint_path[k], new_joint_velocity_path[k], new_joint_acc_path[k], new_dtimes_path[k] = q, dq, ddq, dt
         return new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path
 
+    @staticmethod
+    def timeshift(timeshift_list, max_accel, q, dq, ddq, dt):
+        # for times in timeshift_list:
+        #     dq0 = dq[times[0]]
+        #     delta_q = q[times[1]]-q[times[0]]
+        #     dtime = sum(dt[times[0] + 1:times[1] + 1])
+        #     limit = sign(ddq[times[0]]) * min(max_accel,abs(dq[times[1]]-dq[times[0]])/dtime)
+        #     tf = (-dq0 + (dq0 ** 2 + 2 * delta_q * limit) ** 0.5) / limit
+        #
+        #     print 'times[0],times[1] - ', times[0], times[1]
+        #     print 'ddq[times[0]] - ', ddq[times[0]]
+        #     print 'ddq[times[1]] - ', ddq[times[1]]
+        #     print 'delta_dq/dtime - ', (dq[times[1]]-dq[times[0]])/dtime
+        #     print 'dq0 - ', dq0
+        #     print 'delta_q - ', delta_q
+        #     print 'limit - ', limit
+        #     print 'dq0**2+2*delta_q*limit - ', dq0 ** 2 + 2 * delta_q * limit
+        #     print '(dq0**2+2*delta_q*limit)**0.5 -  ', (dq0 ** 2 + 2 * delta_q * limit) ** 0.5
+        #     print '(-dq0+(dq0**2+2*delta_q*limit)**0.5) - ', (-dq0 + (dq0 ** 2 + 2 * delta_q * limit) ** 0.5)
+        #
+        #     dt[times[0]:times[1]] = tf / (times[1] - times[0])
+        #     q[times[0]:times[1]] = linspace(q[times[0]],q[times[1]],times[1]-times[0],endpoint=False)
+
+        for t in timeshift_list:
+            if t == len(q)-1:
+                continue
+
+            dq0 = dq[t]
+            delta_q = q[t+1] - q[t]
+            limit = sign(ddq[t]) * max_accel * 0.95
+            tf = (-dq0 + (dq0 ** 2 + 2 * delta_q * limit) ** 0.5) / limit
+
+            print 't - ', t
+            print 'ddq[t] - ', ddq[t]
+            print 'limit - ', limit
+            print 'dq0 - ', dq0
+            print 'dqf - ', dq[t+1]
+            print 'delta_q - ', delta_q
+            print 'tf - ', tf
+            print 'dt[t+1] -', dt[t + 1]
+
+            dt[t+1] = tf
+
+        return q, dt
 
 def organize_rays_in_parallels(DB, grid):
     """ Function makes a zigzagging path from parallels.
@@ -574,19 +653,16 @@ def compute_dtimes_from_joints(turbine, joints):
         >>> dtimes = compute_dtimes_from_joints(turbine, joints)
     """
 
-    P0 = zeros(3)
-    dtimes = []
-    v = turbine.config.coating.coating_speed
+    rays = []
 
     with turbine.robot:
         for joint in joints:
             turbine.robot.SetDOFValues(joint)
-            P1 = turbine.robot.GetActiveManipulator().GetTransform()[:3, 3]
-            dtimes += [linalg.norm(P1 - P0) / v]
-            P0 = P1
+            rays += [turbine.robot.GetActiveManipulator().GetTransform()[:3, 3]]
 
-    dtimes[0] = 0.
-    return dtimes
+    return compute_dtimes_from_rays(turbine,rays)
+
+
 
 
 def jusante_grids():
