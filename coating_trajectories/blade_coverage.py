@@ -301,34 +301,52 @@ class Path:
 
         robot = turbine.robot
         joint_path_list = []
-        time = interpolation / turbine.config.coating.coating_speed
-        limits = robot.GetDOFVelocityLimits() * time
+        vel_limits = array(robot.GetDOFVelocityLimits())[:-1]
+        acc_limits = array(robot.GetDOFMaxAccel())[:-1]
         organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
         true_deep = False
+        t = Time.time()
         for i,organized_rays in enumerate(organized_rays_list):
-            for deep in [False, True]:
+
+            for deep in [True]:
                 if deep == False and true_deep == True:
                     continue
                 try:
                     joints = planning.joint_planning(turbine, organized_rays, deep)
+                    total_joints = []
+                    for i in range(len(joints)-1):
+                        total_joints.append(len(joints[i])*len(joints[i+1]))
+                    V = sum(total_joints)+len(joints[0])+len(joints[-1])
+                    print 'number of vertices for dijkstra = ', V
                 except IndexError:
                     true_deep = True
                     continue
                 if len(joint_path_list) != 0:
                     joints.insert(0, [joint_path_list[-1][-1]])
-                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
+                    dtimes = compute_dtimes_from_joints(turbine, [j[0] for j in joints])
+                    joints = array([array(j)[:,:-1] for j in joints])
+                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dtimes, vel_limits, acc_limits, True)
+
+                    print min_cost
                     if min_cost != inf:
-                        joint_path_list.append(joint_path[1:])
+                        joint_path_complete = zeros((len(joint_path),robot.GetDOF()))
+                        joint_path_complete[:len(joint_path), :len(joint_path[0])] = joint_path
+                        joint_path_list.append(joint_path_complete[1:])
                         break
 
                 else:
-                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, limits, True)
+                    dtimes = compute_dtimes_from_rays(turbine, organized_rays)
+                    joints = array([array(j)[:,:-1] for j in joints])
+                    joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dtimes, vel_limits, acc_limits, True)
+                    print  min_cost
                     if min_cost != inf:
-                        joint_path_list.append(joint_path)
+                        joint_path_complete = zeros((len(joint_path),robot.GetDOF()))
+                        joint_path_complete[:len(joint_path), :len(joint_path[0])] = joint_path
+                        joint_path_list.append(joint_path_complete[1:])
                         break
             else:
                 return [], organized_rays_list
-
+        print 'time = ', Time.time() - t
         return joint_path_list, organized_rays_list
 
     @staticmethod
@@ -384,7 +402,7 @@ class Path:
                     iksol += [joint]
                     new_joints.append(iksol)
 
-                joint_path, path, min_cost, adj, cost = planning.make_dijkstra(new_joints, limits, True)
+                joint_path, path, min_cost, adj, cost = planning.make_dijkstra_mh12(new_joints, limits, True)
                 if min_cost != inf:
                     new_joint_path.append(joint_path)
                 else:
