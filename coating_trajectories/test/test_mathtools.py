@@ -1,6 +1,5 @@
 import unittest
-from numpy import array, array_equal, eye, pi, around, sqrt, random, dot
-from math import cos, sin
+from numpy import array, array_equal, pi, around, sqrt, random, dot, argmin, sin, cos, logspace, linalg, exp, linspace
 from .. import mathtools
 from . import TestCase
 
@@ -14,8 +13,7 @@ class Testmathtools(TestCase):
         self.assertTrue(array_equal(M, mathtools.hat(v)))
 
     def test_Rab(self):
-        """
-        Test the method for two random vectors, for known vectors and for the
+        """ Test the method for two random vectors, for known vectors and for the
         exception.
         """
 
@@ -44,8 +42,7 @@ class Testmathtools(TestCase):
         
 
     def test_compute_perpendicular_vector(self):
-        """
-        The test generates a random unit vector and verifies if a perpendicular
+        """ The test generates a random unit vector and verifies if a perpendicular
         vector is found with dot product.
         """
         vector_1  = random.uniform(-1,1,3)
@@ -67,8 +64,7 @@ class Testmathtools(TestCase):
         self.assertTrue(array_equal(array([0, 1, 0]), tan))
 
     def test_curvepoint(self):
-        """
-        The test creates an initial point with some disturbance.
+        """ The test creates an initial point with some disturbance.
         For the surfaces, the test creates a sphere with radius = 2, and center = (0,0,0); and a plane z=-1.
         The intersection between the surfaces is a known circle with radius = sqrt(3).
         The test verifies if the computed point belongs to sphere and plane.
@@ -96,8 +92,7 @@ class Testmathtools(TestCase):
 
 
     def test_filter_by_distance(self):
-        """
-        The test verifies if the distance between points are greater or equal a threshold.
+        """ The test verifies if the distance between points are greater or equal a threshold.
         """
 
         threshold = 1
@@ -113,7 +108,133 @@ class Testmathtools(TestCase):
                         msg = "The points: "+str(point)+" and "+str(points[nearer_point])+" are too close"
                             )
 
+    def test_MLS(self):
 
+        def asin(x):
+            A = 2
+            w = pi/4
+            return A*sin(w*x)
+
+        def dasin(x):
+            A = 2
+            w = pi / 4
+            return A * w * cos(w * x)
+
+        def ddasin(x):
+            A = 2
+            w = pi / 4
+            return -A * w * w * sin(w * x)
+
+        x = logspace(0,1,100)-1
+        f = asin(x)
+        df = dasin(x)
+        ddf = ddasin(x)
+
+        y, dy, ddy = mathtools.MLS(f,x,x,6)
+
+
+        for i in range(len(y)):
+            self.assertTrue(linalg.norm(f[i] - y[i]) <= 2e-3,
+                            msg='position verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(f[i] - y[i])) + ' ' + str(f[i]) + ',' + str(y[i]))
+            self.assertTrue(linalg.norm(df[i] - dy[i]) <= 2e-3,
+                            msg='joint velocity verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(df[i] - dy[i])) + ' ' + str(df[i]) + ',' + str(dy[i]))
+            self.assertTrue(linalg.norm(ddf[i] - ddy[i]) <= 1e-2,
+                            msg='joint acc verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(ddf[i] - ddy[i])) + ' ' + str(ddf[i]) + ',' + str(ddy[i]))
+
+        def e(x):
+            return exp(x)-1
+
+        def de(x):
+            return exp(x)
+
+        def dde(x):
+            return exp(x)
+
+        x = linspace(0,4,100)
+        f = e(x)
+        df = de(x)
+        ddf = dde(x)
+
+        y, dy, ddy = mathtools.MLS(f,x,x,6)
+
+
+        for i in range(len(y)):
+            self.assertTrue(linalg.norm(f[i] - y[i]) <= 1e-2,
+                            msg='position verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(f[i] - y[i])) + ' ' + str(f[i]) + ',' + str(y[i]))
+            self.assertTrue(linalg.norm(df[i] - dy[i]) <= 1e-1,
+                            msg='joint velocity verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(df[i] - dy[i])) + ' ' + str(df[i]) + ',' + str(dy[i]))
+            self.assertTrue(linalg.norm(ddf[i] - ddy[i]) <= 1,
+                            msg='joint acc verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(ddf[i] - ddy[i])) + ' ' + str(ddf[i]) + ',' + str(ddy[i]))
+
+    def test_legMLS(self):
+
+        def asin(x):
+            A = 2
+            w = pi/4
+            return A*sin(w*x)
+
+        def dasin(x):
+            A = 2
+            w = pi / 4
+            return A * w * cos(w * x)
+
+        def ddasin(x):
+            A = 2
+            w = pi / 4
+            return -A * w * w * sin(w * x)
+
+        x = logspace(0,1,100)-1
+        f = asin(x)
+        df = dasin(x)
+        ddf = ddasin(x)
+
+        y, dy, ddy = mathtools.legMLS(f,x,x,6)
+
+
+        for i in range(len(y)):
+            self.assertTrue(linalg.norm(f[i] - y[i]) <= 1e-3,
+                            msg='position verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(f[i] - y[i])) + ' ' + str(f[i]) + ',' + str(y[i]))
+            self.assertTrue(linalg.norm(df[i] - dy[i]) <= 1e-2,
+                            msg='joint velocity verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(df[i] - dy[i])) + ' ' + str(df[i]) + ',' + str(dy[i]))
+            self.assertTrue(linalg.norm(ddf[i] - ddy[i]) <= 1e-1,
+                            msg='joint acc verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(ddf[i] - ddy[i])) + ' ' + str(ddf[i]) + ',' + str(ddy[i]))
+
+        def e(x):
+            return exp(x)-1
+
+        def de(x):
+            return exp(x)
+
+        def dde(x):
+            return exp(x)
+
+        x = linspace(0,4,100)
+        f = e(x)
+        df = de(x)
+        ddf = dde(x)
+
+        y, dy, ddy = mathtools.legMLS(f,x,x,6)
+
+
+        for i in range(len(y)):
+            self.assertTrue(linalg.norm(f[i] - y[i]) <= 1e-3,
+                            msg='position verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(f[i] - y[i])) + ' ' + str(f[i]) + ',' + str(y[i]))
+            self.assertTrue(linalg.norm(df[i] - dy[i]) <= 1e-2,
+                            msg='joint velocity verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(df[i] - dy[i])) + ' ' + str(df[i]) + ',' + str(dy[i]))
+            self.assertTrue(linalg.norm(ddf[i] - ddy[i]) <= 1e-1,
+                            msg='joint acc verification failed in ' + str(i) + '  ' + str(
+                                linalg.norm(ddf[i] - ddy[i])) + ' ' + str(ddf[i]) + ',' + str(ddy[i]))
 
 if __name__ == '__main__':
     unittest.main()
