@@ -1,8 +1,9 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt, exp
-from numpy import random, transpose, zeros, linalg, multiply, inf
-from numpy import ndindex, ceil, floor, einsum
-from numpy import argsort, argmin, linspace, power, arange
-from numpy import ones, maximum, minimum, round, sign, vander, unravel_index
+from numpy import random, transpose, zeros, linalg, multiply
+from numpy import ndindex, ceil, floor, einsum, ones
+from numpy import argsort, linspace, power, arange
+from numpy import ones, maximum, minimum, round, sign, vander
+from numpy.polynomial import legendre
 from numpy import max as npmax
 from numpy import cos as npcos
 from numpy import sin as npsin
@@ -503,10 +504,9 @@ def compute_perpendicular_vector(vector_1):
     """
 
     vector_1 = vector_1 / linalg.norm(vector_1)
-    vector_2 = copy(vector_1)
+    vector_2 = [1,0,0]
     while abs(dot(vector_1, vector_2) - 1) <= 1e-6:
-        vector_2 = vector_1 + random.uniform(1, -1, 3)
-        vector_2 = vector_2 / linalg.norm(vector_2)
+        vector_2 = shift(vector_2,1)
     return cross(vector_1, vector_2)
 
 
@@ -1155,8 +1155,8 @@ def MLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_ga
     if dwf is None and ddwf is not None:
         raise ValueError('dwf is None and ddwf is not None')
 
+    A = vander(x, n)
     for xi in x0:
-        A = vander(x, n)
         w = wf((x - xi) / scale)
         v = vander([xi], n)[0]
 
@@ -1180,5 +1180,40 @@ def MLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_ga
 
             ddc = linalg.solve(AtwA, dot(A.T * ddw, delta) - 2 * dot(dot(A.T * dw, A), dc))
             new_ddy += [dot(ddc, v) + 2 * dot(dc, dv) + dot(c, ddv)]
+
+    return new_y, new_dy, new_ddy
+
+def legMLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_gaussian):
+    if y.shape!=x.shape:
+        raise ValueError("y must have smae shape of x, y.shape is "+str(y.shape)+", x.shape is "+str(x.shape))
+    new_y = []
+    new_dy = []
+    new_ddy = []
+
+    if dwf is None and ddwf is not None:
+        raise ValueError('dwf is None and ddwf is not None')
+
+    A = legendre.legvander(x, n)
+    for xi in x0:
+        w = wf((x - xi) / scale)
+        AtwA = (A.T * w).T #dot(A.T * w, A)
+        v = legendre.legvander([xi], n)[0]
+        c = linalg.lstsq(AtwA, y * w)[0] # dot(A.T * w, y))
+        new_y += [dot(c,v)]
+
+        if dwf is not None:
+            dw = dwf((xi - x) / scale) / scale
+            cdv = legendre.legder(c)
+            delta = y - dot(A, c)
+            dc = linalg.lstsq(AtwA, delta * dw)[0]#dot(A.T * dw, delta))
+            new_dy += [dot(dc, v) + legendre.legval(xi,cdv)]
+
+
+        if ddwf is not None:
+            dcdv = legendre.legder(dc)
+            cddv = legendre.legder(c,2)
+            ddw = ddwf((x - xi) / scale) / scale ** 2
+            ddc = linalg.lstsq(AtwA, delta * ddw - 2* dot((A.T * dw).T, dc))[0] #dot(A.T * ddw, delta) - 2 * dot(dot(A.T * dw, A), dc))
+            new_ddy += [dot(ddc, v) + 2 * legendre.legval(xi,dcdv) + legendre.legval(xi,cddv)]
 
     return new_y, new_dy, new_ddy
