@@ -1,4 +1,5 @@
 import heapq
+from numpy import finfo, array, inf, zeros,round
 
 def dijkstra(adj, costs, s, t):
     ''' Return predecessors and min distance if there exists a shortest path 
@@ -7,7 +8,7 @@ def dijkstra(adj, costs, s, t):
     d = {s: 0} # vertex -> minimal distance
     Qd = {}    # vertex -> [d[v], parent_v, v]
     p = {}     # predecessor
-    visited_set = set([s])
+    visited_set = {s}
 
     for v in adj.get(s, []):
         d[v] = costs[s, v]
@@ -44,19 +45,87 @@ def make_undirected(cost):
         ucost[(k[1],k[0])] = w
     return ucost
 
-class dijkstra_cost:
-    joint_distance = None
-    vs = None
-    vt = None
-    stored = dict()
-    limits = None
-    joints = None
-    def __init__(self,distance_cost,joints,vs,vt,limits = None):
-        self.joint_distance = distance_cost
+class virtual_node:
+    def __init__(self,point,velocity):
+        self.content = (point, velocity)
+
+    def __getitem__(self, item):
+        return self.content[item]
+
+    def __eq__(self, other):
+        return (self.content[0]==other[0])
+
+    def __hash__(self):
+        return hash(self.content[0])
+
+
+class dijkstra_adj:
+    def __init__(self,joints,dtimes):
+        self.adj = dict()
+        self.joints = joints
+        self.dtimes = dtimes
+        return
+
+    def add_link(self,from_point,to_point):
+        adjacents = self.adj.get(from_point, [])
+        adjacents.append(to_point)
+        self.adj[from_point] = adjacents
+
+    def get_linked(self,from_point):
+        return self.adj.get(from_point,[])
+
+    def __getitem__(self, item):
+        return self.get(item)
+
+    def get(self, item, std_ans = None):
+
+        from_node = item[0]
+        full_states = []
+
+        for to_node in self.get_linked(from_node):
+            velocity =  (self.joints[to_node[0]][to_node[1]]-self.joints[from_node[0]][from_node[1]])/self.dtimes[to_node[0]]
+            full_states += [(to_node, tuple(round(velocity, 9)))]
+
+        return full_states
+
+class dijkstra_acc_cost:
+    def __init__(self, acc_cost, vs, vt, dtimes,vel_limits,acc_limits):
+        self.acc_cost = acc_cost
         self.vs = vs
         self.vt = vt
-        self.limits = limits
+        self.vel_limits = vel_limits
+        self.acc_limits = acc_limits
+        self.dtimes = dtimes
+        self.stored = dict()
+        return
+
+    def __getitem__(self, item):
+        from_node, from_velocity = item[0]
+        from_velocity = array(from_velocity)
+        to_node, to_velocity = item[1]
+        to_velocity = array(to_velocity)
+
+        if (self.vs in item) or (self.vt in item):
+            return finfo(float).eps
+
+        if from_node[0] == 0:
+            if not self.stored.has_key(item):
+                self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits*inf)
+
+        if not self.stored.has_key(item):
+            self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits)
+
+        return self.stored[item]
+
+class dijkstra_vel_cost:
+    def __init__(self,distance_cost,joints,vs,vt,dtimes,vel_limits):
+        self.distance_cost = distance_cost
+        self.dtimes = dtimes
+        self.vs = vs
+        self.vt = vt
+        self.vel_limits = vel_limits
         self.joints = joints
+        self.stored = dict()
         return
 
     def __getitem__(self, item):
@@ -64,12 +133,11 @@ class dijkstra_cost:
         to_node = item[1]
 
         if (self.vs in item) or (self.vt in item):
-            return 0
+            return finfo(float).eps
 
         if not self.stored.has_key(item):
-            mdistance = self.joint_distance(self.joints[from_node[0]][from_node[1]], self.joints[to_node[0]], self.limits)
-            for target in range(0, len(mdistance)):
+            mdistance = self.distance_cost(self.joints[from_node[0]][from_node[1]], self.joints[to_node[0]],self.dtimes[to_node[0]], self.vel_limits)
+            for target in range(len(mdistance)):
                 self.stored[(item[0],(to_node[0],target))] = mdistance[target]
 
-
-        return self.stored.get(item)
+        return self.stored[item]
