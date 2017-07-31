@@ -1,4 +1,4 @@
-from numpy import array, linalg, dot, zeros, inf, vstack, mean, std, cumsum, abs, sign
+from numpy import array, linalg, dot, zeros, inf, vstack, mean, std, cumsum, abs, sign, ones
 import planning
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory
 import mathtools
@@ -6,9 +6,9 @@ import errno
 import rail_place
 from xml.etree import ElementTree as ET
 from os import listdir, makedirs
-from os.path import realpath, splitext, join, isfile
+from os.path import realpath, join, isfile
 import time as Time
-from math import log
+import matplotlib.pyplot as plt
 
 ## @file
 # @brief This contains functions and a class (path) to compute the joint solutions given trajectories (operational to joint space)
@@ -250,7 +250,7 @@ class Path:
             >>> path.get_deltatime(0, 0)
             >>> N = path.data[0].GetNumWaypoints()
             >>> times = []
-            >>> for i in range(N): times.append(path.get_deltatime(turbine.robot,0,i))
+            >>> for i in range(N): times.append(path.get_deltatime(0,i))
         """
 
         traj = self.data[parallel_number]
@@ -279,6 +279,60 @@ class Path:
             robot.SetDOFValues(self.get_joint(robot, parallel_number, point_number))
             robot.SetDOFVelocities(self.get_velocity(robot, parallel_number, point_number))
             return robot.ComputeInverseDynamics(self.get_acc(robot, parallel_number, point_number))
+
+    def plot_velocities(self, turbine, parallel_number):
+        velocities = []
+        dtimes = []
+        max_vel = turbine.robot.GetDOFMaxVel()
+
+        N = self.data[parallel_number].GetNumWaypoints()
+
+        for i in range(N):
+            velocities.append(self.get_velocity(turbine.robot, parallel_number, i))
+            dtimes.append(self.get_deltatime(parallel_number, i))
+
+        velocities = array(velocities)
+        f, ax = plt.subplots(turbine.robot.GetDOF(), sharex=True)
+        dtimes = cumsum(dtimes)
+
+        for i in range(turbine.robot.GetDOF()):
+            ax[i].plot(dtimes,velocities[:,i], color='b')
+            ax[i].plot(dtimes, ones(N)*max_vel[i], color='r')
+            ax[i].plot(dtimes, -ones(N)*max_vel[i], color = 'r')
+            ax[i].set_title('Joint Velocity '+str(i))
+
+        f.subplots_adjust(hspace=0.3)
+        plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+        plt.show()
+        return
+
+    def plot_acc(self, turbine, parallel_number):
+        acc = []
+        dtimes = []
+        max_acc = turbine.robot.GetDOFMaxAccel()
+
+        N = self.data[parallel_number].GetNumWaypoints()
+
+        for i in range(N):
+            acc.append(self.get_acc(turbine.robot, parallel_number, i))
+            dtimes.append(self.get_deltatime(parallel_number, i))
+
+        acc = array(acc)
+        f, ax = plt.subplots(turbine.robot.GetDOF(), sharex=True)
+        dtimes = cumsum(dtimes)
+
+        for i in range(turbine.robot.GetDOF()):
+            ax[i].plot(dtimes,acc[:,i], color='b')
+            ax[i].plot(dtimes, ones(N)*max_acc[i], color='r')
+            ax[i].plot(dtimes, -ones(N)*max_acc[i], color = 'r')
+            ax[i].set_title('Joint Acc '+str(i))
+
+        f.subplots_adjust(hspace=0.3)
+        plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+        plt.show()
+        return
+
+
 
 
     @staticmethod
