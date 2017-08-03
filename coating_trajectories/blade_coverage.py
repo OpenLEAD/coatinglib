@@ -1,6 +1,6 @@
 from numpy import array, linalg, dot, zeros, inf, vstack, mean, std, cumsum, abs, sign, ones
 import planning
-from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory
+from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory, interfaces
 import mathtools
 import errno
 import rail_place
@@ -58,20 +58,23 @@ class Path:
         # new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path = \
         #    self.replanning(turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path)
 
-        vel = abs(array(new_joint_velocity_path))
         acc = abs(vstack(new_joint_acc_path))
-        print 'max vel = ', turbine.robot.GetDOFMaxVel()
         for i,vel_paralell in enumerate(new_joint_velocity_path):
             for j,vel in enumerate(vel_paralell):
                 if (vel[:-1] > turbine.robot.GetDOFMaxVel()[:-1]).any():
                     print '(',i, ',', j,')', '| parallel length = ', str(j),'/',len(vel_paralell)-1, '| parallel number = ', str(i),'/',len(new_joint_velocity_path)-1
                     print 'vel =', vel
 
+
         if (acc > turbine.robot.GetDOFMaxAccel()).any():
             print 'acc max fail'
-            # print 'max = ', turbine.robot.GetDOFMaxAccel()
-            # print acc[(acc > turbine.robot.GetDOFMaxAccel()).any(axis=1)]
-            #return
+
+        for i,acc_paralell in enumerate(new_joint_acc_path):
+            for j,acc in enumerate(acc_paralell):
+                if (acc[:-1] > turbine.robot.GetDOFMaxVel()[:-1]).any():
+                    print '(',i, ',', j,')', '| parallel length = ', str(j),'/',len(acc_paralell)-1, '| parallel number = ', str(i),'/',len(new_joint_acc_path)-1
+                    print 'acc =', acc
+
         self.success = True
 
         ind = str()
