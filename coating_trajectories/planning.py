@@ -1,5 +1,5 @@
-from numpy import sqrt, dot, concatenate, array, transpose, linalg, cross, zeros, eye, max, inf
-from numpy import abs, cumsum, minimum, arccos, random, linspace, mean, finfo
+from numpy import sqrt, dot, concatenate, array, transpose, linalg, cross, zeros, eye, max
+from numpy import abs, cumsum, minimum, arccos, random, linspace, mean, floor
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, interfaces, databases, IkParameterization
 from openravepy import CollisionOptions, RaveCreateCollisionChecker, CollisionReport
@@ -470,11 +470,13 @@ def generate_random_joint_solutions(turbine, point, tries):
 
 def single_vel_distance( vel1, vel2, dt, vel_limits, acc_limits):
     dif = abs(array(vel1)-array(vel2))/dt
-    return max([max(dif/acc_limits),max(vel2/vel_limits)])
+    return sum((dif/acc_limits)**2) + sum((abs(vel2)/vel_limits)**2)
        
 def joint_distance_mh12(joint1, joint2, dt, vel_limits):
     dif = abs(array(joint1)-array(joint2))/dt
-    return max(dif/vel_limits,1)
+    percent_dif = dif/vel_limits
+    #return floor(max(percent_dif+0.5,1))
+    return max(percent_dif,1)
 
 def joint_planning(turbine, ordered_waypoints, deep=False):
     joints = []
@@ -498,9 +500,9 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     adj = dijkstra2.dijkstra_adj(joints,dtimes)
 
     for jointsi in range(len(joints)-1):
-         for u in range(len(joints[jointsi])):
-             for v in range(len(joints[jointsi+1])):
-                 adj.add_link((jointsi,u),(jointsi+1,v))
+        for u in range(len(joints[jointsi])):
+            for v in range(len(joints[jointsi+1])):
+                adj.add_link((jointsi,u),(jointsi+1,v))
 
     for joints0i in range(len(joints[0])):
         adj.add_link(virtual_start,(0,joints0i))
