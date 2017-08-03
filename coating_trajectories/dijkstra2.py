@@ -25,13 +25,13 @@ def dijkstra(adj, costs, s, t):
                 return p, d[u]
             for v in adj.get(u, []):
                 if d.get(v):
-                    if d[v] > costs[u, v] + d[u]:
-                        d[v] =  costs[u, v] + d[u]
+                    if d[v] > costs[u, v] + d[u]:#max(costs[u, v],d[u])
+                        d[v] =   costs[u, v] + d[u] #max(costs[u, v],d[u])
                         Qd[v][0] = d[v]    # decrease key
                         Qd[v][1] = u       # update predecessor
                         heapq._siftdown(Q, 0, Q.index(Qd[v]))
                 else:
-                    d[v] = costs[u, v] + d[u]
+                    d[v] = costs[u, v] + d[u] #max(costs[u, v],d[u])
                     item = [d[v], u, v]
                     heapq.heappush(Q, item)
                     Qd[v] = item
@@ -108,7 +108,7 @@ class dijkstra_acc_cost:
         if (self.vs in item) or (self.vt in item):
             return finfo(float).eps
 
-        if from_node[0] == 0:
+        if (from_node[0] == 0) or (to_node[0] == len(self.dtimes)-1):
             if not self.stored.has_key(item):
                 self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits*inf)
 
