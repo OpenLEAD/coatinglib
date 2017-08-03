@@ -26,8 +26,8 @@ T = array([[ 1.,  0.,  0.,  0.],
        [ 0., -1.,  0.,  0.],
        [ 0.,  0.,  0.,  1.]])
 DB.T = T
-psa = (1.7500000000000036, 0.55169264516096073, 1.3490658503988662)
+psa = (1.8000000000000034, 0.10879140586688345, 1.349065850398866)
 
 threshold = 5e-2
-path = blade_coverage.base_grid_validation(turb, psa, DB, grid, threshold)
+#path = blade_coverage.base_grid_validation(turb, psa, DB, grid, threshold)
 
