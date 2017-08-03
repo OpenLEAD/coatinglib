@@ -619,6 +619,18 @@ class Path:
 
         return q, dt
 
+    def parallel_transition(self, robot):
+        basemanip = interfaces.BaseManipulation(robot)
+        with robot:
+            for i in range(len(self.data)-1):
+                joint_0 = self.get_joint(robot,i,-1)
+                vel_0 = self.get_velocity(robot, i, -1)
+                joint_1 = self.get_joint(robot,i+1,0)
+
+                robot.SetDOFValues(joint_0)
+                robot.SetDOFVelocities(vel_0)
+
+
 def organize_rays_in_parallels(DB, grid):
     """ Function makes a zigzagging path from parallels.
 
