@@ -6,16 +6,80 @@ from os.path import join
 from turbine_config import TurbineConfig
 from turbine import Turbine
 
+def jusante_grids():
+    """ Return the int numbers from jusante grids.
+
+    Returns:
+        grid numbers
+
+    Examples:
+        >>> grid_nums = jusante_grids()
+    """
+
+    grid_nums = range(0, 15)
+    grid_nums.extend(range(17, 20))
+    grid_nums.extend(range(22, 25))
+    grid_nums.extend(range(67, 70))
+    grid_nums.extend(range(72, 77))
+    grid_nums.extend(range(78, 80))
+    return grid_nums
+
+def montante_grids():
+    """ Return the int numbers from montante grids.
+
+    Returns:
+        grid numbers
+
+    Examples:
+        >>> grid_nums = montante_grids()
+    """
+
+    grid_nums = range(30, 50)
+    grid_nums.extend(range(51, 55))
+    grid_nums.extend(range(56, 60))
+    grid_nums.extend([77])
+    return grid_nums
+
+
+def lip_grids():
+    """ Return the int numbers from lip grids.
+
+    Returns:
+        grid numbers
+
+    Examples:
+        >>> grid_nums = lip_grids()
+    """
+
+    return [0, 1, 2]
+
+
+def border_grids():
+    """ Return the int numbers from border grids.
+
+    Returns:
+        grid numbers
+
+    Examples:
+        >>> grid_nums = border_grids()
+    """
+
+    grid_nums = range(60, 65)
+    grid_nums.extend(range(25, 29))
+    grid_nums.extend([85])
+    return grid_nums
+
+
 area_db = {'jusante':'FACE',
            'montante': 'FACE',
            'lip': 'LIP',
            'border':'BORDER'
           }
 
-grids_available = {'jusante':blade_coverage.jusante_grids,
-                   'montante': blade_coverage.montante_grids,
-                   'lip': blade_coverage.lip_grids,
-                   'border': blade_coverage.border_grids
+grids_available = {'jusante': jusante_grids,
+                   'montante': montante_grids,
+                   'lip': lip_grids,
+                   'border': border_grids
                   }
 
 
