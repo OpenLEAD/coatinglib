@@ -1,6 +1,6 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt, exp
 from numpy import random, transpose, zeros, linalg, multiply
-from numpy import ndindex, ceil, floor, einsum, ones
+from numpy import ndindex, ceil, floor, einsum, vstack
 from numpy import argsort, linspace, power, arange
 from numpy import ones, maximum, minimum, round, sign, vander
 from numpy.polynomial import legendre
@@ -1185,7 +1185,7 @@ def MLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_ga
 
 def legMLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_gaussian):
     if y.shape!=x.shape:
-        raise ValueError("y must have smae shape of x, y.shape is "+str(y.shape)+", x.shape is "+str(x.shape))
+        raise ValueError("y must have same shape of x, y.shape is "+str(y.shape)+", x.shape is "+str(x.shape))
     new_y = []
     new_dy = []
     new_ddy = []
@@ -1217,3 +1217,9 @@ def legMLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd
             new_ddy += [dot(ddc, v) + 2 * legendre.legval(xi,dcdv) + legendre.legval(xi,cddv)]
 
     return new_y, new_dy, new_ddy
+
+def legcubic_path(p1,p2,dp1,dp2,t=[0,1]):
+
+    dleg = legendre.legval(t, legendre.legder(eye(4))).T
+    leg = legendre.legvander(t, 3)
+    return linalg.solve(vstack((dleg,leg)),[dp1, dp2, p1, p2])
