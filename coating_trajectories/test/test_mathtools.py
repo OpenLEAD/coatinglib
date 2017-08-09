@@ -1,5 +1,6 @@
 import unittest
 from numpy import array, array_equal, pi, around, sqrt, random, dot, argmin, sin, cos, logspace, linalg, exp, linspace
+from numpy.polynomial import legendre
 from .. import mathtools
 from . import TestCase
 
@@ -235,6 +236,52 @@ class Testmathtools(TestCase):
             self.assertTrue(linalg.norm(ddf[i] - ddy[i]) <= 1e-1,
                             msg='joint acc verification failed in ' + str(i) + '  ' + str(
                                 linalg.norm(ddf[i] - ddy[i])) + ' ' + str(ddf[i]) + ',' + str(ddy[i]))
+
+    def test_legcubic_path(self):
+
+        def asin(x):
+            A = 2
+            w = pi/4
+            return A*sin(w*x)
+
+        def dasin(x):
+            A = 2
+            w = pi / 4
+            return A * w * cos(w * x)
+
+        def e(x):
+            return exp(x)-1
+
+        def de(x):
+            return exp(x)
+
+        p1 = array([asin(0), e(0)])
+        p2 = array([asin(1), e(1)])
+        dp1 = array([dasin(0), de(0)])
+        dp2 = array([dasin(1), de(1)])
+
+        c = mathtools.legcubic_path(p1,p2,dp1,dp2)
+        legsol1 = legendre.legval(0, c)
+        for i in range(len(p1)):
+            self.assertAlmostEquals(legsol1[i],p1[i])
+
+        legsol2 = legendre.legval(1, c)
+        for i in range(len(p2)):
+            self.assertAlmostEquals(legsol2[i], p2[i])
+
+        legdsol1 = legendre.legval(0,legendre.legder(c))
+        for i in range(len(dp1)):
+            self.assertAlmostEquals(legdsol1[i], dp1[i])
+
+        legdsol2 = legendre.legval(1, legendre.legder(c))
+        for i in range(len(dp2)):
+            self.assertAlmostEquals(legdsol2[i], dp2[i])
+
+        self.assertEquals(legsol1.shape,p1.shape)
+        self.assertEquals(legsol2.shape, p2.shape)
+        self.assertEquals(legdsol1.shape, dp1.shape)
+        self.assertEquals(legdsol2.shape, dp2.shape)
+
 
 if __name__ == '__main__':
     unittest.main()
