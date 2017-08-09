@@ -326,7 +326,7 @@ class TestBladeCoverage(TestCase):
             joints_acc[i+1] = f(0,r.y)[self.robot.GetActiveDOF():]
 
         path = blade_coverage.Path(self.rays)
-        MLS_joints, MLS_joint_velocities, MLS_joint_acc, _ = path.smooth_joint_MLS(self.turbine,[joints])
+        MLS_joints, MLS_joint_velocities, MLS_joint_acc, _ = path.mls_parallels(self.turbine, [joints])
         MLS_joints = MLS_joints[0]
         MLS_joint_velocities = MLS_joint_velocities[0]
         MLS_joint_acc = MLS_joint_acc[0]
@@ -354,11 +354,6 @@ class TestBladeCoverage(TestCase):
                             msg='joint velocity verification failed in ' + str(i) + '  ' + str(linalg.norm(dx0-dx1)) + ' ' + str(dx0) + ',' + str(dx1) )
             self.assertTrue(linalg.norm(ddx0-ddx1) <= 2.5e-2,
                             msg='joint acc verification failed in ' + str(i) + '  ' + str(linalg.norm(ddx0-ddx1)) + ' ' + str(ddx0) + ',' + str(ddx1))
-
-    def test_compute_dtimes_from_joints(self):
-        joints = [self.joints[0], self.joints[1], self.joints[2]]
-        points = [self.rays[0][0], self.rays[0][1], self.rays[0][2]]
-        v = self.turbine.config.coating.coating_speed
 
 
 if __name__ == '__main__':
