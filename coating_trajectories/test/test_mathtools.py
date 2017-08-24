@@ -263,24 +263,66 @@ class Testmathtools(TestCase):
         c = mathtools.legcubic_path(p1,p2,dp1,dp2)
         legsol1 = legendre.legval(0, c)
         for i in range(len(p1)):
-            self.assertAlmostEquals(legsol1[i],p1[i])
+            self.assertAlmostEqual(legsol1[i],p1[i])
 
         legsol2 = legendre.legval(1, c)
         for i in range(len(p2)):
-            self.assertAlmostEquals(legsol2[i], p2[i])
+            self.assertAlmostEqual(legsol2[i], p2[i])
 
         legdsol1 = legendre.legval(0,legendre.legder(c))
         for i in range(len(dp1)):
-            self.assertAlmostEquals(legdsol1[i], dp1[i])
+            self.assertAlmostEqual(legdsol1[i], dp1[i])
 
         legdsol2 = legendre.legval(1, legendre.legder(c))
         for i in range(len(dp2)):
-            self.assertAlmostEquals(legdsol2[i], dp2[i])
+            self.assertAlmostEqual(legdsol2[i], dp2[i])
 
         self.assertEquals(legsol1.shape,p1.shape)
         self.assertEquals(legsol2.shape, p2.shape)
         self.assertEquals(legdsol1.shape, dp1.shape)
         self.assertEquals(legdsol2.shape, dp2.shape)
+
+    def test_AccRampProfile(self):
+        p0 = 5.
+        dp0 = 1.
+        dp1 = -2.5
+        ddp0 = -3.
+        ddp1 = 1.
+        p1 = 7./24
+        t1 = 1.
+        t2= 2.
+
+        accramp = mathtools.AccRampProfile(p0, p1, dp0, dp1, ddp0, ddp1, 2.5)
+
+        self.assertAlmostEqual(ddp0, accramp.acc(0))
+        self.assertAlmostEqual(ddp1, accramp.acc(2.5))
+        self.assertAlmostEqual(dp0, accramp.vel(0))
+        self.assertAlmostEqual(dp1, accramp.vel(2.5))
+        self.assertAlmostEqual(p0, accramp.pos(0))
+        self.assertAlmostEqual(p1, accramp.pos(2.5))
+
+        self.assertAlmostEqual(t1, accramp.t1)
+        self.assertAlmostEqual(t2, accramp.t2)
+
+        self.assertAlmostEqual(-0.833333333333333, accramp.pos(3))
+        self.assertAlmostEqual(4.5, accramp.pos(1))
+        self.assertAlmostEqual(3.208333333333333, accramp.pos(1.5))
+        self.assertAlmostEqual(-3.0, accramp.vel(1.5))
+
+        accramp = mathtools.AccRampProfile(p0, p1, dp0, dp1, ddp0, ddp1, 0.)
+        self.assertAlmostEqual(t1, accramp.t1)
+        self.assertAlmostEqual(t2, accramp.t2)
+
+    def test_AccDoubleStepProfile(self):
+        p0 = 1; p1 = 2; v0 = -1; v1 = -2; a0 = -1; a1 = 2; amax = 7
+
+        accdoublestep = mathtools.AccDoubleStepProfile(amax, p0, p1, v0, v1, a0, a1)
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
