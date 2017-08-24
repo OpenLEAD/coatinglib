@@ -1,5 +1,5 @@
 from numpy import sqrt, dot, concatenate, array, transpose, linalg, cross, zeros, eye, max
-from numpy import abs, cumsum, minimum, arccos, random, linspace, mean, floor
+from numpy import abs, cumsum, minimum, arccos, random, linspace, mean, inf
 from numpy.linalg import norm
 from openravepy import IkFilterOptions, interfaces, databases, IkParameterization
 from openravepy import CollisionOptions, RaveCreateCollisionChecker, CollisionReport
@@ -473,9 +473,15 @@ def single_vel_distance( vel1, vel2, dt, vel_limits, acc_limits):
     return sum((dif/acc_limits)**2) + sum((abs(vel2)/vel_limits)**2)
        
 def joint_distance_mh12(joint1, joint2, dt, vel_limits):
-    dif = abs(array(joint1)-array(joint2))/dt
+    dif = abs(array(joint1) - array(joint2))
+    if dt == 0:
+        dif = max(dif,1)
+        blown = (dif > 1e-5)
+        dif[blown] = inf
+        dif[~blown] = 0
+        return dif
+    dif /= dt
     percent_dif = dif/vel_limits
-    #return floor(max(percent_dif+0.5,1))
     return max(percent_dif,1)
 
 def joint_planning(turbine, ordered_waypoints, deep=False):
@@ -495,8 +501,8 @@ def compute_foward_cost(joints0, joints1, limits):
 
 
 def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
-    virtual_start = (-1,-1) #falta velocidade inicial
-    virtual_end = (-2,-1) #falta velocidade final
+    virtual_start = (-1,-1)
+    virtual_end = (-2,-1)
     adj = dijkstra2.dijkstra_adj(joints,dtimes)
 
     for jointsi in range(len(joints)-1):
@@ -510,8 +516,8 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     for jointsi in range(len(joints[-1])):
         adj.add_link((len(joints)-1,jointsi),virtual_end)
 
-    vs = dijkstra2.virtual_node((-1,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade inicial
-    ve = dijkstra2.virtual_node((-2,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade final
+    vs = dijkstra2.virtual_node((-1,-1),tuple(zeros(len(joints[0][0]))))
+    ve = dijkstra2.virtual_node((-2,-1),tuple(zeros(len(joints[0][0]))))
     dtimes[0] = 1
 
     cost = dijkstra2.dijkstra_acc_cost(single_vel_distance,vs,ve,dtimes,vel_limits,acc_limits)
