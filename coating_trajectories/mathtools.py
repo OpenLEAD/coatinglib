@@ -1,4 +1,4 @@
-from numpy import array, dot, cross, outer, eye, sum, sqrt, exp
+from numpy import array, dot, cross, outer, eye, sum, sqrt, exp, roll
 from numpy import random, transpose, zeros, linalg, multiply
 from numpy import ndindex, ceil, floor, einsum, vstack
 from numpy import argsort, linspace, power, arange
@@ -17,6 +17,7 @@ from scipy.ndimage.interpolation import shift
 from itertools import cycle, islice
 from scipy.linalg import logm, expm
 from openravepy import quatFromRotationMatrix, matrixFromQuat
+from scipy.optimize import minimize, minimize_scalar
 
 _base_module_precision = 0.2
 _p_step = 0.1
@@ -1223,3 +1224,612 @@ def legcubic_path(p1,p2,dp1,dp2,t=[0,1]):
     dleg = legendre.legval(t, legendre.legder(eye(4))).T
     leg = legendre.legvander(t, 3)
     return linalg.solve(vstack((dleg,leg)),[dp1, dp2, p1, p2])
+
+def legquintic_path(p1,p2,dp1,dp2,ddp1,ddp2,t=[0,1]):
+
+    ddleg = legendre.legval(t, legendre.legder(eye(6),2)).T
+    dleg = legendre.legval(t, legendre.legder(eye(6))).T
+    leg = legendre.legvander(t, 5)
+    return linalg.solve(vstack((ddleg,dleg,leg)),[ddp1, ddp2, dp1, dp2, p1, p2])
+
+def legquartic_path(p1,p2,dp1,dp2,ddp1, t=[0,1]):
+
+    ddleg = legendre.legval(t, legendre.legder(eye(5),2)).T
+    dleg = legendre.legval(t, legendre.legder(eye(5))).T
+    leg = legendre.legvander(t, 4)
+    return linalg.solve(vstack((ddleg,dleg,leg)),[ddp1, dp1, dp2, p1, p2])
+
+def legn_path(n,p1,p2,dp1,dp2,ddp1,ddp2,t=[0,1]):
+    ddleg = legendre.legval(t, legendre.legder(eye(n+1), 2)).T
+    dleg = legendre.legval(t, legendre.legder(eye(n+1))).T
+    leg = legendre.legvander(t, n)
+    return linalg.lstsq(vstack((ddleg, dleg, leg)), [ddp1, ddp2, dp1, dp2, p1, p2])[0]
+
+class AccRampProfile:
+
+    def __init__(self, p0, p1, dp0, dp1, ddp0, ddp1, tf=0):
+        self.p0 = p0
+        self.p1 = p1
+        self.dp0 = dp0
+        self.dp1 = dp1
+        self.ddp0 = ddp0
+        self.ddp1 = ddp1
+        self.tf = tf
+
+        self.t1 = 0
+        self.t2 = 0
+
+        self.calculate_t()
+        self.d12 = self.t2 - self.t1
+        self.jerk = (self.ddp1 - self.ddp0) / (2 * self.d12)
+
+    def vel(self, t):
+        d1t = t - self.t1
+        d2t = t - self.t2
+        t12 = self.t1 * self.t1
+        t22 = self.t2 * self.t2
+        return self.jerk * (self.d12 * t + 0.5 * d1t * abs(d1t) - 0.5 * d2t * abs(d2t) + 0.5 * (-t22 + t12)) \
+               + self.ddp0 * t + self.dp0
+
+    def pos(self, t):
+        d1t = t - self.t1
+        d2t = t - self.t2
+        t12 = self.t1 * self.t1
+        t13 =  t12 * self.t1
+        t22 = self.t2 * self.t2
+        t23 = t22 * self.t2
+        return self.jerk * (0.5 * (self.d12 * t * t) + (1/6.) * d1t * d1t * abs(d1t)
+               - (1/6.) * d2t * d2t * abs(d2t) + 0.5 * (-t22 + t12) * t + (-t13 + t23)/6.) + \
+               (0.5) * self.ddp0 * t * t + self.dp0 * t + self.p0
+
+    def acc(self, t):
+        return self.jerk * (self.d12 + abs(t - self.t1) - abs(t - self.t2)) + self.ddp0
+
+    def calculate_t(self):
+
+        def d12(ddp0, ddp1, dp0, dp1, t):
+            return 2 * t - (2 / (ddp1 - ddp0)) * (dp1 - ddp0 * t - dp0)
+
+        def c_(p0, p1, dp0, ddp0, ddp1, t, d12):
+            return (6 / (ddp1 - ddp0)) * (p1 - p0 - dp0 * t - ddp0 * t * t / 2) - 3 * t * t + 3 * t * d12 - d12 ** 2
+
+        def bhask(b,c):
+            delta = b * b - 4 * c
+            if delta < 0:
+                return 0, 0
+            sol = array([(b + sqrt(b * b - 4 * c)) / 2, (b - sqrt(b * b - 4 * c)) / 2])
+            t1 = min(sol[sol > 0])
+            t2 = b - t1
+            if t2 < 0:
+                return 0, 0
+            return t1, t2
+
+        while True:
+            d = d12(self.ddp0, self.ddp1, self.dp0, self.dp1, self.tf)
+            c = c_(self.p0, self.p1, self.dp0, self.ddp0, self.ddp1, self.tf, d)
+            self.t1, self.t2 = bhask(d, -c)
+            if self.t1 == 0.  and self.t2 == 0.:
+                self.tf += 0.1
+                continue
+            break
+
+class AccDoubleRampProfile:
+
+    def __init__(self, amax, p0, p1, dp0, dp1, ddp0, ddp1, tf=4.):
+        self.p0 = p0
+        self.p1 = p1
+        self.dp0 = dp0
+        self.dp1 = dp1
+        self.ddp0 = ddp0
+        self.ddp1 = ddp1
+        self.tf = tf
+        self.amax = amax
+
+        self.t1 = 0.
+        self.t2 = 1.
+        self.t3 = 2.
+        self.t4 = 3.
+
+        self.calculate_t()
+        self.d12 = self.t2 - self.t1
+        self.d34 = self.t4 - self.t3
+        self.jerk_s = (self.amax - self.ddp0) / (2 * self.d12)
+        self.jerk = (self.ddp1 - self.amax) / (2 * self.d34)
+
+    def vel(self, t):
+        d1t = t - self.t1
+        d2t = t - self.t2
+        t12 = self.t1 * self.t1
+        t22 = self.t2 * self.t2
+        vs = self.jerk_s * (self.d12 * t + 0.5 * d1t * abs(d1t) - 0.5 * d2t * abs(d2t) + 0.5 * (-t22 + t12)) \
+               + self.ddp0 * t + self.dp0
+
+        d3t = t - self.t3
+        d4t = t - self.t4
+        t32 = self.t3 * self.t3
+        t42 = self.t4 * self.t4
+        vd = self.jerk * (self.d34 * t + 0.5 * d3t * abs(d3t) - 0.5 * d4t * abs(d4t) + 0.5 * (-t42 + t32))
+        return vs + vd
+
+    def pos(self, t):
+        d1t = t - self.t1
+        d2t = t - self.t2
+        t12 = self.t1 * self.t1
+        t13 =  t12 * self.t1
+        t22 = self.t2 * self.t2
+        t23 = t22 * self.t2
+        ps = self.jerk_s * (0.5 * (self.d12 * t * t) + (1/6.) * d1t * d1t * abs(d1t)
+               - (1/6.) * d2t * d2t * abs(d2t) + 0.5 * (-t22 + t12) * t + (-t13 + t23)/6.) + \
+               (0.5) * self.ddp0 * t * t + self.dp0 * t + self.p0
+
+        d3t = t - self.t3
+        d4t = t - self.t4
+        t32 = self.t3 * self.t3
+        t33 = t32 * self.t1
+        t42 = self.t4 * self.t4
+        t43 = t42 * self.t4
+        pd = self.jerk * (0.5 * (self.d34 * t * t) + (1 / 6.) * d3t * d3t * abs(d3t)
+                          - (1 / 6.) * d4t * d4t * abs(d4t) + 0.5 * (-t42 + t32) * t + (-t33 + t43) / 6.)
+
+        return ps + pd
+
+    def acc(self, t):
+        a_s = self.jerk_s * (self.d12 + abs(t - self.t1) - abs(t - self.t2)) + self.ddp0
+        a_d = self.jerk * (self.d34 + abs(t - self.t3) - abs(t - self.t4))
+        return a_s + a_d
+
+    def calculate_t(self):
+
+        t = 4.
+        times_amax = array([self.t1, self.t2, self.t3, self.t4, t, self.amax])
+        x = array([self.ddp0, self.ddp1, self.dp0, self.dp1, self.p0, self.p1])
+
+        def func(times):
+            return sum(times)
+
+        def func_deriv(times):
+            dfdt1 = 1
+            dfdt2 = 1
+            dfdt3 = 1
+            dfdt4 = 1
+            dfdt = 1
+            return array([dfdt1, dfdt2, dfdt3, dfdt4, dfdt])
+
+        def cons_eq_vel(times_amax, x):
+            ddp0, ddp1, dp0, dp1, p0, p1 = x
+            t1, t2, t3, t4, t, amax = times_amax
+            dp = 0.5 * (amax - ddp0) * (2 * t - t1 - t2) + ddp0 * t + 0.5 * (ddp1 - amax) * (2 * t - t4 - t3) + dp0
+            return dp - dp1
+
+        def cons_eq_vel_jac(times_amax, x):
+            ddp0, ddp1, dp0, dp1, p0, p1 = x
+            t1, t2, t3, t4, t, amax = times_amax
+            return array([-(amax-ddp0)/2., -(amax-ddp0)/2., -(ddp1-amax)/2., -(ddp1-amax)/2., ddp1,
+                          (t4 + t3 - t1 - t2) * 0.5])
+
+        def cons_eq_pos(times_amax, x):
+            ddp0, ddp1, dp0, dp1, p0, p1 = x
+            t1, t2, t3, t4, t, amax = times_amax
+            ps = ((amax - ddp0)/6.) * (3 * t * t - 3 * t * (t2 + t1) + (t * t + t1 * t2 + t1 * t1)) + ddp0 * t * t/2.
+            pd = ((ddp1 - amax)/6.) * (3 * t * t - 3 * t * (t3 + t4) + (t * t + t3 * t4 + t3 * t3)) + dp0 * t + p0
+            return ps + pd - p1
+
+        def cons_eq_pos_jac(times_amax, x):
+            ddp0, ddp1, dp0, dp1, p0, p1 = x
+            t1, t2, t3, t4, t, amax = times_amax
+            dpdt1 = ((amax - ddp0) / 6.) * (-3 * t + t2 + 2 * t1)
+            dpdt2 = ((amax - ddp0) / 6.) * (-3 * t + t1)
+            dpdt3 = ((ddp1 - amax) / 6.) * (-3 * t + t4 + 2 * t3)
+            dpdt4 = ((ddp1 - amax) / 6.) * (-3 * t + t3)
+            dpdt = ((amax - ddp0) / 6.) * (6 * t - 3 * (t2 + t1) + 2 * t) +\
+                   ddp0 * t + ((ddp1 - amax) / 6.) * (6 * t - 3 * (t3 + t4) + 2 * t) + dp0
+            dpdamax = (1 / 6.) * (3 * t * t - 3 * t * (t2 + t1) + (t * t + t1 * t2 + t1 * t1)) - \
+                      (1 / 6.) * (3 * t * t - 3 * t * (t3 + t4) + (t * t + t3 * t4 + t3 * t3))
+            return array([dpdt1, dpdt2, dpdt3, dpdt4, dpdt])
+
+        def cons_ineq_t1(times):
+            t1, _, _, _, _ = times
+            return t1
+
+        def cons_ineq_t1_jac(times):
+            return array([1, 0, 0, 0, 0])
+
+        def cons_ineq_t2(times):
+            t1, t2, _, _, _ = times
+            return t2 - t1
+
+        def cons_ineq_t2_jac(times):
+            return array([-1, 1, 0, 0, 0])
+
+        def cons_ineq_t3(times):
+            _, t2, t3, _, _ = times
+            return t3 - t2
+
+        def cons_ineq_t3_jac(times):
+            return array([0, -1, 1, 0, 0])
+
+        def cons_ineq_t4(times):
+            _, _, t3, t4, _ = times
+            return t4 - t3
+
+        def cons_ineq_t4_jac(times):
+            return array([0, 0, -1, 1, 0])
+
+        def cons_ineq_t(times):
+            _, _, _, t4, t = times
+            return t - t4
+
+        def cons_ineq_t_jac(times):
+            return array([0, 0, 0, -1, 1])
+
+        cons = ({'type': 'eq',
+                 'fun': cons_eq_vel,
+                 'jac': cons_eq_vel_jac},
+                {'type': 'eq',
+                 'fun': cons_eq_pos,
+                 'jac': cons_eq_pos_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t1,
+                 'jac': cons_ineq_t1_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t2,
+                 'jac': cons_ineq_t2_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t3,
+                 'jac': cons_ineq_t3_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t4,
+                 'jac': cons_ineq_t4_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t,
+                 'jac': cons_ineq_t_jac})
+
+        res = minimize(func, times_amax, args = (x,), jac = func_deriv, constraints = cons,
+                       method = 'SLSQP', options = {'disp':True})
+
+class AccDoubleStepProfile:
+
+    def __init__(self, amax, p0, p1, dp0, dp1, ddp0, ddp1, tf=1.):
+        self.p0 = p0
+        self.p1 = p1
+        self.dp0 = dp0
+        self.dp1 = dp1
+        self.ddp0 = ddp0
+        self.ddp1 = ddp1
+        self.tf = tf
+        self.amax = abs(amax)
+
+        times = [0.5 * tf, -1, -1]
+
+        # Initializing amax
+        c = legn_path(5, p0, p1, dp0, dp1, ddp0, ddp1)
+        r = legendre.legroots(legendre.legder(c,3))
+        r = r[r > 0]
+        if len(r) == 0:
+            self.amax = sign(ddp1) * self.amax
+        else:
+            self.amax = sign(min(r)) * self.amax
+
+        # Initializing times
+        r = legendre.legroots(legendre.legder(c, 2))
+        r = r[r > 0]
+        for i in range(len(r)):
+            times[i] = r[i]
+        for i in range(len(times)):
+            if times[i] == -1:
+                times[i] = times[i-1]
+
+        self.t1 = times[0]
+        self.t2 = times[1]
+        self.t3 = times[2]
+
+        self.calculate_t()
+
+    def pos(self, t):
+
+        ddp0, ddp1, dp0, dp1, p0, p1, amax = self.ddp0, self.ddp1, self.dp0, self.dp1, self.p0, self.p1, self.amax
+        t1, t2, t3 = self.t1, self.t2, self.t3
+
+        def pt1(t):
+            return p0 + dp0 * t + ddp0 * t * t / 2.
+
+        def pt12(t):
+            return pt1(t1) + self.vel(t1) * (t - t1) + amax * (t - t1) * (t - t1) / 2.
+
+        def pt23(t):
+            return pt12(t2) + self.vel(t2) * (t - t2) - amax * (t - t2) * (t - t2) / 2.
+
+        def pt3(t):
+            return pt23(t3) + self.vel(t3) * (t - t3) + ddp1 * (t - t3) * (t - t3) / 2.
+
+        if t >= t3:
+            return pt3(t)
+
+        if t >= t2:
+            return pt23(t)
+
+        if t >= t1:
+            return pt12(t)
+
+        return pt1(t)
+
+    def vel(self, t):
+
+        ddp0, ddp1, dp0, dp1, p0, p1, amax = self.ddp0, self.ddp1, self.dp0, self.dp1, self.p0, self.p1, self.amax
+        t1, t2, t3 = self.t1, self.t2, self.t3
+
+        def vt1(t):
+            return dp0 + ddp0 * t
+
+        def vt12(t):
+            return vt1(t1) + amax * (t - t1)
+
+        def vt23(t):
+            return vt12(t2) - amax * (t - t2)
+
+        def vt3(t):
+            return vt23(t3) + ddp1 * (t - t3)
+
+        if t >= t3:
+            return vt3(t)
+        if t >= t2:
+            return vt23(t)
+        if t >= t1:
+            return vt12(t)
+        return vt1(t)
+
+    def acc(self, t):
+
+        t1, t2, t3 = self.t1, self.t2, self.t3
+        ddp0, ddp1, dp0, dp1, p0, p1, amax = self.ddp0, self.ddp1, self.dp0, self.dp1, self.p0, self.p1, self.amax
+
+        if t >= t3:
+            return ddp1
+        if t >= t2:
+            return -amax
+        if t >= t1:
+            return amax
+        return ddp0
+
+    def calculate_t(self):
+
+
+        ddp0, ddp1, dp0, dp1, p0, p1, amax = self.ddp0, self.ddp1, self.dp0, self.dp1, self.p0, self.p1, self.amax
+
+        def func(times):
+
+            t1, t2, t3, tf = times
+            self.t1, self.t2, self.t3, self.tf = t1, t2, t3, tf
+            # p_0 = 0; p_1 = 0; p_2 = 0; p_3 = 0
+            #
+            # t_vmax0 = - dp0 / ddp0
+            # if t_vmax0 > 0:
+            #     p_0 = self.pos(t_vmax0)
+            #
+            # t_vmax1 = - self.vel(t1) / amax + t1
+            # if t_vmax1 > 0 and t_vmax1 > t1 and t_vmax1 < t2:
+            #     p_1 = self.pos(t_vmax1)
+            #
+            # t_vmax2 = self.vel(t2) / amax + t2
+            # if t_vmax2 > 0 and t_vmax2 > t2 and t_vmax2 < t3:
+            #     p_2 = self.pos(t_vmax2)
+            #
+            # t_vmax3 = - self.vel(t3) / ddp1 + t3
+            # if t_vmax3 > 0 and t_vmax3 > t3 and t_vmax2 < tf:
+            #     p_3 = self.pos(t_vmax3)
+
+            return (self.vel(times[-1]) - dp1) ** 2 + (self.pos(times[-1]) - p1) ** 2
+
+            # return max(abs(array([p_0, p_1, p_2, p_3])))
+
+        def cons_eq_vel(times):
+            return self.vel(times[-1]) - dp1
+
+        def cons_eq_pos(times):
+            return self.pos(times[-1]) - p1
+
+        def cons_ineq_t1(times):
+            return times[0]
+
+        def cons_ineq_t2(times):
+            return times[1] - times[0]
+
+        def cons_ineq_t3(times):
+            return times[2] - times[1]
+
+        def cons_ineq_t4(times):
+            return times[3] - times[2]
+
+        cons = ({'type': 'eq',
+                 'fun': cons_eq_vel},
+                {'type': 'eq',
+                 'fun': cons_eq_pos},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t1},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t2},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t3},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t4})
+
+
+        cons = ({'type': 'ineq',
+                 'fun': cons_ineq_t1},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t2},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t3},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t4})
+
+        #res = minimize(func, array([self.t1, self.t2, self.t3, self.tf]), constraints = cons, method = 'SLSQP', options = {'disp':True})
+        res = minimize(func, array([self.t1, self.t2, self.t3, self.tf]), constraints=cons, method='SLSQP',
+                       options={'disp': True})
+
+class AccNStepProfile:
+
+    def __init__(self, acc_bound, p0, p1, dp0, dp1, ddp0, ddp1):
+        self.acc_bound = abs(acc_bound)
+        self.p0 = p0
+        self.p1 = p1
+        self.dp0 = dp0
+        self.dp1 = dp1
+        self.ddp0 = ddp0
+        self.ddp1 = ddp1
+
+        self.times = array([0.5, -1, -1, -1])
+
+        # Initializing amax
+        c = legn_path(5, p0, p1, dp0, dp1, ddp0, ddp1)
+        r = legendre.legroots(legendre.legder(c,3))
+        r = r[r > 0]
+        if len(r) == 0:
+            self.amax = sign(ddp1) * acc_bound * .5
+            self.amin = - self.amax
+        else:
+            self.amax = sign(min(r)) * acc_bound * .5
+            self.amin = - self.amax
+
+        # Initializing times
+        r = legendre.legroots(legendre.legder(c, 2))
+        r = r[r > 0]
+        for i in range(len(r)):
+            self.times[i] = r[i]
+        for i in range(len(self.times)):
+            if self.times[i] == -1:
+                self.times[i] = self.times[i-1]
+
+        self.times[-1] = 2 * self.times[-2]
+        self.times_amax = array(list(self.times) + [self.amax, self.amin])
+
+        accs = array([self.ddp0, self.amax, self.amin, self.ddp1])
+        accs_1 = roll(accs, 1)
+        accs_1[0] = 0
+        self.daccs = accs - accs_1
+
+        self.calculate_t()
+
+    def pos(self, t):
+        pl = self.parab(t - array([0] + list(self.times[:-1])))
+        return dot(self.daccs, pl) + self.dp0 * t + self.p0
+
+    def vel(self, t):
+        rl = self.ramp(t - array([0] + list(self.times[:-1])))
+        return dot(self.daccs, rl) + self.dp0
+
+    def acc(self, t):
+        hl = self.h(t - array([0] + list(self.times[:-1])))
+        return dot(self.daccs, hl)
+
+    @staticmethod
+    def h(x):
+        return (sign(x) + 1) / 2.
+
+    @staticmethod
+    def ramp(x):
+        return (abs(x) + x) / 2.
+
+    @staticmethod
+    def parab(x):
+        return (x / 2.) * (abs(x) + x) / 2.
+
+    def calculate_t(self):
+
+        def f(t):
+            return -abs(self.pos(t))
+
+        def func(times_amax):
+            t1, t2, t3, tf, amax, amin = times_amax
+            self.times = array([t1, t2, t3, tf])
+            self.amax, self.amin = amax, amin
+            accs = array([self.ddp0, self.amax, self.amin, self.ddp1])
+            accs_1 = roll(accs, 1)
+            accs_1[0] = 0
+            self.daccs = accs - accs_1
+            res = minimize_scalar(f, bounds=(0, tf), method='bounded', options={'disp': False})
+            return abs(res.fun)
+
+        def cons_ineq_t2(times):
+            return times[1] - times[0]
+
+        def cons_ineq_t2_jac(times):
+            return array([-1,1]+4*[0])
+
+        def cons_ineq_t3(times):
+            return times[2] - times[1]
+
+        def cons_ineq_t3_jac(times):
+            return array([0] + [-1, 1] + 3 * [0])
+
+        def cons_ineq_t4(times):
+            return times[3] - times[2]
+
+        def cons_ineq_t4_jac(times):
+            return array(2*[0] + [-1, 1] + 2 * [0])
+
+        def cons_eq_vel(times_amax):
+            t1, t2, t3, tf, amax, amin = times_amax
+            self.times = array([t1, t2, t3, tf])
+            self.amax, self.amin = amax, amin
+            return self.vel(tf) - self.dp1
+
+        def cons_eq_vel_jac(times_amax):
+            t1, t2, t3, tf, amax, amin = times_amax
+            self.times = array([t1, t2, t3, tf])
+            self.amax, self.amin = amax, amin
+
+            dvdt1 = (self.ddp0 - self.amax) * self.h(tf - t1)
+            dvdt2 = (self.amax - self.amin) * self.h(tf - t2)
+            dvdt3 = (self.amin - self.ddp1) * self.h(tf - t3)
+            dvdtf = self.acc(tf)
+            dvdamax = self.ramp(tf - t1) - self.ramp(tf - t2)
+            dvdamin = self.ramp(tf - t2) - self.ramp(tf - t3)
+
+            return array([dvdt1, dvdt2, dvdt3, dvdtf, dvdamax, dvdamin])
+
+        def cons_eq_pos(times_amax):
+            t1, t2, t3, tf, amax, amin = times_amax
+            self.times = array([t1, t2, t3, tf])
+            self.amax, self.amin = amax, amin
+            return self.pos(tf) - self.p1
+
+        def cons_eq_pos_jac(times_amax):
+            t1, t2, t3, tf, amax, amin = times_amax
+            self.times = array([t1, t2, t3, tf])
+            self.amax, self.amin = amax, amin
+
+            dpdt1 = (self.ddp0 - self.amax) * self.ramp(tf - t1)
+            dpdt2 = (self.amax - self.amin) * self.ramp(tf - t2)
+            dpdt3 = (self.amin - self.ddp1) * self.ramp(tf - t3)
+            dpdtf = self.vel(tf)
+            dpdamax = self.ramp(tf - t1) - self.parab(tf - t2)
+            dpdamin = self.ramp(tf - t2) - self.parab(tf - t3)
+
+            return array([dpdt1, dpdt2, dpdt3, dpdtf, dpdamax, dpdamin])
+
+        cons = ({'type': 'eq',
+                 'fun': cons_eq_vel,
+                 'jac': cons_eq_vel_jac},
+                {'type': 'eq',
+                 'fun': cons_eq_pos,
+                 'jac': cons_eq_pos_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t2,
+                 'jac': cons_ineq_t2_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t3,
+                 'jac': cons_ineq_t3_jac},
+                {'type': 'ineq',
+                 'fun': cons_ineq_t4,
+                 'jac': cons_ineq_t4_jac})
+
+        bnds = ((0, 60), (0, 60), (0, 60), (0, 60), (-self.acc_bound, self.acc_bound),
+                (-self.acc_bound, self.acc_bound))
+        res = minimize(func, self.times_amax, bounds = bnds, constraints=cons, method='SLSQP',
+                       options={'maxiter':50000, 'disp': True})
+
+        print res
+
+        self.times = res.x[:4]
+        self.amax, self.amin = res.x[4:]
