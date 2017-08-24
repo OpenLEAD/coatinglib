@@ -2,9 +2,8 @@ import unittest
 from . import TestCase
 from .. turbine import Turbine
 from .. turbine_config import TurbineConfig
-from numpy import zeros, linspace, linalg, array, dot, logspace, hstack, einsum, ones, insert
-from numpy import max as npmax
-from math import cos
+from numpy import zeros, linspace, linalg, array, dot, logspace, hstack, einsum, ones, cumsum, vstack, abs
+from math import cos, pi
 from .. import blade_coverage
 from openravepy import ConfigurationSpecification, RaveCreateTrajectory
 import shutil
@@ -52,11 +51,7 @@ class TestBladeCoverage(TestCase):
         """
 
         path = blade_coverage.Path(self.rays)
-
-        dtimes = npmax((self.joints[1:]-self.joints[:-1])/(0.9*self.robot.GetDOFMaxAccel()),1)
-        dtimes = insert(dtimes,0,0)
-
-        path.execute(self.turbine, self.threshold, dtimes)
+        path.execute(self.turbine, self.threshold)
         self.assertTrue(path.success, msg='path was not successfully executed')
 
     def test_serialize(self):
@@ -245,7 +240,7 @@ class TestBladeCoverage(TestCase):
 
         path = blade_coverage.Path(self.rays)
         rays = mathtools.equally_spacer(self.rays, self.threshold)
-        joint_list, _ = path.move_dijkstra(self.turbine, self.rays, self.threshold)
+        joint_list, _, _ = path.move_dijkstra(self.turbine, self.rays, self.threshold)
         with self.robot:
             for i in range(len(joint_list)):
                 for j in range(len(joint_list[i])):
@@ -258,34 +253,14 @@ class TestBladeCoverage(TestCase):
                     self.assertTrue(dot(rays[i][j][3:6],n)>=cos(self.turbine.config.coating.angle_tolerance),
                                     msg='normal ray verification failed in ' + str(i) + ',' + str(j))
 
-    def test_refine_move_dijkstra(self):
-        """ To test refine_move_dijkstra, all new waypoints are verified. i.e., comparison between setUp rays and
-        refine_move_dijkstra output.
-        """
-
-        path = blade_coverage.Path(self.rays)
-        joint_list, rays = path.move_dijkstra(self.turbine, self.rays, self.threshold)
-        joint_list = path.refine_dijkstra(self.turbine, joint_list, rays, self.threshold)
-        with self.robot:
-            for i in range(len(joint_list)):
-                for j in range(len(joint_list[i])):
-                    self.robot.SetDOFValues(joint_list[i][j])
-                    T = self.robot.GetActiveManipulator().GetTransform()
-                    self.assertTrue(linalg.norm(rays[i][j][0:3] - [T[0][3],T[1][3],T[2][3]]) <= 1e-5,
-                                    msg='ray verification failed in '+str(i)+','+str(j))
-                    n = -array([T[0][0], T[1][0], T[2][0]])
-                    n = n/linalg.norm(n)
-                    self.assertTrue(dot(rays[i][j][3:6],n)>=cos(self.turbine.config.coating.angle_tolerance),
-                                    msg='normal ray verification failed in ' + str(i) + ',' + str(j))
-
-    def test_smooth_joint_MLS(self):
-        """ To test the smooth_joint_MLS analytical functions q(t) (joints), dq(t) and ddq(t) (derivatives) are computed
+    def test_mls_parallels(self):
+        """ To test the mls_parallels an analytical functions q(t) (joints), dq(t) and ddq(t) (derivatives) are computed
         so that |dx| = constant = coating speed.
         dx = J*dq, where J is the Jacobian.
         ddx = J*ddq + dq<sup>T</sup>*H*dq, where H is the Hessian
         dx*ddx = 0 condition for |dx| constant. It can be numerically solved with integral.ode.
 
-        The test will than compare the MLS result position, linear velocity and linear accelerations.
+        The test will than compare the mls result position, linear velocity and linear accelerations.
         """
 
         manip = self.robot.GetActiveManipulator()
@@ -326,7 +301,8 @@ class TestBladeCoverage(TestCase):
             joints_acc[i+1] = f(0,r.y)[self.robot.GetActiveDOF():]
 
         path = blade_coverage.Path(self.rays)
-        MLS_joints, MLS_joint_velocities, MLS_joint_acc, _ = path.mls_parallels(self.turbine, [joints])
+        MLS_joints, MLS_joint_velocities, MLS_joint_acc = path.mls_parallels(
+            self.turbine, [joints], [blade_coverage.compute_dtimes_from_joints(self.turbine,joints)])
         MLS_joints = MLS_joints[0]
         MLS_joint_velocities = MLS_joint_velocities[0]
         MLS_joint_acc = MLS_joint_acc[0]
@@ -354,6 +330,87 @@ class TestBladeCoverage(TestCase):
                             msg='joint velocity verification failed in ' + str(i) + '  ' + str(linalg.norm(dx0-dx1)) + ' ' + str(dx0) + ',' + str(dx1) )
             self.assertTrue(linalg.norm(ddx0-ddx1) <= 2.5e-2,
                             msg='joint acc verification failed in ' + str(i) + '  ' + str(linalg.norm(ddx0-ddx1)) + ' ' + str(ddx0) + ',' + str(ddx1))
+
+    def test_mls_joints(self):
+        """ This test will validate the error and scale parameters of the MLS, since the mls_joints is a loop to
+        decrease the scale in order to reduce the error.
+        """
+
+        error = 1e-2
+        scale = 3.
+
+        times = cumsum(blade_coverage.compute_dtimes_from_joints(self.turbine, self.joints))/2.
+        path = blade_coverage.Path(self.rays)
+        new_joints, new_joints_velocities, new_joints_acc = path.mls_joints(
+            self.turbine, self.joints, error=error, mls_degree=6, scale=scale, times=times)
+
+        with self.turbine.robot:
+            for new_joint, joint in zip(new_joints,self.joints):
+                self.turbine.robot.SetDOFValues(joint)
+                pos0 = self.turbine.manipulator.GetTransform()[0:3,3]
+                self.turbine.robot.SetDOFValues(new_joint)
+                pos1 = self.turbine.manipulator.GetTransform()[0:3, 3]
+                self.assertTrue(linalg.norm(pos0 - pos1) <= 1e-2,
+                                msg='position verification failed: ' + str(pos0) + ',' + str(pos1))
+
+
+    def test_joint_error_mh12(self):
+        """ This is a test specific for the MH12 robot. It will verify if the error between two joints is right"""
+
+        j0 = zeros(self.turbine.robot.GetDOF())
+        j1 = j0 + [pi/2, 0, 0, 0, 0, 0]
+        p0 = array([1.425, 0., 7.264])
+        p1 = array([0., 1.425, 7.264])
+        path = blade_coverage.Path(self.rays)
+        e, _ = path.joint_error(self.turbine.robot, [j0], [j1])
+        error = linalg.norm(p0-p1)
+        self.assertAlmostEqual(e, error)
+
+    def test_parallels_transitions(self):
+
+        max_vel = self.turbine.robot.GetDOFMaxVel()
+        max_acc = self.turbine.robot.GetDOFMaxAccel()
+        dof = self.turbine.robot.GetDOF()
+        dof_limits = self.turbine.robot.GetDOFLimits()
+
+        joints_0 = dof_limits[0]/10.
+        joints_1 = dof_limits[1]/10.
+        vel_0 = max_vel*0.8
+        vel_1 = -max_vel*0.8
+        acc = zeros(self.turbine.robot.GetDOF())
+
+        joints_parallels = [[joints_0], [joints_1], [joints_0]]
+        vel_parallels = [[vel_0], [vel_1], [vel_0]]
+        acc_parallels = [[acc], [acc], [acc]]
+        times_parallel = [[0], [0], [0]]
+
+        path = blade_coverage.Path(self.rays)
+        joints_parallel, joints_vel_parallel, joints_acc_parallel, times_parallel = path.parallels_transitions(
+            self.turbine, joints_parallels, vel_parallels, acc_parallels, times_parallel)
+
+        self.assertTrue((abs(vstack(joints_vel_parallel)) <= max_vel*0.8).all())
+        #self.assertTrue((abs(vstack(joints_acc_parallel)) <= max_acc * 0.8).all())
+        for joints_acc in joints_acc_parallel:
+            for acc in joints_acc:
+                if (abs(acc) > max_acc * 0.8).any():
+                    print abs(acc), max_acc * 0.8
+
+        for i in range(self.turbine.robot.GetDOF()):
+            self.assertAlmostEqual(joints_parallel[0][0][i], joints_0[i])
+            self.assertAlmostEqual(joints_parallel[2][0][i], joints_1[i])
+            self.assertAlmostEqual(joints_parallel[4][0][i], joints_0[i])
+
+        self.assertTrue(len(joints_parallel)==5)
+
+    #def test_create_trajectories(self):
+
+    #def test_organize_rays_in_parallels(self):
+
+    #def test_base_grid_validation(self):
+
+    #def test_compute_dtimes_from_joints(self):
+
+    #def test_compute_dtimes_from_rays(self):
 
 
 if __name__ == '__main__':
