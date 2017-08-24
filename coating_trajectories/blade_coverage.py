@@ -1,6 +1,5 @@
-from numpy import array, linalg, dot, zeros, inf, vstack, mean, std, cumsum, abs, sign, ones, cross, linspace
+from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, sign
 from numpy.polynomial import legendre
-from math import acos
 import planning
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory, interfaces
 import mathtools
@@ -9,13 +8,12 @@ import rail_place
 from xml.etree import ElementTree as ET
 from os import listdir, makedirs
 from os.path import realpath, join, isfile
-import time as Time
 import matplotlib.pyplot as plt
 
 
 ## @file
 # @brief This contains functions and a class (path) to compute the joint solutions given trajectories (operational to joint space)
-# @author Renan S. Freitas
+# @author Renan S. Freitas & Eduardo Elael
 # @bug No known bugs
 
 class Path:
@@ -23,11 +21,11 @@ class Path:
         Robot's full trajectories are stored in OpenRave format Trajectory Class, as below:
         [joints_values, joints_vel_values, joints_acc_values, deltatimes]
 
-        Args:
-            rays: (float[m][n<SUB>i</SUB>][6]) cartesian points and normals
+    Args:
+        rays: (float[m][n<SUB>i</SUB>][6]) cartesian points and normals
 
-        Examples
-            >>> res = path(rays)
+    Examples
+        >>> res = path(rays)
     """
 
     def __init__(self, rays=None):
@@ -35,7 +33,7 @@ class Path:
         self.data = []
         self.success = False
 
-    def execute(self, turbine, threshold=5e-2, dtimes=None):
+    def execute(self, turbine, threshold=5e-2):
         """ Method to compute joint_values, joint_velocities, joint_accelerations and deltatimes.
             It uses the Dijkstra planning algorithm (see move_dijkstra function).
 
@@ -51,24 +49,25 @@ class Path:
         if self.rays is None: return
 
         joint_path, rays_list, dtimes = self.move_dijkstra(turbine, self.rays, threshold)
-        if len(joint_path) == 0:
-            return
 
-        joint_path, dtimes = self.parallel_transition(turbine, joint_path, dtimes)
-
-        new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_times_path = self.mls_parallels(
+        new_joint_path, new_joint_velocity_path, new_joint_acc_path = self.mls_parallels(
             turbine, joint_path, dtimes)
+
+       # new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
+       #     turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
+
 
         acc = abs(vstack(new_joint_acc_path))
         vel = abs(vstack(new_joint_velocity_path))
 
         if (vel > turbine.robot.GetDOFMaxVel()).any():
             print 'vel max fail'
-            return
+            #return
 
         if (acc > turbine.robot.GetDOFMaxAccel()).any():
             print 'acc max fail'
-            return
+            #return
+            # A further inspection must be made. There are some strategies: break the parallel, retiming
 
         self.success = True
 
@@ -78,7 +77,7 @@ class Path:
                                           new_joint_path[i],
                                           new_joint_velocity_path[i],
                                           new_joint_acc_path[i],
-                                          new_times_path[i])
+                                          dtimes[i])
             self.data.append(traj)
 
         return
@@ -245,19 +244,19 @@ class Path:
     def get_torques(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
 
-            Args:
-                robot: (Robot) is the robot object.
-                parallel_number: (int) is the parallel number to get the joint.
-                point_number: (int) is the specific point in the parallel to get the joint _value.
+        Args:
+            robot: (Robot) is the robot object.
+            parallel_number: (int) is the parallel number to get the joint.
+            point_number: (int) is the specific point in the parallel to get the joint _value.
 
-            Returns:
-                List float[m][n<SUB>i</SUB>][nDOF] of joint values
+        Returns:
+            List float[m][n<SUB>i</SUB>][nDOF] of joint values
 
-            Examples:
-                >>> path.get_torques(turbine.robot, 0, 0)
-                >>> N = path.data[0].GetNumWaypoints()
-                >>> torques = []
-                >>> for i in range(N): torques.append(path.get_torques(turbine.robot,0,i)) # Get all torques in parallel 0
+        Examples:
+            >>> path.get_torques(turbine.robot, 0, 0)
+            >>> N = path.data[0].GetNumWaypoints()
+            >>> torques = []
+            >>> for i in range(N): torques.append(path.get_torques(turbine.robot,0,i)) # Get all torques in parallel 0
         """
 
         with robot:
@@ -266,6 +265,19 @@ class Path:
             return robot.ComputeInverseDynamics(self.get_acc(robot, parallel_number, point_number))
 
     def plot_velocities(self, turbine, parallel_number):
+        """ Plot joint velocities of specific parallel.
+
+        Args:
+            turbine: (@ref Turbine) is the turbine object.
+            parallel_number: (int) is the parallel number to get the joint.
+
+        Returns:
+            velocity graphic.
+
+        Examples:
+            >>> path.plot_velocities(turbine, 0)
+        """
+
         velocities = []
         dtimes = []
         max_vel = turbine.robot.GetDOFMaxVel()
@@ -292,6 +304,19 @@ class Path:
         return
 
     def plot_acc(self, turbine, parallel_number):
+        """ Plot joint accelerations of specific parallel.
+
+        Args:
+            turbine: (@ref Turbine) is the turbine object.
+            parallel_number: (int) is the parallel number to get the joint.
+
+        Returns:
+            acceleration graphic.
+
+        Examples:
+            >>> path.plot_acc(turbine, 0)
+        """
+
         acc = []
         dtimes = []
         max_acc = turbine.robot.GetDOFMaxAccel()
@@ -339,7 +364,7 @@ class Path:
         joint_path_list = []
         vel_limits = array(robot.GetDOFVelocityLimits())[:-1]
         acc_limits = array(robot.GetDOFMaxAccel())[:-1]
-        organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)[:3]
+        organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
         dtimes_list = []
 
         for i, organized_rays in enumerate(organized_rays_list):
@@ -359,7 +384,6 @@ class Path:
             joints = array([array(j)[:, :-1] for j in joints])
             joint_path, path, min_cost, adj, cost = planning.make_dijkstra_vel(joints, dtimes, vel_limits,
                                                                            acc_limits, True)
-            print  min_cost
 
             if i != len(organized_rays_list) - 1:
                 joint_path = joint_path[:-1]
@@ -376,65 +400,6 @@ class Path:
 
         return joint_path_list, organized_rays_list, dtimes_list
 
-    @staticmethod
-    def refine_dijkstra(turbine, joint_path_list, rays_list, interpolation):
-        """ Method to refine the dijkstra algorithm. Since there is orientation tolerance for the end-effector,
-        there might be infinite inverse kinematics solutions for all points, thus refine dijkstra will try to find
-        closer (optimal) solutions, using the previous dijkstra general solution (rough discretization) .
-
-        Args:
-            turbine: (@ref Turbine) turbine object
-            joint_path_list: (float[m][n<SUB>i</SUB>][nDOF]) joint values list for each parallel
-            rays_list: (float[m][n<SUB>i</SUB>][6]) zigzagging equally spaced parallels
-            interpolation: (float) distance between points
-
-        Returns:
-            New joint values list for each parallel
-
-        Examples:
-            >>> joint_path = path.refine_dijkstra(turbine, joint_path_list, rays_list, 3e-3)
-        """
-        robot = turbine.robot
-        time = interpolation / turbine.config.coating.coating_speed
-        limits = robot.GetDOFVelocityLimits() * time
-        deep = True
-        new_joint_path = []
-        with robot:
-            for i, rays in enumerate(rays_list):
-                joints_path = joint_path_list[i]
-                new_joints = []
-                for j, joint in enumerate(joints_path):
-                    if j == 0 or j == len(joints_path) - 1:
-                        new_joints.append([joint])
-                        continue
-
-                    robot.SetDOFValues(joints_path[j - 1])
-                    Rx = robot.GetActiveManipulator().GetTransform()[0:3, 0]
-                    Rx = Rx / linalg.norm(Rx)
-                    d = -dot(rays[j - 1][3:6], Rx)
-                    angle0 = mathtools.clean_acos(d)
-
-                    robot.SetDOFValues(joint)
-                    Rx = robot.GetActiveManipulator().GetTransform()[0:3, 0]
-                    Rx = Rx / linalg.norm(Rx)
-                    d = -dot(rays[j][3:6], Rx)
-                    angle1 = mathtools.clean_acos(d)
-
-                    angle_tolerance_init = max([min([angle0, angle1]) - 0.01, 0])
-                    angle_tolerance_end = min([max([angle0, angle1]) + 0.01, 3.14])
-                    iksol = planning.ik_angle_tolerance(turbine, rays[j],
-                                                        angle_tolerance_init=angle_tolerance_init,
-                                                        angle_tolerance_end=angle_tolerance_end,
-                                                        number_of_phi=36, number_of_theta=8, deep=deep)
-                    iksol += [joint]
-                    new_joints.append(iksol)
-
-                joint_path, path, min_cost, adj, cost = planning.make_dijkstra_mh12(new_joints, limits, True)
-                if min_cost != inf:
-                    new_joint_path.append(joint_path)
-                else:
-                    return joint_path_list
-        return new_joint_path
 
     def mls_parallels(self, turbine, joints_parallels, dtimes_parallels):
         """ This method calls mls_joints to smooth the trajectories (all parallels)
@@ -442,6 +407,7 @@ class Path:
         Args:
             turbine: (@ref Turbine) turbine object
             joint_path: (float[m][n<SUB>i</SUB>][nDOF]) list of joints for all parallels
+            dtimes_parallels: (float[m][n<SUB>i</SUB>][1]) list of dtimes for all parallels
 
         Returns:
             Four lists: smooth joint values, joint velocities,  joint accelerations, and deltatimes
@@ -453,31 +419,24 @@ class Path:
         new_joints_parallels = []
         new_joints_vel_parallels = []
         new_joints_acc_parallels = []
-        new_dtimes_parallels = []
-
         for joints, dtimes in zip(joints_parallels, dtimes_parallels):
-            scale = 3.
             dtimes = list(dtimes)
-            self.mls_joints(turbine, joints, scale, dtimes)
+            joints = array( [(2*joints[0]-joints[1])] + list(joints) + [(2*joints[-1]-joints[-2])] )
+            dtimes = array( dtimes[:2] + dtimes[1:] + dtimes[-1:] )
+            new_joints, new_vel, new_acc = self.mls_joints(
+                turbine, joints, error=2.5e-3, mls_degree=6, scale=3., times=cumsum(dtimes))
+            new_joints_parallels += [new_joints[1:-1]]
+            new_joints_vel_parallels += [new_vel[1:-1]]
+            new_joints_acc_parallels += [new_acc[1:-1]]
 
-            joints = array( (2*joints[0]-joints[1]) + list(joints) + 2*(joints[-1]-joints[-2]) )
-            dtimes = dtimes[:2] + dtimes[1:] + dtimes[-1]
-            new_joints, new_joints_velocities, new_joints_acc, new_dtimes = self.mls_joints(
-                turbine, joints, scale, dtimes)
+        return new_joints_parallels, new_joints_vel_parallels, new_joints_acc_parallels
 
-            new_joints_parallels += [new_joints]
-            new_dtimes_parallels += [new_dtimes]
-            new_joints_vel_parallels += [new_joints_velocities]
-            new_joints_acc_parallels += [new_joints_acc]
-
-        return new_joints_parallels, new_joints_vel_parallels, new_joints_acc_parallels, new_dtimes_parallels
-
-    def mls_joints(self, turbine, joints, error=2.5e-3, mls_degree = 6, scale=3., times=None):
+    def mls_joints(self, turbine, joints, error, mls_degree = 6, scale=3., times=None):
         """ The Dijkstra optimization method will calculate the best path for the given discretization. Discretization
         will generate some "jumps", and infeasible velocities/accelerations. A moving least square method was developed
         for path smoothness. The MLS generates a trajectory that will not pass by all waypoints, but it will choose the
         best scale given the maximum required error in cartesian space (meters).
-        It returns joints, joint velocities, accelerations and deltatimes.
+        It returns joints, joint velocities, accelerations.
         This method chooses the best scale given the maximum required error in cartesian space.
 
         Args:
@@ -485,10 +444,10 @@ class Path:
             joints: (float[n<SUB>i</SUB>][nDOF]) list of joints]
             error: (float) maximum required error in cartesian space (meters)
             scale: (float) MLS scale
-            times: (float[n<SUB>i</SUB>]) deltatimes between joints
+            times: (float[n<SUB>i</SUB>]) cumsum(deltatimes)
 
         Returns:
-            lists: smooth joint values, joint velocities,  joint accelerations, and deltatimes
+            lists: smooth joint values, joint velocities,  joint accelerations
 
         Examples:
             >>> joints, joint_velocity, joint_acc, dtimes = path.mls_joints(turbine, joints)
@@ -507,14 +466,13 @@ class Path:
                 new_joints_velocities += [v]
                 new_joints_acc += [a]
             new_joints = array(new_joints).T
-            new_dtimes = compute_dtimes_from_joints(turbine, new_joints)
             new_joints_velocities = array(new_joints_velocities).T
             new_joints_acc = array(new_joints_acc).T
             e, _ = self.joint_error(turbine.robot, joints, new_joints)
             if e <= error:
                 break
             scale -= .1
-        return array(new_joints), array(new_joints_velocities), array(new_joints_acc), array(new_dtimes)
+        return array(new_joints), array(new_joints_velocities), array(new_joints_acc)
 
     @staticmethod
     def joint_error(robot, joints_a, joints_b):
@@ -528,10 +486,10 @@ class Path:
             joints_b: (float[n<SUB>i</SUB>][nDOF]) list of joints_b to be compared with.
 
         Returns:
-            mean(error) + 0.5*std (float).
+            mean(error) + 0.5*std (float) and new_points
 
         Examples:
-            >>> e = path.joint_error(robot, joints_a, joints_b)
+            >>> e,_ = path.joint_error(robot, joints_a, joints_b)
         """
 
         manip = robot.GetActiveManipulator()
@@ -547,95 +505,10 @@ class Path:
                 new_points += [P0]
         return mean(error) + .5 * std(error), new_points
 
-    def replanning(self, turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path):
-        """ Not implemented.
-        """
-
-        for k in range(len(new_joint_path)):
-            q, dq, ddq, dt = array(new_joint_path[k]), array(new_joint_velocity_path[k]), array(
-                new_joint_acc_path[k]), array(new_dtimes_path[k])
-
-            for j in range(len(ddq[0])):
-                timeshift_list = []
-                # start_h = -1
-                # start = -1
-                max_accel = turbine.robot.GetDOFMaxAccel()[j]
-                for i, ddqij in enumerate(ddq[:, j]):
-                    #     if ddqij >  max_accel*0.95:
-                    #         if start == -1:
-                    #             start_h = i
-                    #     if ddqij >  max_accel:
-                    #         if start == -1:
-                    #             start = 1
-                    #     if ddqij <  max_accel*0.95:
-                    #         if start == 1:
-                    #             timeshift_list.append([start_h, i])
-                    #             start = -1
-                    #         start_h = -1
-
-                    if abs(ddqij) > max_accel * 0.95:
-                        timeshift_list.append(i)
-
-                if len(timeshift_list) > 0:
-                    q[:, j], dt = self.timeshift(timeshift_list, max_accel * 0.95, q[:, j], dq[:, j], ddq[:, j], dt)
-                    try:
-                        q, dq, ddq, dt = self.mls_joints(turbine, q, 3., cumsum(dt))
-                    except TypeError:
-                        print 'dt type - ', type(dt)
-
-            new_joint_path[k], new_joint_velocity_path[k], new_joint_acc_path[k], new_dtimes_path[k] = q, dq, ddq, dt
-        return new_joint_path, new_joint_velocity_path, new_joint_acc_path, new_dtimes_path
 
     @staticmethod
-    def timeshift(timeshift_list, max_accel, q, dq, ddq, dt):
-        """ Not implemented.
-        """
-
-        # for times in timeshift_list:
-        #     dq0 = dq[times[0]]
-        #     delta_q = q[times[1]]-q[times[0]]
-        #     dtime = sum(dt[times[0] + 1:times[1] + 1])
-        #     limit = sign(ddq[times[0]]) * min(max_accel,abs(dq[times[1]]-dq[times[0]])/dtime)
-        #     tf = (-dq0 + (dq0 ** 2 + 2 * delta_q * limit) ** 0.5) / limit
-        #
-        #     print 'times[0],times[1] - ', times[0], times[1]
-        #     print 'ddq[times[0]] - ', ddq[times[0]]
-        #     print 'ddq[times[1]] - ', ddq[times[1]]
-        #     print 'delta_dq/dtime - ', (dq[times[1]]-dq[times[0]])/dtime
-        #     print 'dq0 - ', dq0
-        #     print 'delta_q - ', delta_q
-        #     print 'limit - ', limit
-        #     print 'dq0**2+2*delta_q*limit - ', dq0 ** 2 + 2 * delta_q * limit
-        #     print '(dq0**2+2*delta_q*limit)**0.5 -  ', (dq0 ** 2 + 2 * delta_q * limit) ** 0.5
-        #     print '(-dq0+(dq0**2+2*delta_q*limit)**0.5) - ', (-dq0 + (dq0 ** 2 + 2 * delta_q * limit) ** 0.5)
-        #
-        #     dt[times[0]:times[1]] = tf / (times[1] - times[0])
-        #     q[times[0]:times[1]] = linspace(q[times[0]],q[times[1]],times[1]-times[0],endpoint=False)
-
-        for t in timeshift_list:
-            if t == len(q) - 1:
-                continue
-
-            dq0 = dq[t]
-            delta_q = q[t + 1] - q[t]
-            limit = sign(ddq[t]) * max_accel * 0.95
-            tf = (-dq0 + (dq0 ** 2 + 2 * delta_q * limit) ** 0.5) / limit
-
-            print 't - ', t
-            print 'ddq[t] - ', ddq[t]
-            print 'limit - ', limit
-            print 'dq0 - ', dq0
-            print 'dqf - ', dq[t + 1]
-            print 'delta_q - ', delta_q
-            print 'tf - ', tf
-            print 'dt[t+1] -', dt[t + 1]
-
-            dt[t + 1] = tf
-
-        return q, dt
-
-    @staticmethod
-    def parallels_transitions(turbine, joints_parallel, times_parallel, step=0.1, number_of_points=6., max_acc=.8) :
+    def parallels_transitions(turbine, joints_parallel, joints_vel_parallel, joints_acc_parallel, times_parallel,
+                              step=.1, number_of_points=8., max_acc=.8) :
         """ Given all parallels solutions, i.e., joints solutions for all waypoints split in parallels (lists),
         this method computes cubic polynomials to interpolate the two points: end of a parallel - begin of the next
         parallel, in joint space, considering velocities. It will return the parallels and the computed transition
@@ -654,40 +527,71 @@ class Path:
         """
 
         robot = turbine.robot
+        acc_max = robot.GetDOFMaxAccel() * max_acc
+        vel_max = robot.GetDOFVelocityLimits()
+
+        if max_acc >= 0.9:
+            raise ValueError('max_acc must be between 0.1 and 0.9')
 
         for i in range(len(joints_parallel) - 1):
             joint_0 = joints_parallel[2*i][-1]
-            vel_0 = (joints_parallel[2*i][-1]-joints_parallel[i][-2])/times_parallel[2*i][-1]
+            vel_0 = joints_vel_parallel[2*i][-1]
             joint_1 = joints_parallel[2*i + 1][0]
-            joint_2 = joints_parallel[2*i + 1][1]
-            dt12 = times_parallel[2*i + 1][1]
+            vel_1 = joints_vel_parallel[2*i + 1][0]
+            acc_0 = joints_acc_parallel[2*i][-1]
+            acc_1 = joints_vel_parallel[2*i + 1][0]
 
-            dq = (joint_2 - joint_1)/dt12
+            for j in range(robot.GetDOF()):
+                acc_0[j] = clip(acc_0[j], -acc_max[j], acc_max[j])
+                acc_1[j] = clip(acc_1[j], -acc_max[j], acc_max[j])
 
-            tf = max((dq - vel_0) / (robot.GetDOFMaxAccel() * max_acc))
+            tf = .1
+            while True:
+                c = mathtools.legquintic_path(joint_0, joint_1, vel_0, vel_1, acc_0, acc_1, t=[0, tf])
+                print 'tf = ', tf
+                #c = mathtools.legcubic_path(joint_0, joint_1, vel_0, vel_1, t=[0, tf])
+                joints = []
+                joints_vel = []
+                joints_acc = []
+                times = []
+                dt = min([step, tf / number_of_points])
+                for t in linspace(0, tf, max([tf / step, number_of_points])):
+                    acc = legendre.legval(t, legendre.legder(c, 2))
 
-            c = mathtools.legcubic_path(joint_0, joint_1, vel_0, dq, [0, tf])
+                    if (abs(acc) > acc_max).any():
+                        tf+= .1
+                        break
 
-            joints = []
-            times = []
-            dt = min([step, tf / number_of_points])
-            for t in linspace(0, tf, max([tf / step, number_of_points])):
-                joints.append(legendre.legval(t, c))
-                times.append(dt)
+                    vel = legendre.legval(t, legendre.legder(c, 1))
 
-            joints = joints[1:]
-            joints_parallel[2 * i + 1] =  joints_parallel[2*i+1][1:]
-            times = times[1:]
-            times_parallel[2 * i + 1] = times_parallel[2*i+1][1:]
-            joints_parallel.insert(2*i + 1, joints)
-            times_parallel.insert(2*i + 1, times)
+                    #if (abs(vel) > vel_max).any():
+                    #    tf+= .1
+                    #    break
 
-        return joints_parallel, times_parallel
+                    joints.append(legendre.legval(t, c))
+                    joints_vel.append(vel)
+                    joints_acc.append(acc)
+                    times.append(dt)
+                else:
+                    break
+
+
+            joints = joints[1:-1]
+            joints_vel = joints_vel[1:-1]
+            joints_acc = joints_acc[1:-1]
+            times_parallel[2 * i + 1][0] = times[-1]
+            times = times[1:-1]
+
+            joints_parallel.insert(2 * i + 1, joints)
+            joints_vel_parallel.insert(2 * i + 1, joints_vel)
+            joints_acc_parallel.insert(2 * i + 1, joints_acc)
+            times_parallel.insert(2 * i + 1, times)
+
+        return joints_parallel, joints_vel_parallel, joints_acc_parallel, times_parallel
 
     @staticmethod
     def create_trajectory(turbine, joints, joints_vel, joints_acc, times):
         """ This method creates the trajectory specification in OpenRave format and insert the waypoints:
-
         joints - vels - accs - times
         DOF - DOF - DOF - DOF - 1
 
