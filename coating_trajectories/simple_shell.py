@@ -7,27 +7,31 @@ from numpy import array
 dir_test = join(realpath('.'),'test')
 os.environ['OPENRAVE_DATA'] = str(dir_test)
 cfg = TurbineConfig.load('turbine_unittest.cfg','test')
-turb = Turbine(cfg)
+turbine = Turbine(cfg)
 
 import visualizer
-vis = visualizer.Visualizer(turb.env)
+vis = visualizer.Visualizer(turbine.env)
 
 import blade_coverage
 import db
 
 grid = 1
-robot = turb.robot
+
+robot = turbine.robot
 manip = robot.GetActiveManipulator()
 robot.GetLink('Flame').Enable(False)
-DB = db.DB('LIP',turb)
+DB = db.DB('LIP',turbine)
 
 T = array([[ 1.,  0.,  0.,  0.],
        [ 0.,  0.,  1.,  0.],
        [ 0., -1.,  0.,  0.],
        [ 0.,  0.,  0.,  1.]])
 DB.T = T
+
 psa = (1.8000000000000034, 0.10879140586688345, 1.349065850398866)
+#psa = (0.90000000000000258, 0.72802447084001465, 0.30186829920226826)
+
 
 threshold = 5e-2
-#path = blade_coverage.base_grid_validation(turb, psa, DB, grid, threshold)
+path = blade_coverage.base_grid_validation(turbine, psa, DB, grid, threshold)
 
