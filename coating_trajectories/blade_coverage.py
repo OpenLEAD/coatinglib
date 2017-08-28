@@ -53,8 +53,8 @@ class Path:
         new_joint_path, new_joint_velocity_path, new_joint_acc_path = self.mls_parallels(
             turbine, joint_path, dtimes)
 
-       # new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
-       #     turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
+        new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
+            turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
 
 
         acc = abs(vstack(new_joint_acc_path))
@@ -528,7 +528,6 @@ class Path:
 
         robot = turbine.robot
         acc_max = robot.GetDOFMaxAccel() * max_acc
-        vel_max = robot.GetDOFVelocityLimits()
 
         if max_acc >= 0.9:
             raise ValueError('max_acc must be between 0.1 and 0.9')
@@ -545,36 +544,39 @@ class Path:
                 acc_0[j] = clip(acc_0[j], -acc_max[j], acc_max[j])
                 acc_1[j] = clip(acc_1[j], -acc_max[j], acc_max[j])
 
-            tf = .1
-            while True:
-                c = mathtools.legquintic_path(joint_0, joint_1, vel_0, vel_1, acc_0, acc_1, t=[0, tf])
-                print 'tf = ', tf
-                #c = mathtools.legcubic_path(joint_0, joint_1, vel_0, vel_1, t=[0, tf])
-                joints = []
-                joints_vel = []
-                joints_acc = []
-                times = []
-                dt = min([step, tf / number_of_points])
-                for t in linspace(0, tf, max([tf / step, number_of_points])):
-                    acc = legendre.legval(t, legendre.legder(c, 2))
+            times = []
+            for i in range(robot.GetDOF()):
+                accstep = mathtools.AccNStepProfile(
+                    acc_max[i], joint_0[i], joint_1[i], vel_0[i], vel_1[i], acc_0[i], acc_1[i])
+                times.append(accstep.tf)
 
-                    if (abs(acc) > acc_max).any():
-                        tf+= .1
-                        break
+            tf = max(times)
+            accsteps = []
+            for i in range(robot.GetDOF()):
+                accsteps.append(mathtools.AccNStepProfile(
+                    acc_max[i], joint_0[i], joint_1[i], vel_0[i], vel_1[i], acc_0[i], acc_1[i], max(times)))
 
-                    vel = legendre.legval(t, legendre.legder(c, 1))
 
-                    #if (abs(vel) > vel_max).any():
-                    #    tf+= .1
-                    #    break
+            joints = []
+            joints_vel = []
+            joints_acc = []
+            times = []
+            dt = min([step, tf / number_of_points])
+            for t in linspace(0, tf, max([tf / step, number_of_points])):
+                joint = []
+                joint_vel = []
+                joint_acc = []
+                for i in range(robot.GetDOF()):
+                    joint.append(accsteps[i].pos(t))
+                    joint_vel.append(accsteps[i].vel(t))
+                    joint_acc.append(accsteps[i].acc(t))
 
-                    joints.append(legendre.legval(t, c))
-                    joints_vel.append(vel)
-                    joints_acc.append(acc)
-                    times.append(dt)
-                else:
-                    break
 
+
+                joints.append(joint)
+                joints_vel.append(joint_vel)
+                joints_acc.append(joint_acc)
+                times.append(dt)
 
             joints = joints[1:-1]
             joints_vel = joints_vel[1:-1]
