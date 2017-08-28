@@ -1,6 +1,6 @@
 from numpy import array, dot, cross, outer, eye, sum, sqrt, exp, roll
-from numpy import random, transpose, zeros, linalg, multiply
-from numpy import ndindex, ceil, floor, einsum, vstack
+from numpy import random, transpose, zeros, linalg, multiply, logical_and
+from numpy import ndindex, ceil, floor, einsum, vstack, iscomplex
 from numpy import argsort, linspace, power, arange
 from numpy import ones, maximum, minimum, round, sign, vander
 from numpy.polynomial import legendre
@@ -17,7 +17,9 @@ from scipy.ndimage.interpolation import shift
 from itertools import cycle, islice
 from scipy.linalg import logm, expm
 from openravepy import quatFromRotationMatrix, matrixFromQuat
-from scipy.optimize import minimize, minimize_scalar
+from scipy.optimize import minimize, brute
+import warnings
+warnings.filterwarnings('ignore')
 
 _base_module_precision = 0.2
 _p_step = 0.1
@@ -1669,7 +1671,7 @@ class AccDoubleStepProfile:
 
 class AccNStepProfile:
 
-    def __init__(self, acc_bound, p0, p1, dp0, dp1, ddp0, ddp1):
+    def __init__(self, acc_bound, p0, p1, dp0, dp1, ddp0, ddp1, tf = None):
         self.acc_bound = abs(acc_bound)
         self.p0 = p0
         self.p1 = p1
@@ -1677,31 +1679,43 @@ class AccNStepProfile:
         self.dp1 = dp1
         self.ddp0 = ddp0
         self.ddp1 = ddp1
+        self.tf = tf
 
+        self.fixed_end_time = False
         self.times = array([0.5, -1, -1, -1])
+        if tf != None:
+            self.fixed_end_time = True
+            self.times = array([0.5 * tf, -1, -1, -1])
 
         # Initializing amax
         c = legn_path(5, p0, p1, dp0, dp1, ddp0, ddp1)
         r = legendre.legroots(legendre.legder(c,3))
-        r = r[r > 0]
+        r = r[logical_and(~iscomplex(r), r > 0)]
         if len(r) == 0:
-            self.amax = sign(ddp1) * acc_bound * .5
+            self.amax = sign(ddp1) * acc_bound
             self.amin = - self.amax
         else:
-            self.amax = sign(min(r)) * acc_bound * .5
+            self.amax = sign(min(r)) * acc_bound
             self.amin = - self.amax
 
         # Initializing times
         r = legendre.legroots(legendre.legder(c, 2))
-        r = r[r > 0]
+        r = r[logical_and(~iscomplex(r), r > 0)]
         for i in range(len(r)):
             self.times[i] = r[i]
         for i in range(len(self.times)):
             if self.times[i] == -1:
                 self.times[i] = self.times[i-1]
 
-        self.times[-1] = 2 * self.times[-2]
-        self.times_amax = array(list(self.times) + [self.amax, self.amin])
+        if not self.fixed_end_time:
+            self.times[-1] = 2 * self.times[-2]
+        else:
+            self.times[-1] = tf
+
+        if self.fixed_end_time:
+            self.times_amax = array(list(self.times[:-1]) + [self.amax, self.amin])
+        else:
+            self.times_amax = array(list(self.times) + [self.amax, self.amin])
 
         accs = array([self.ddp0, self.amax, self.amin, self.ddp1])
         accs_1 = roll(accs, 1)
@@ -1711,15 +1725,24 @@ class AccNStepProfile:
         self.calculate_t()
 
     def pos(self, t):
-        pl = self.parab(t - array([0] + list(self.times[:-1])))
+        if not self.fixed_end_time:
+            times = list(self.times[:-1])
+        else: times = list(self.times)
+        pl = self.parab(t - array([0] + times))
         return dot(self.daccs, pl) + self.dp0 * t + self.p0
 
     def vel(self, t):
-        rl = self.ramp(t - array([0] + list(self.times[:-1])))
+        if not self.fixed_end_time:
+            times = list(self.times[:-1])
+        else: times = list(self.times)
+        rl = self.ramp(t - array([0] + times))
         return dot(self.daccs, rl) + self.dp0
 
     def acc(self, t):
-        hl = self.h(t - array([0] + list(self.times[:-1])))
+        if not self.fixed_end_time:
+            times = list(self.times[:-1])
+        else: times = list(self.times)
+        hl = self.h(t - array([0] + times))
         return dot(self.daccs, hl)
 
     @staticmethod
@@ -1740,96 +1763,100 @@ class AccNStepProfile:
             return -abs(self.pos(t))
 
         def func(times_amax):
-            t1, t2, t3, tf, amax, amin = times_amax
-            self.times = array([t1, t2, t3, tf])
+            if self.fixed_end_time:
+                t1, t2, t3, amax, amin = times_amax
+                self.times = array([t1, t2, t3])
+            else:
+                t1, t2, t3, self.tf, amax, amin = times_amax
+                self.times = array([t1, t2, t3, self.tf])
             self.amax, self.amin = amax, amin
+
             accs = array([self.ddp0, self.amax, self.amin, self.ddp1])
             accs_1 = roll(accs, 1)
             accs_1[0] = 0
             self.daccs = accs - accs_1
-            res = minimize_scalar(f, bounds=(0, tf), method='bounded', options={'disp': False})
-            return abs(res.fun)
+            res = brute(f, ranges = (slice(0, self.tf, 0.1),), full_output=True, finish=None)
+            return abs(res[1])
 
-        def cons_ineq_t2(times):
-            return times[1] - times[0]
+        def cons_ineq_t2(times_amax):
+            if self.fixed_end_time:
+                t1, t2, t3, amax, amin = times_amax
+                self.times = array([t1, t2, t3])
+            else:
+                t1, t2, t3, self.tf, amax, amin = times_amax
+                self.times = array([t1, t2, t3, self.tf])
+            self.amax, self.amin = amax, amin
 
-        def cons_ineq_t2_jac(times):
-            return array([-1,1]+4*[0])
+            return t2 - t1
 
-        def cons_ineq_t3(times):
-            return times[2] - times[1]
+        def cons_ineq_t3(times_amax):
+            if self.fixed_end_time:
+                t1, t2, t3, amax, amin = times_amax
+                self.times = array([t1, t2, t3])
+            else:
+                t1, t2, t3, self.tf, amax, amin = times_amax
+                self.times = array([t1, t2, t3, self.tf])
+            self.amax, self.amin = amax, amin
 
-        def cons_ineq_t3_jac(times):
-            return array([0] + [-1, 1] + 3 * [0])
+            return t3 - t2
 
-        def cons_ineq_t4(times):
-            return times[3] - times[2]
+        def cons_ineq_t4(times_amax):
+            if self.fixed_end_time:
+                t1, t2, t3, amax, amin = times_amax
+                self.times = array([t1, t2, t3])
+            else:
+                t1, t2, t3, self.tf, amax, amin = times_amax
+                self.times = array([t1, t2, t3, self.tf])
+            self.amax, self.amin = amax, amin
 
-        def cons_ineq_t4_jac(times):
-            return array(2*[0] + [-1, 1] + 2 * [0])
+            return self.tf - t3
 
         def cons_eq_vel(times_amax):
-            t1, t2, t3, tf, amax, amin = times_amax
-            self.times = array([t1, t2, t3, tf])
+            if self.fixed_end_time:
+                t1, t2, t3, amax, amin = times_amax
+                self.times = array([t1, t2, t3])
+            else:
+                t1, t2, t3, self.tf, amax, amin = times_amax
+                self.times = array([t1, t2, t3, self.tf])
+
             self.amax, self.amin = amax, amin
-            return self.vel(tf) - self.dp1
-
-        def cons_eq_vel_jac(times_amax):
-            t1, t2, t3, tf, amax, amin = times_amax
-            self.times = array([t1, t2, t3, tf])
-            self.amax, self.amin = amax, amin
-
-            dvdt1 = (self.ddp0 - self.amax) * self.h(tf - t1)
-            dvdt2 = (self.amax - self.amin) * self.h(tf - t2)
-            dvdt3 = (self.amin - self.ddp1) * self.h(tf - t3)
-            dvdtf = self.acc(tf)
-            dvdamax = self.ramp(tf - t1) - self.ramp(tf - t2)
-            dvdamin = self.ramp(tf - t2) - self.ramp(tf - t3)
-
-            return array([dvdt1, dvdt2, dvdt3, dvdtf, dvdamax, dvdamin])
+            return self.vel(self.tf) - self.dp1
 
         def cons_eq_pos(times_amax):
-            t1, t2, t3, tf, amax, amin = times_amax
-            self.times = array([t1, t2, t3, tf])
+            if self.fixed_end_time:
+                t1, t2, t3, amax, amin = times_amax
+                self.times = array([t1, t2, t3])
+            else:
+                t1, t2, t3, self.tf, amax, amin = times_amax
+                self.times = array([t1, t2, t3, self.tf])
+
             self.amax, self.amin = amax, amin
-            return self.pos(tf) - self.p1
-
-        def cons_eq_pos_jac(times_amax):
-            t1, t2, t3, tf, amax, amin = times_amax
-            self.times = array([t1, t2, t3, tf])
-            self.amax, self.amin = amax, amin
-
-            dpdt1 = (self.ddp0 - self.amax) * self.ramp(tf - t1)
-            dpdt2 = (self.amax - self.amin) * self.ramp(tf - t2)
-            dpdt3 = (self.amin - self.ddp1) * self.ramp(tf - t3)
-            dpdtf = self.vel(tf)
-            dpdamax = self.ramp(tf - t1) - self.parab(tf - t2)
-            dpdamin = self.ramp(tf - t2) - self.parab(tf - t3)
-
-            return array([dpdt1, dpdt2, dpdt3, dpdtf, dpdamax, dpdamin])
+            return self.pos(self.tf) - self.p1
 
         cons = ({'type': 'eq',
-                 'fun': cons_eq_vel,
-                 'jac': cons_eq_vel_jac},
+                 'fun': cons_eq_vel},
                 {'type': 'eq',
-                 'fun': cons_eq_pos,
-                 'jac': cons_eq_pos_jac},
+                 'fun': cons_eq_pos},
                 {'type': 'ineq',
-                 'fun': cons_ineq_t2,
-                 'jac': cons_ineq_t2_jac},
+                 'fun': cons_ineq_t2},
                 {'type': 'ineq',
-                 'fun': cons_ineq_t3,
-                 'jac': cons_ineq_t3_jac},
+                 'fun': cons_ineq_t3},
                 {'type': 'ineq',
-                 'fun': cons_ineq_t4,
-                 'jac': cons_ineq_t4_jac})
+                 'fun': cons_ineq_t4})
 
-        bnds = ((0, 60), (0, 60), (0, 60), (0, 60), (-self.acc_bound, self.acc_bound),
-                (-self.acc_bound, self.acc_bound))
+        if self.fixed_end_time:
+            bnds = ((0, 60), (0, 60), (0, 60), (-self.acc_bound, self.acc_bound),
+                    (-self.acc_bound, self.acc_bound))
+        else:
+            bnds = ((0, 60), (0, 60), (0, 60), (0, 60), (-self.acc_bound, self.acc_bound),
+                    (-self.acc_bound, self.acc_bound))
+
         res = minimize(func, self.times_amax, bounds = bnds, constraints=cons, method='SLSQP',
-                       options={'maxiter':50000, 'disp': True})
+                       options={'maxiter':10000, 'disp': False})
 
-        print res
-
-        self.times = res.x[:4]
-        self.amax, self.amin = res.x[4:]
+        if self.fixed_end_time:
+            self.times = res.x[:3]
+            self.amax, self.amin = res.x[3:]
+        else:
+            self.times = res.x[:4]
+            self.amax, self.amin = res.x[4:]
