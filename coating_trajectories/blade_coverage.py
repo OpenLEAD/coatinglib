@@ -53,8 +53,8 @@ class Path:
         new_joint_path, new_joint_velocity_path, new_joint_acc_path = self.mls_parallels(
             turbine, joint_path, dtimes)
 
-        new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
-            turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
+        #new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
+        #    turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
 
 
         acc = abs(vstack(new_joint_acc_path))
@@ -264,6 +264,50 @@ class Path:
             robot.SetDOFVelocities(self.get_velocity(robot, parallel_number, point_number))
             return robot.ComputeInverseDynamics(self.get_acc(robot, parallel_number, point_number))
 
+    def get_failed_acc(self, robot):
+        """ Method returns a list [parallel_number, point_number] (Path.data structure) with all accelerations above
+        the limit.
+
+        Args:
+            robot: (Robot) is the robot object.
+
+        Returns:
+            List int[m][2] [parallel_number, point_number].
+
+        Examples:
+            >>> acc_fail = path.get_failed_acc(robot)
+        """
+
+        acc_not_valid = []
+        for parallel_number in range(len(self.data)):
+            for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                acc = self.get_acc(robot, parallel_number, point_number)
+                if (acc > robot.GetDOFMaxAccel()).any():
+                    acc_not_valid.append([parallel_number, point_number])
+        return acc_not_valid
+
+    def get_failed_vel(self, robot):
+        """ Method returns a list [parallel_number, point_number] (Path.data structure) with all velocities above
+        the limit.
+
+        Args:
+            robot: (Robot) is the robot object.
+
+        Returns:
+            List int[m][2] [parallel_number, point_number].
+
+        Examples:
+            >>> vel_fail = path.get_failed_vel(robot)
+        """
+
+        vel_not_valid = []
+        for parallel_number in range(len(self.data)):
+            for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                vel = self.get_vel(robot, parallel_number, point_number)
+                if (vel > robot.GetDOFMaxVel()).any():
+                    vel_not_valid.append([parallel_number, point_number])
+        return vel_not_valid
+
     def plot_velocities(self, turbine, parallel_number):
         """ Plot joint velocities of specific parallel.
 
@@ -340,6 +384,35 @@ class Path:
         f.subplots_adjust(hspace=0.3)
         plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
         plt.show()
+        return
+
+    def vis_failed_points(self, robot, vis):
+        manip = robot.GetActiveManipulator()
+        valid_points = []
+        vel_not_valid = []
+        acc_not_valid = []
+
+        with robot:
+            for parallel_number in range(len(self.data)):
+                for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                    joint = self.get_joint(robot, parallel_number, point_number)
+                    vel = self.get_velocity(robot, parallel_number, point_number)
+                    acc = self.get_acc(robot, parallel_number, point_number)
+                    robot.SetDOFValues(joint)
+                    pos = manip.GetTransform()[0:3,3]
+
+                    if (vel > robot.GetDOFMaxVel()).any():
+                        vel_not_valid.append(pos)
+                        continue
+
+                    if (acc > robot.GetDOFMaxAccel()).any():
+                        acc_not_valid.append(pos)
+
+                    valid_points.append(pos)
+
+        _  = vis.plot(valid_points, 'valid', (0, 0, 0))
+        _ = vis.plot(vel_not_valid, 'velnot', (1, 0, 0))
+        _ = vis.plot(acc_not_valid, 'accnot', (0, 1, 0))
         return
 
     @staticmethod
@@ -419,25 +492,28 @@ class Path:
         new_joints_parallels = []
         new_joints_vel_parallels = []
         new_joints_acc_parallels = []
+        counter = 0
         for joints, dtimes in zip(joints_parallels, dtimes_parallels):
             dtimes = list(dtimes)
             joints = array( [(2*joints[0]-joints[1])] + list(joints) + [(2*joints[-1]-joints[-2])] )
             dtimes = array( dtimes[:2] + dtimes[1:] + dtimes[-1:] )
             new_joints, new_vel, new_acc = self.mls_joints(
-                turbine, joints, error=2.5e-3, mls_degree=6, scale=3., times=cumsum(dtimes))
+                turbine, joints, error=5.e-3, mls_degree=6, times=cumsum(dtimes))
             new_joints_parallels += [new_joints[1:-1]]
             new_joints_vel_parallels += [new_vel[1:-1]]
             new_joints_acc_parallels += [new_acc[1:-1]]
+            counter += 1
 
         return new_joints_parallels, new_joints_vel_parallels, new_joints_acc_parallels
 
-    def mls_joints(self, turbine, joints, error, mls_degree = 6, scale=3., times=None):
+    def mls_joints(self, turbine, joints, error, mls_degree = 6, times=None):
         """ The Dijkstra optimization method will calculate the best path for the given discretization. Discretization
         will generate some "jumps", and infeasible velocities/accelerations. A moving least square method was developed
         for path smoothness. The MLS generates a trajectory that will not pass by all waypoints, but it will choose the
         best scale given the maximum required error in cartesian space (meters).
         It returns joints, joint velocities, accelerations.
         This method chooses the best scale given the maximum required error in cartesian space.
+        It receives one parallel.
 
         Args:
             turbine: (@ref Turbine) turbine object
@@ -456,7 +532,10 @@ class Path:
         if times is None:
             times = cumsum(compute_dtimes_from_joints(turbine, joints))
 
-        while scale > 0:
+        scale = times[:-1] - times[1:]
+        scale = array(list(scale) + [times[-1]])
+
+        while True:
             new_joints = []
             new_joints_velocities = []
             new_joints_acc = []
@@ -468,15 +547,15 @@ class Path:
             new_joints = array(new_joints).T
             new_joints_velocities = array(new_joints_velocities).T
             new_joints_acc = array(new_joints_acc).T
-            e, _ = self.joint_error(turbine.robot, joints, new_joints)
-            if e <= error:
+            ans = self.joint_error(turbine.robot, joints, new_joints, error)
+            if ans:
                 break
-            scale -= .1
+            error -= .05 * error
         return array(new_joints), array(new_joints_velocities), array(new_joints_acc)
 
     @staticmethod
-    def joint_error(robot, joints_a, joints_b):
-        """ This method calculates the mean(error) + 0.5*std(error) between two lists of joints (a and b) in cartesian
+    def joint_error(robot, joints_a, joints_b, error_max):
+        """ This method calculates the error between two lists of joints (a and b) in cartesian
         space. It iterates in lists joints_b and joints_a, setting the robot DOF values and comparing the end-effector
         position. Orientations are not compared.
 
@@ -492,18 +571,15 @@ class Path:
             >>> e,_ = path.joint_error(robot, joints_a, joints_b)
         """
 
-        manip = robot.GetActiveManipulator()
-        error = []
-        new_points = []
-        with robot:
-            for j in range(len(joints_b)):
-                robot.SetDOFValues(joints_b[j])
-                P0 = manip.GetTransform()[0:3, 3]
-                robot.SetDOFValues(joints_a[j])
-                P1 = manip.GetTransform()[0:3, 3]
-                error.append(linalg.norm(P0 - P1))
-                new_points += [P0]
-        return mean(error) + .5 * std(error), new_points
+        rays_a = get_ee_ray(robot, joints_a)
+        pos_b = get_ee_positions(robot, joints_b)
+        for j in range(len(rays_a)):
+            x1 = array(rays_a[j][0:3])
+            x2 = x1 + array(rays_a[j][3:6])
+            error = mathtools.distance_point_line_3d(x1, x2, array(pos_b[j]))
+            if error > error_max:
+                return False
+        return True
 
 
     @staticmethod
@@ -513,6 +589,7 @@ class Path:
         this method computes cubic polynomials to interpolate the two points: end of a parallel - begin of the next
         parallel, in joint space, considering velocities. It will return the parallels and the computed transition
         paths between them.
+        Obs.: This is taking too long. No improvements are being made since plates can be used on the transition part.
 
         Args:
             turbine: (@ref Turbine) turbine object
@@ -570,8 +647,6 @@ class Path:
                     joint.append(accsteps[i].pos(t))
                     joint_vel.append(accsteps[i].vel(t))
                     joint_acc.append(accsteps[i].acc(t))
-
-
 
                 joints.append(joint)
                 joints_vel.append(joint_vel)
@@ -741,3 +816,33 @@ def compute_dtimes_from_rays(turbine, rays):
     v = turbine.config.coating.coating_speed
 
     return array([0.] + list(linalg.norm(rays[1:, 0:3] - rays[:-1, 0:3], axis=1) / v))
+
+def get_ee_positions(robot, joints):
+    ee_pos = []
+    manip = robot.GetActiveManipulator()
+    with robot:
+        for joint in joints:
+            robot.SetDOFValues(joint)
+            ee_pos.append(manip.GetTransform()[0:3,3])
+    return ee_pos
+
+def get_ee_orientation(robot, joints):
+    ee_ori = []
+    manip = robot.GetActiveManipulator()
+    with robot:
+        for joint in joints:
+            robot.SetDOFValues(joint)
+            ee_ori.append(manip.GetTransform()[0:3,0:3])
+    return ee_ori
+
+def get_ee_ray(robot, joints):
+    ee_ray = []
+    manip = robot.GetActiveManipulator()
+    with robot:
+        for joint in joints:
+            robot.SetDOFValues(joint)
+            t = manip.GetTransform()
+            ee_ray.append([t[0,3], t[1,3], t[2,3], t[0,0], t[1,0], t[2,0]])
+    return ee_ray
+
+
