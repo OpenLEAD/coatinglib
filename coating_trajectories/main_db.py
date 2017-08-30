@@ -80,7 +80,7 @@ def generate_db_joints():
 def generate_robot_positions(number_of_positions=1000):
     """
     Function to generate random positions for the base of the robot.
-    The positions will be saved and a db_visited_bases will be saved (False to everything).
+    The positions will be saved and a db_visited_bases will be saved (bool array - False).
     """
 
     rp = rail_place.rand_rail(turb.config, number_of_positions)
@@ -521,4 +521,4 @@ if __name__ == '__main__':
 
     # make_validate_file()
     # validate_bases()
-    merge_validation()
+    # merge_validation()
