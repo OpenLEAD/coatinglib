@@ -402,6 +402,12 @@ class TestBladeCoverage(TestCase):
 
         self.assertTrue(len(joints_parallel)==5)
 
+    #def test_get_failed_acc(self):
+
+    #def test_get_failed_vel(self):
+
+    #def test_parallels_transitions(self):
+
     #def test_create_trajectories(self):
 
     #def test_organize_rays_in_parallels(self):
