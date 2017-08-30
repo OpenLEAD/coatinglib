@@ -310,7 +310,7 @@ class DB:
         del main_db
 
         try:
-            bases_to_num = self.load_bases_to_num()
+            _ = self.load_bases_to_num()
         except IOError as error:
             if error.errno == errno.ENOENT:
                 raise NoDBFound('bases_to_num.pkl')
