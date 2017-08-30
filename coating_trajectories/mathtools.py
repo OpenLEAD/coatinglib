@@ -1186,9 +1186,19 @@ def MLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_ga
 
     return new_y, new_dy, new_ddy
 
-def legMLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_gaussian):
+def compute_initial_scale(x):
+    x = array(x)
+    dif = list(x[:-1] - x[1:])
+    dif.append(dif[-1])
+    return linalg.norm(array(dif),axis=1) / 2.
+
+def legMLS(y, x, x0, n, scale, wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_gaussian):
     if y.shape!=x.shape:
         raise ValueError("y must have same shape of x, y.shape is "+str(y.shape)+", x.shape is "+str(x.shape))
+
+    if isinstance(scale, float):
+        scale = scale * ones(len(x0))
+
     new_y = []
     new_dy = []
     new_ddy = []
@@ -1220,26 +1230,6 @@ def legMLS(y, x, x0, n, scale=1., wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd
             new_ddy += [dot(ddc, v) + 2 * legendre.legval(xi,dcdv) + legendre.legval(xi,cddv)]
 
     return new_y, new_dy, new_ddy
-
-def legcubic_path(p1,p2,dp1,dp2,t=[0,1]):
-
-    dleg = legendre.legval(t, legendre.legder(eye(4))).T
-    leg = legendre.legvander(t, 3)
-    return linalg.solve(vstack((dleg,leg)),[dp1, dp2, p1, p2])
-
-def legquintic_path(p1,p2,dp1,dp2,ddp1,ddp2,t=[0,1]):
-
-    ddleg = legendre.legval(t, legendre.legder(eye(6),2)).T
-    dleg = legendre.legval(t, legendre.legder(eye(6))).T
-    leg = legendre.legvander(t, 5)
-    return linalg.solve(vstack((ddleg,dleg,leg)),[ddp1, ddp2, dp1, dp2, p1, p2])
-
-def legquartic_path(p1,p2,dp1,dp2,ddp1, t=[0,1]):
-
-    ddleg = legendre.legval(t, legendre.legder(eye(5),2)).T
-    dleg = legendre.legval(t, legendre.legder(eye(5))).T
-    leg = legendre.legvander(t, 4)
-    return linalg.solve(vstack((ddleg,dleg,leg)),[ddp1, dp1, dp2, p1, p2])
 
 def legn_path(n,p1,p2,dp1,dp2,ddp1,ddp2,t=[0,1]):
     ddleg = legendre.legval(t, legendre.legder(eye(n+1), 2)).T
@@ -1775,7 +1765,7 @@ class AccNStepProfile:
             accs_1 = roll(accs, 1)
             accs_1[0] = 0
             self.daccs = accs - accs_1
-            res = brute(f, ranges = (slice(0, self.tf, 0.1),), full_output=True, finish=None)
+            res = brute(f, ranges = (slice(0, self.tf, 0.1 * self.tf),), full_output=True, finish=None)
             return abs(res[1])
 
         def cons_ineq_t2(times_amax):
@@ -1852,7 +1842,7 @@ class AccNStepProfile:
                     (-self.acc_bound, self.acc_bound))
 
         res = minimize(func, self.times_amax, bounds = bnds, constraints=cons, method='SLSQP',
-                       options={'maxiter':10000, 'disp': False})
+                       options={'maxiter':10000, 'disp': True})
 
         if self.fixed_end_time:
             self.times = res.x[:3]
