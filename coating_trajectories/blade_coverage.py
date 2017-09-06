@@ -259,20 +259,17 @@ class Path:
         for parallel_number in range(len(self.data)):
             for point_number in range(self.data[parallel_number].GetNumWaypoints()):
                 acc = self.get_acc(robot, parallel_number, point_number)
-                if (acc > robot.GetDOFMaxAccel()).any():
+                if (abs(acc) > robot.GetDOFMaxAccel()).any():
                     acc_not_valid.append([parallel_number, point_number])
         return acc_not_valid
 
     def get_failed_vel(self, robot):
         """ Method returns a list [parallel_number, point_number] (Path.data structure) with all velocities above
         the limit.
-
         Args:
             robot: (Robot) is the robot object.
-
         Returns:
             List int[m][2] [parallel_number, point_number].
-
         Examples:
             >>> vel_fail = path.get_failed_vel(robot)
         """
@@ -287,14 +284,11 @@ class Path:
 
     def plot_velocities(self, turbine, parallel_number):
         """ Plot joint velocities of specific parallel.
-
         Args:
             turbine: (@ref Turbine) is the turbine object.
             parallel_number: (int) is the parallel number to get the joint.
-
         Returns:
             velocity graphic.
-
         Examples:
             >>> path.plot_velocities(turbine, 0)
         """
@@ -326,14 +320,11 @@ class Path:
 
     def plot_acc(self, turbine, parallel_number):
         """ Plot joint accelerations of specific parallel.
-
         Args:
             turbine: (@ref Turbine) is the turbine object.
             parallel_number: (int) is the parallel number to get the joint.
-
         Returns:
             acceleration graphic.
-
         Examples:
             >>> path.plot_acc(turbine, 0)
         """
