@@ -5,6 +5,7 @@ from .. turbine_config import TurbineConfig, ConfigFileError
 from .. import planning
 from numpy import concatenate, array, random, arange, dot
 from numpy import sqrt, sin, cos, ones, sum, zeros, cross, round
+import time
 from math import pi
 from openravepy import RaveCreateCollisionChecker, CollisionOptions, CollisionReport, matrixFromAxisAngle
 from .. import mathtools
@@ -127,14 +128,27 @@ class TestPlanning(TestCase):
         dt = array([0.,5.,2.,10.])
         vel_limits = array([10.])
         acc_limits = array([1.])
-        expected_path = [array([2.]),array([10.]),array([15.]),array([100.])]
-        expected_min_cost = round(0.16 + (2.5-1.6)/3.5 + 1.,5)
+        expected_path = [array([1.]),array([10.]),array([15.]),array([100.])]
+        expected_min_cost = 0.8574
         joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
         self.assertTrue(round(min_cost,5) == expected_min_cost, msg='min_cost is '+str(min_cost))
 
         for i in range(len(joint_path)):
             self.assertTrue(joint_path[i] == expected_path[i], msg='joint ' + str(joint_path[i]) + 'is not joint ' + str(expected_path[i]))
-        
+
+    def test_dijkstra_performance(self):
+        n = 200
+        joints = []
+        for i in range(int(n)):
+            joints.append(random.random((random.randint(1,30),1)))
+
+        dt = random.random(len(joints))
+        vel_limits = array([10.])
+        acc_limits = array([1.])
+        t = time.time()
+        joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
+        print 'time =', time.time() - t
+
 
 
 if __name__ == '__main__':
