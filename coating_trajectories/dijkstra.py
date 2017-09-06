@@ -1,28 +1,48 @@
 import graph_tool as gt
+from graph_tool.search import StopSearch
 import planning
+from numpy import zeros
 import dijkstra2
 
 
-class DjkVisitor(gt.search.DijkstraVisitor):
-    def __init__(self,weight,graph,adj,cost,pv):
+class AstarVisitor(gt.search.DijkstraVisitor):
+    def __init__(self,weight,graph,adj,cost,dist,graph_cost,point_velocity,virtual_end):
+        self.graph_cost = graph_cost
+        self.dist = dist
         self.weight = weight
         self.graph = graph
         self.adj = adj
         self.cost = cost
-        self.pv = pv
+        self.point_velocity = point_velocity
+        self.virtual_end = virtual_end
+        self.target = None
 
-    def discover_vertex(self,u):
-        adjs = self.adj.get(self.pv[u])
-        for i,vertex in enumerate(self.graph.add_vertex(len(adjs))):
-            self.pv[vertex] = adjs[i]
+    def examine_vertex(self,u):
+        adjs = self.adj.get(self.point_velocity[u])
+
+        if len(adjs) == 1:
+            vertex = self.graph.add_vertex()
+            self.point_velocity[vertex] = adjs[0]
             self.graph.add_edge(u,vertex)
+            self.dist[vertex] = self.graph_cost[vertex] = float('inf')
+        else:
+            for i,vertex in enumerate(self.graph.add_vertex(len(adjs))):
+                self.point_velocity[vertex] = adjs[i]
+                self.graph.add_edge(u,vertex)
+                self.dist[vertex] = self.graph_cost[vertex] = float('inf')
+
 
     def examine_edge(self,e):
-        self.weight[e] = self.cost[self.pv[e.source()],self.pv[e.target()]]
+        self.weight[e] = self.cost[self.point_velocity[e.source()],
+                                   self.point_velocity[e.target()]]
+
+    def edge_relaxed(self, e):
+        if self.point_velocity[e.target()] == self.virtual_end:
+            self.target = e.target()
+            raise StopSearch()
 
 
 def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
-    djvisitor = DjkVisitor(joints,dtimes)
     virtual_start = (-1,-1) #falta velocidade inicial
     virtual_end = (-2,-1) #falta velocidade final
     adj = dijkstra2.dijkstra_adj(joints,dtimes)
@@ -42,25 +62,35 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     ve = dijkstra2.virtual_node((-2,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade final
     dtimes[0] = 1
 
-    cost = dijkstra2.dijkstra_acc_cost(single_vel_distance,vs,ve,dtimes,vel_limits,acc_limits)
+    cost = dijkstra2.dijkstra_acc_cost(planning.single_vel_distance,vs,ve,dtimes,vel_limits,acc_limits)
 
-    min_costs, predecessors = gt.search.dijkstra_search(g, weight, source=None, visitor= djvisitor)
+    graph = gt.Graph()
+    weight = graph.new_ep("double")
+    dist = graph.new_vp("double")
+    graph_cost = graph.new_vp("double")
+    point_velocity = graph.new_vp("object")
+    graph.add_vertex(1)
+    point_velocity[graph.vertex(0)] = vs
 
-    predecessors, min_cost = dijkstra2.dijkstra(adj, cost, vs, ve)
+    astarvisitor = AstarVisitor(weight,graph,adj,cost,dist,graph_cost,point_velocity,ve)
 
-    c = [y for x, y in enumerate(predecessors.keys()) if y == ve][0]
-    path = [c]
-    while predecessors.get(c):
-        path.insert(0, predecessors[c])
-        c = predecessors[c]
+    min_costs, predecessors = gt.search.astar_search(g=graph, weight=weight, dist_map=dist,
+                                                     source=graph.vertex(0), visitor=astarvisitor,
+                                                     implicit=True, cost_map = graph_cost)
+
+    path = []
+    v = graph.vertex(predecessors[astarvisitor.target])
+    while v != graph.vertex(0):
+        path = [point_velocity[v][0]] + path
+        v = graph.vertex(predecessors[v])
 
     joint_path = []
-    for i in range(1,len(path)-1):
-        joint_index = path[i][0][0]
-        joint_configuration = path[i][0][1]
+    for i in range(len(path)):
+        joint_index = path[i][0]
+        joint_configuration = path[i][1]
         joint_path.append(joints[joint_index][joint_configuration])
 
     if verbose:
-        return joint_path, path, min_cost, adj, cost
+        return joint_path, path, min_costs[astarvisitor.target], adj, cost
     else:
         return joint_path

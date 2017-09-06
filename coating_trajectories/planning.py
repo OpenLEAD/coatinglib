@@ -524,7 +524,8 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
 
     predecessors, min_cost = dijkstra2.dijkstra(adj, cost, vs, ve)
 
-    c = [y for x, y in enumerate(predecessors.keys()) if y == ve][0]
+    c = next(y for y in predecessors.keys() if y == ve)
+
     path = [c]
     while predecessors.get(c):
         path.insert(0, predecessors[c])
