@@ -18,8 +18,6 @@ from itertools import cycle, islice
 from scipy.linalg import logm, expm
 from openravepy import quatFromRotationMatrix, matrixFromQuat
 from scipy.optimize import minimize, brute
-import warnings
-warnings.filterwarnings('ignore')
 
 _base_module_precision = 0.2
 _p_step = 0.1
@@ -1195,9 +1193,6 @@ def compute_initial_scale(x):
 def legMLS(y, x, x0, n, scale, wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_gaussian):
     if y.shape!=x.shape:
         raise ValueError("y must have same shape of x, y.shape is "+str(y.shape)+", x.shape is "+str(x.shape))
-
-    if isinstance(scale, float):
-        scale = scale * ones(len(x0))
 
     new_y = []
     new_dy = []
