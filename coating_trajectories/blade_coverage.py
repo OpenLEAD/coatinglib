@@ -655,7 +655,7 @@ class Path:
 
     @staticmethod
     def parallels_transitions(turbine, joints_parallel, joints_vel_parallel, joints_acc_parallel, times_parallel,
-                              step=.1, number_of_points=8., max_acc=.8) :
+                              step=.1, number_of_points=8.) :
         """ Given all parallels solutions, i.e., joints solutions for all waypoints split in parallels (lists),
         this method computes cubic polynomials to interpolate the two points: end of a parallel - begin of the next
         parallel, in joint space, considering velocities. It will return the parallels and the computed transition
@@ -673,53 +673,23 @@ class Path:
         """
 
         robot = turbine.robot
-        acc_max = robot.GetDOFMaxAccel() * max_acc
-
-        if max_acc >= 0.9:
-            raise ValueError('max_acc must be between 0.1 and 0.9')
 
         for i in range(len(joints_parallel) - 1):
             joint_0 = joints_parallel[2*i][-1]
             vel_0 = joints_vel_parallel[2*i][-1]
             joint_1 = joints_parallel[2*i + 1][0]
             vel_1 = joints_vel_parallel[2*i + 1][0]
-            acc_0 = joints_acc_parallel[2*i][-1]
-            acc_1 = joints_vel_parallel[2*i + 1][0]
 
-            for j in range(robot.GetDOF()):
-                acc_0[j] = clip(acc_0[j], -acc_max[j], acc_max[j])
-                acc_1[j] = clip(acc_1[j], -acc_max[j], acc_max[j])
-
-            times = []
-            for i in range(robot.GetDOF()):
-                accstep = mathtools.AccNStepProfile(
-                    acc_max[i], joint_0[i], joint_1[i], vel_0[i], vel_1[i], acc_0[i], acc_1[i])
-                times.append(accstep.tf)
-
-            tf = max(times)
-            accsteps = []
-            for i in range(robot.GetDOF()):
-                accsteps.append(mathtools.AccNStepProfile(
-                    acc_max[i], joint_0[i], joint_1[i], vel_0[i], vel_1[i], acc_0[i], acc_1[i], max(times)))
-
-
+            c = mathtools.legn_path(3, [joint_0, joint_1], [vel_0, vel_1])
             joints = []
             joints_vel = []
             joints_acc = []
             times = []
-            dt = min([step, tf / number_of_points])
-            for t in linspace(0, tf, max([tf / step, number_of_points])):
-                joint = []
-                joint_vel = []
-                joint_acc = []
-                for i in range(robot.GetDOF()):
-                    joint.append(accsteps[i].pos(t))
-                    joint_vel.append(accsteps[i].vel(t))
-                    joint_acc.append(accsteps[i].acc(t))
-
-                joints.append(joint)
-                joints_vel.append(joint_vel)
-                joints_acc.append(joint_acc)
+            dt = min([step, 1. / number_of_points])
+            for t in linspace(0, 1., max([1. / step, number_of_points])):
+                joints.append(legendre.legval(t, c))
+                joints_vel.append(legendre.legval(t, legendre.legder(c, 1)))
+                joints_acc.append(legendre.legval(t, legendre.legder(c, 2)))
                 times.append(dt)
 
             joints = joints[1:-1]
