@@ -535,17 +535,41 @@ class Path:
         new_joints_parallels = []
         new_joints_vel_parallels = []
         new_joints_acc_parallels = []
-        counter = 0
         for joints, dtimes in zip(joints_parallels, dtimes_parallels):
             dtimes = list(dtimes)
-            joints = array( [(2*joints[0]-joints[1])] + list(joints) + [(2*joints[-1]-joints[-2])] )
-            dtimes = array( dtimes[:2] + dtimes[1:] + dtimes[-1:] )
+            dt1 = dtimes[1]
+            dt12 = dtimes[2] + dt1
+            v = vander([dt1, dt12], 3)[:2, :2]
+
+            j1 = joints[1]
+            j0 = joints[0]
+            j2 = joints[2]
+
+            x = linalg.solve(v, [j1 - j0, j2 - j0])
+            nv = [1, -1] * v
+            jm1, jm2 = dot(nv, x) + j0
+
+
+            dtn1 = dtimes[-1]
+            dtn12 = dtimes[-2] + dt1
+            v = vander([-dtn1, -dtn12], 3)[:2, :2]
+
+            jnm1 = joints[-2]
+            jn = joints[-1]
+            jnm2 = joints[-3]
+
+            x = linalg.solve(v, [jnm1 - jn, jnm2 - jn])
+            nv = [1, -1] * v
+            jnm1, jnm2 = dot(nv, x) + jn
+
+
+            joints = array([jm2, jm1] + list(joints) + [jnm1, jnm2])
+            dtimes = array([dtimes[0], dtimes[2], dtimes[1]] + dtimes[1:] + [dtimes[-1],dtimes[-2]])
             new_joints, new_vel, new_acc = self.mls_joints(
                 turbine, joints, error=5.e-3, mls_degree=6, times=cumsum(dtimes))
-            new_joints_parallels += [new_joints[1:-1]]
-            new_joints_vel_parallels += [new_vel[1:-1]]
-            new_joints_acc_parallels += [new_acc[1:-1]]
-            counter += 1
+            new_joints_parallels += [new_joints[2:-2]]
+            new_joints_vel_parallels += [new_vel[2:-2]]
+            new_joints_acc_parallels += [new_acc[2:-2]]
 
         return new_joints_parallels, new_joints_vel_parallels, new_joints_acc_parallels
 
@@ -557,17 +581,14 @@ class Path:
         It returns joints, joint velocities, accelerations.
         This method chooses the best scale given the maximum required error in cartesian space.
         It receives one parallel.
-
         Args:
             turbine: (@ref Turbine) turbine object
             joints: (float[n<SUB>i</SUB>][nDOF]) list of joints]
             error: (float) maximum required error in cartesian space (meters)
             scale: (float) MLS scale
             times: (float[n<SUB>i</SUB>]) cumsum(deltatimes)
-
         Returns:
             lists: smooth joint values, joint velocities,  joint accelerations
-
         Examples:
             >>> joints, joint_velocity, joint_acc, dtimes = path.mls_joints(turbine, joints)
         """
@@ -575,10 +596,12 @@ class Path:
         if times is None:
             times = cumsum(compute_dtimes_from_joints(turbine, joints))
 
-        scale = times[:-1] - times[1:]
-        scale = array(list(scale) + [times[-1]])
+        scale = (((times[2:] - times[1:-1]) ** 2 + (times[1:-1] - times[:-2]) ** 2) / 2) ** 0.5
+        scale = array([abs(times[1]-times[0])] + list(scale) + [abs(times[-1]-times[-2])])
 
+        counter = 0
         while True:
+            counter += 1
             new_joints = []
             new_joints_velocities = []
             new_joints_acc = []
@@ -590,10 +613,16 @@ class Path:
             new_joints = array(new_joints).T
             new_joints_velocities = array(new_joints_velocities).T
             new_joints_acc = array(new_joints_acc).T
-            ans = self.joint_error(turbine.robot, joints, new_joints, error)
+            ans, actual_error = self.joint_error(turbine.robot, joints, new_joints, error)
             if ans:
-                break
-            error -= .05 * error
+                if actual_error < error * 1e-2:
+                    scale *= 2
+                    if counter > 50:
+                        break
+                    continue
+                else:
+                    break
+            scale -= .05 * scale
         return array(new_joints), array(new_joints_velocities), array(new_joints_acc)
 
     @staticmethod
@@ -601,28 +630,27 @@ class Path:
         """ This method calculates the error between two lists of joints (a and b) in cartesian
         space. It iterates in lists joints_b and joints_a, setting the robot DOF values and comparing the end-effector
         position. Orientations are not compared.
-
         Args:
             robot: (Robot) object
             joints_a: (float[n<SUB>i</SUB>][nDOF]) list of joints_a
             joints_b: (float[n<SUB>i</SUB>][nDOF]) list of joints_b to be compared with.
-
         Returns:
             mean(error) + 0.5*std (float) and new_points
-
         Examples:
             >>> e,_ = path.joint_error(robot, joints_a, joints_b)
         """
 
         rays_a = get_ee_ray(robot, joints_a)
         pos_b = get_ee_positions(robot, joints_b)
+        errors = []
         for j in range(len(rays_a)):
             x1 = array(rays_a[j][0:3])
             x2 = x1 + array(rays_a[j][3:6])
             error = mathtools.distance_point_line_3d(x1, x2, array(pos_b[j]))
             if error > error_max:
-                return False
-        return True
+                return False, error
+            errors.append(error)
+        return True, max(errors)
 
 
     @staticmethod
@@ -633,7 +661,6 @@ class Path:
         parallel, in joint space, considering velocities. It will return the parallels and the computed transition
         paths between them.
         Obs.: This is taking too long. No improvements are being made since plates can be used on the transition part.
-
         Args:
             turbine: (@ref Turbine) turbine object
             joints_parallel: (float[m][n<SUB>i</SUB>][nDOF]) list of joints for all parallels
@@ -641,7 +668,6 @@ class Path:
             step: distance (meters) between points
             number_of_points: minimal number of points
             max_acc: maximum permitted acceleration (percentage)
-
         Returns:
             Modifies the current joints_parallel and times_parallel with the computed transitions.
         """
@@ -714,14 +740,12 @@ class Path:
         """ This method creates the trajectory specification in OpenRave format and insert the waypoints:
         joints - vels - accs - times
         DOF - DOF - DOF - DOF - 1
-
         Args:
             turbine: (@ref Turbine) turbine object
             joints:  (float[n<SUB>i</SUB>][nDOF]) joints to create the trajectory
             joints_vel: (float[n<SUB>i</SUB>][nDOF]) joints_vel to create the trajectory
             joints_acc: (float[n<SUB>i</SUB>][nDOF]) joints_acc to create the trajectory
             times: (float[n<SUB>i</SUB>]) deltatimes
-
         Returns:
             trajectory: OpenRave object.
         """
@@ -752,14 +776,11 @@ class Path:
 
 def organize_rays_in_parallels(DB, grid):
     """ Function makes a zigzagging path from parallels.
-
     Args:
         DB: (@ref DB) database object.
         grid: (int) grid to be coated.
-
     Returns:
         float[m][n<SUB>i</SUB>][6] organized rays to be coated (zigzagging).
-
     Examples:
         >>> organized_rays = organize_rays_in_parallels(DB, 0)
     """
@@ -785,17 +806,14 @@ def base_grid_validation(turbine, psa, DB, grid, threshold=5e-2):
     and making zigzagging lists);
     3) Dijkstra algorithm.
     4) Moving Least Square smoothness;
-
     Args:
         turbine: (@ref Turbine) is the turbine object.
         psa: (tuple[3]) primary, secondary, alpha (base position)
         DB: (@ref DB) database object.
         grid: (int) grid to be coated.
         threshold: (float) is the interpolation threshold, as rays are usually well spaced.
-
     Returns:
         path object
-
     Examples:
         >>> path = base_grid_validation(turbine, psa, DB, 0)
     """
@@ -819,14 +837,11 @@ def base_grid_validation(turbine, psa, DB, grid, threshold=5e-2):
 def compute_dtimes_from_joints(turbine, joints):
     """ Given the joints solution, this method set robot DOF values and access the config file (velocity requirements),
     computing the required delta times between joints.
-
     Args:
         turbine: (@ref Turbine) is the turbine object.
         joints: (float[n][nDOF]) robot joints for a parallel
-
     Returns:
         a list of delta times
-
     Examples:
         >>> dtimes = compute_dtimes_from_joints(turbine, joints)
     """
@@ -844,14 +859,11 @@ def compute_dtimes_from_joints(turbine, joints):
 def compute_dtimes_from_rays(turbine, rays):
     """ Given the rays, this method access the config file (velocity requirements) and compute the required
         delta times between joints.
-
     Args:
         turbine: (@ref Turbine) is the turbine object.
         rays: (float[n][6]) x,y,z,nx,ny,nz cartesian coordinates and normal vector
-
     Returns:
         a list of delta times
-
     Examples:
         >>> dtimes = compute_dtimes_from_joints(turbine, joints)
     """
@@ -887,5 +899,3 @@ def get_ee_ray(robot, joints):
             t = manip.GetTransform()
             ee_ray.append([t[0,3], t[1,3], t[2,3], t[0,0], t[1,0], t[2,0]])
     return ee_ray
-
-
