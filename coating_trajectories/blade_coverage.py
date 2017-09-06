@@ -1,4 +1,4 @@
-from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, sign
+from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, vander
 from numpy.polynomial import legendre
 import planning
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory, interfaces
@@ -20,10 +20,8 @@ class Path:
     """ Class to compute, store, and serialize joint path.
         Robot's full trajectories are stored in OpenRave format Trajectory Class, as below:
         [joints_values, joints_vel_values, joints_acc_values, deltatimes]
-
     Args:
         rays: (float[m][n<SUB>i</SUB>][6]) cartesian points and normals
-
     Examples
         >>> res = path(rays)
     """
@@ -32,16 +30,16 @@ class Path:
         self.rays = rays
         self.data = []
         self.success = False
+        self.joint_dijkstra = []
+        self.dtimes = []
 
     def execute(self, turbine, threshold=5e-2):
         """ Method to compute joint_values, joint_velocities, joint_accelerations and deltatimes.
             It uses the Dijkstra planning algorithm (see move_dijkstra function).
-
         Args:
             turbine: (@ref Turbine) is the turbine object.
             blade: (@ref Turbine) is the blade object (you might use DB.load_blade())
             threshold: (float) is the interpolation threshold, as rays are usually well spaced.
-
         Examples:
             >>> path.execute(turbine, DB.load_blade())
         """
@@ -49,6 +47,9 @@ class Path:
         if self.rays is None: return
 
         joint_path, rays_list, dtimes = self.move_dijkstra(turbine, self.rays, threshold)
+
+        self.joint_dijkstra = joint_path
+        self.dtimes = dtimes
 
         new_joint_path, new_joint_velocity_path, new_joint_acc_path = self.mls_parallels(
             turbine, joint_path, dtimes)
@@ -84,10 +85,8 @@ class Path:
 
     def serialize(self, directory=''):
         """ Method serializes data in OpenRave format output. It is an xml file.
-
         Args:
             directory: (str) is the relative path to the folder where to save.
-
         Examples:
             >>> path.serialize('my_folder')
         """
@@ -106,11 +105,9 @@ class Path:
 
     def deserialize(self, turbine, directory):
         """ Method deserializes data in OpenRave format.
-
         Args:
             turbine: (@ref Turbine) is the turbine object.
             directory: (str) is the relative path to the folder where to load.
-
         Examples:
             >>> path.deserialize(turbine,'my_folder')
         """
@@ -140,11 +137,9 @@ class Path:
 
     def simulate(self, robot, parallel_number):
         """ Method simulates and call visualization, in real time: the robot performing coat.
-
         Args:
             robot: (Turbine.robot) is the robot object.
             parallel_number: (int) is the parallel number to be simulated.
-
         Examples:
             >>> path.simulate(turbine.robot, 0)
             >>> for i in range(len(path.data)): path.simulate(turbine.robot, i)
@@ -156,15 +151,12 @@ class Path:
 
     def get_joint(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_value from path.
-
         Args:
             robot: (Turbine.robot) is the robot object.
             parallel_number: (int) is the parallel number to get the joint.
             point_number: (int) is the specific point in the parallel to get the joint _value.
-
         Returns:
             List float[m][n<SUB>i</SUB>][nDOF] of joint values
-
         Examples:
             >>> path.get_joint(turbine.robot, 0, 0)
             >>> N = path.data[0].GetNumWaypoints()
@@ -178,15 +170,12 @@ class Path:
 
     def get_velocity(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_velocity from path.
-
         Args:
             robot: (Turbine.robot) is the robot object.
             parallel_number: (int) is the parallel number to get the joint.
             point_number: (int) is the specific point in the parallel to get the joint _value.
-
         Returns:
             List float[m][n<SUB>i</SUB>][nDOF] of joint values
-
         Examples:
             >>> path.get_velocity(turbine.robot, 0, 0)
             >>> N = path.data[0].GetNumWaypoints()
@@ -200,15 +189,12 @@ class Path:
 
     def get_acc(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
-
         Args:
             robot: (Turbine.robot) is the robot object.
             parallel_number: (int) is the parallel number to get the joint.
             point_number: (int) is the specific point in the parallel to get the joint _value.
-
         Returns:
             List float[m][n<SUB>i</SUB>][nDOF] of joint values
-
         Examples:
             >>> path.get_acc(turbine.robot, 0, 0)
             >>> N = path.data[0].GetNumWaypoints()
@@ -222,14 +208,11 @@ class Path:
 
     def get_deltatime(self, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
-
         Args:
             parallel_number: (int) is the parallel number to get the joint.
             point_number: (int) is the specific point in the parallel to get the joint _value.
-
         Returns:
             List float[m][n<SUB>i</SUB>][nDOF] of joint values
-
         Examples:
             >>> path.get_deltatime(0, 0)
             >>> N = path.data[0].GetNumWaypoints()
@@ -243,15 +226,12 @@ class Path:
 
     def get_torques(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_acceleration from path.
-
         Args:
             robot: (Robot) is the robot object.
             parallel_number: (int) is the parallel number to get the joint.
             point_number: (int) is the specific point in the parallel to get the joint _value.
-
         Returns:
             List float[m][n<SUB>i</SUB>][nDOF] of joint values
-
         Examples:
             >>> path.get_torques(turbine.robot, 0, 0)
             >>> N = path.data[0].GetNumWaypoints()
@@ -267,13 +247,10 @@ class Path:
     def get_failed_acc(self, robot):
         """ Method returns a list [parallel_number, point_number] (Path.data structure) with all accelerations above
         the limit.
-
         Args:
             robot: (Robot) is the robot object.
-
         Returns:
             List int[m][2] [parallel_number, point_number].
-
         Examples:
             >>> acc_fail = path.get_failed_acc(robot)
         """
