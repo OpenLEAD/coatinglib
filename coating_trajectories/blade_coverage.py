@@ -354,6 +354,87 @@ class Path:
         plt.show()
         return
 
+    def plot_pos(self, turbine, parallel_number):
+        """ Plot joint position of specific parallel.
+
+        Args:
+            turbine: (@ref Turbine) is the turbine object.
+            parallel_number: (int) is the parallel number to get the joint.
+
+        Returns:
+            position graphic.
+
+        Examples:
+            >>> path.plot_pos(turbine, 0)
+        """
+
+        pos = []
+        dtimes = []
+        min_pos = turbine.robot.GetActiveDOFLimits()[0]
+        max_pos = turbine.robot.GetActiveDOFLimits()[1]
+
+        N = self.data[parallel_number].GetNumWaypoints()
+
+        for i in range(N):
+            pos.append(self.get_joint(turbine.robot, parallel_number, i))
+            dtimes.append(self.get_deltatime(parallel_number, i))
+
+        pos = array(pos)
+        f, ax = plt.subplots(turbine.robot.GetDOF(), sharex=True)
+        dtimes = cumsum(dtimes)
+
+        for i in range(turbine.robot.GetDOF()):
+            ax[i].plot(dtimes, pos[:, i], color='b')
+            ax[i].plot(dtimes, ones(N) * max_pos[i], color='r')
+            ax[i].plot(dtimes, ones(N) * min_pos[i], color='r')
+            ax[i].set_title('Joint Position ' + str(i))
+
+        f.subplots_adjust(hspace=0.3)
+        plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+        plt.show()
+        return
+
+    def plot_compare_mls_dijkstra(self, turbine, parallel_number):
+        """ Plot joint position of specific parallel.
+
+        Args:
+            turbine: (@ref Turbine) is the turbine object.
+            parallel_number: (int) is the parallel number to get the joint.
+
+        Returns:
+            position graphic.
+
+        Examples:
+            >>> path.plot_compare_mls_dijkstra(turbine, 0)
+        """
+
+        pos = []
+        dtimes = []
+        min_pos = turbine.robot.GetActiveDOFLimits()[0]
+        max_pos = turbine.robot.GetActiveDOFLimits()[1]
+
+        N = self.data[parallel_number].GetNumWaypoints()
+
+        for i in range(N):
+            pos.append(self.get_joint(turbine.robot, parallel_number, i))
+            dtimes.append(self.get_deltatime(parallel_number, i))
+
+        pos = array(pos)
+        f, ax = plt.subplots(turbine.robot.GetDOF(), sharex=True)
+        dtimes = cumsum(dtimes)
+
+        for i in range(turbine.robot.GetDOF()):
+            ax[i].plot(dtimes, pos[:, i], color='b')
+            ax[i].plot(dtimes, ones(N) * max_pos[i], color='r')
+            ax[i].plot(dtimes, ones(N) * min_pos[i], color='r')
+            ax[i].plot(dtimes, array(self.joint_dijkstra[parallel_number])[:, i], 'go')
+            ax[i].set_title('Joint Position ' + str(i))
+
+        f.subplots_adjust(hspace=0.3)
+        plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+        plt.show()
+        return
+
     def vis_failed_points(self, robot, vis):
         manip = robot.GetActiveManipulator()
         valid_points = []
@@ -388,15 +469,12 @@ class Path:
         """ Given parallels (cartesian points x-y-z-nx-ny-nz), this method returns robot's joints solution, using
         inverse kinematics (openrave ikfast) and the Dijktra algorithm for path optimization:
         @see https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
-
         Args:
             turbine: (@ref Turbine) turbine object
             organized_rays_list: (float[m][n<SUB>i</SUB>][6]) zigzagging parallels
             interpolation: (float) distance between points in parallels
-
         Returns:
              Two lists: joint values and equally spaced zigzagging parallels
-
         Examples:
             >>> joint_path, rays_list = path.move_dijkstra(turbine, rays_list, 3e-3)
         """
@@ -444,15 +522,12 @@ class Path:
 
     def mls_parallels(self, turbine, joints_parallels, dtimes_parallels):
         """ This method calls mls_joints to smooth the trajectories (all parallels)
-
         Args:
             turbine: (@ref Turbine) turbine object
             joint_path: (float[m][n<SUB>i</SUB>][nDOF]) list of joints for all parallels
             dtimes_parallels: (float[m][n<SUB>i</SUB>][1]) list of dtimes for all parallels
-
         Returns:
             Four lists: smooth joint values, joint velocities,  joint accelerations, and deltatimes
-
         Examples:
             >>> joint_path, joint_velocity_path, joint_acc_path, dtimes = path.mls_parallels(turbine, joint_path, dtimes_path)
         """
