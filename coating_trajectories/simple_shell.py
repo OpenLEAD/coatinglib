@@ -15,8 +15,8 @@ vis = visualizer.Visualizer(turbine.env)
 import blade_coverage
 import db
 
-grid = 77
-
+#grid = 77
+grid = 8
 robot = turbine.robot
 manip = robot.GetActiveManipulator()
 robot.GetLink('Flame').Enable(False)
@@ -30,7 +30,10 @@ DB.T = T
 
 #psa = (1.8000000000000034, 0.10879140586688345, 1.349065850398866)
 
-psa = (-2.0, -0.72551222845528596, 1.3490658503988662)
+psa = (1.8000000000000034, 1.5254013670473676, 1.0000000000000002)
+
+
+#psa = (-2.0, -0.72551222845528596, 1.3490658503988662)
 
 
 threshold = 5e-2
