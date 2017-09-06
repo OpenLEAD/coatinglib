@@ -1226,10 +1226,22 @@ def legMLS(y, x, x0, n, scale, wf=std_gaussian, dwf=dstd_gaussian, ddwf=ddstd_ga
 
     return new_y, new_dy, new_ddy
 
-def legn_path(n,p1,p2,dp1,dp2,ddp1,ddp2,t=[0,1]):
-    ddleg = legendre.legval(t, legendre.legder(eye(n+1), 2)).T
-    dleg = legendre.legval(t, legendre.legder(eye(n+1))).T
+def legn_path(n, pos, vel = None, acc = None, t=[0,1]):
+    p1, p2 = pos
+
     leg = legendre.legvander(t, n)
+
+    if vel is None:
+        return linalg.lstsq(leg, pos)[0]
+
+    dp1, dp2 = vel
+    dleg = legendre.legval(t, legendre.legder(eye(n + 1))).T
+
+    if acc is None:
+        return linalg.lstsq(vstack((dleg, leg)), [dp1, dp2, p1, p2])[0]
+
+    ddp1, ddp2 = acc
+    ddleg = legendre.legval(t, legendre.legder(eye(n + 1), 2)).T
     return linalg.lstsq(vstack((ddleg, dleg, leg)), [ddp1, ddp2, dp1, dp2, p1, p2])[0]
 
 class AccRampProfile:
