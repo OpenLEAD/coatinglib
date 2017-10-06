@@ -1,12 +1,13 @@
 from rbf import RBF
 import blade_modeling
 from turbine import Turbine
-from numpy import dot, sqrt, sum, concatenate
+from numpy import dot, sqrt, sum, concatenate, pi
 import mathtools
 from turbine_config import TurbineConfig
 from visualizer import Visualizer
 from os.path import join, realpath
 from os import environ
+from openravepy import matrixFromAxisAngle
 
 def load_samples():
     blade.load_samples(join(name,'samples','samples.xml'))
@@ -36,9 +37,9 @@ def sampling_blade():
     # --------------------------
     # Filtering
     # --------------------------
-    blade.points = mathtools.filter_by_distance(blade.points, 0.02)
-    lip = mathtools.filter_by_distance(lip, 0.01)
-    blade.points = concatenate((blade.points, lip))
+    #blade.points = mathtools.filter_by_distance(blade.points, 0.02)
+    #lip = mathtools.filter_by_distance(lip, 0.01)
+    #blade.points = concatenate((blade.points, lip))
     return 
 
 def plot_samples():
@@ -83,13 +84,14 @@ def plot_trajectories():
 
 def generate_trajectories():
     Rs = sqrt(sum(blade.points[:,0:3]*blade.points[:,0:3],1))
-    sphere = mathtools.Sphere(max(Rs), min(Rs), 0.003)
-
-    try:
-        blade.generate_trajectories(sphere)
-    except KeyboardInterrupt:
-        save_trajectories()
-        raise
+    sphere = mathtools.Sphere(max(Rs), min(Rs), 0.01)
+    blade.generate_trajectories(sphere, vis)
+##
+##    try:
+##        blade.generate_trajectories(sphere)
+##    except KeyboardInterrupt:
+##        save_trajectories()
+##        raise
 
 def filter_trajectories():
     load_trajectories()
@@ -117,7 +119,7 @@ def rotate_blade(T, directory):
     
 if __name__ == "__main__":
     
-    name = 'jiraublade_hd_filtered'
+    name = 'FACE/jiraublade_filtered'
     dir_test = join(realpath('.'),'test')
     environ['OPENRAVE_DATA'] = str(dir_test)
     cfg = TurbineConfig.load('turbine_unittest.cfg','test')
@@ -125,16 +127,33 @@ if __name__ == "__main__":
     
     turb.env.Remove(turb.primary)
     turb.env.Remove(turb.secondary)
+    turb.env.Remove(turb.iris)
+    turb.env.Remove(turb.rotor)
+    turb.env.Remove(turb.runner_area)
+    turb.env.Remove(turb.blades[0])
+    turb.env.Remove(turb.blades[2])
+    turb.env.Remove(turb.blades[1])
+    turb.env.Remove(turb.robot)
 
     rbf_model = RBF('r3')
-    blade = blade_modeling.BladeModeling(turb, turb.blades[0])
+    blade = blade_modeling.BladeModeling(turb, turb.blades[3])
 
-    #sampling_blade()
+    # Visualizer
+    vis = Visualizer(turb.env)
+    #plot_samples()
+    #plot_trajectories()
+
+    sampling_blade()
+    #load_samples()
     #save_samples()
     
     #make_model()
+    #load_model()
     #save_model()
+    #T = matrixFromAxisAngle([pi, 0, 0])
+    #blade.rotate_models(T)
 
+    #x = raw_input('wait')
     #generate_trajectories()
     #save_trajectories()
 
@@ -143,8 +162,5 @@ if __name__ == "__main__":
 
     #rotate_blade(matrixFromAxisAngle([-pi/4, 0, 0]), 'jiraublade_hd_-45')
 
-    # Visualizer
-    vis = Visualizer(turb.env)
-    #plot_samples()
-    plot_trajectories()
+    
     

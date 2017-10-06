@@ -1,8 +1,9 @@
 from numpy import load, savez_compressed, zeros, arange
 from numpy import meshgrid, array, sum, eye, dot, argsort
-from numpy import argmax, savetxt, loadtxt, cross, linalg
+from numpy import argmax, savetxt, loadtxt, cross, linalg, argmin
 from numpy import r_, c_, outer, tile, concatenate, sqrt, linspace
 from numpy import min as npmin
+from numpy import max as npmax
 from os import makedirs
 from os.path import join, dirname
 import errno
@@ -62,6 +63,7 @@ class BladeModeling:
 
         delta = self.samples_delta
         min_distance_between_points = self.min_distance_between_points
+        directory_to_save = join(directory_to_save, name, 'samples')
 
         if delta is None:
             raise TypeError("Samples were not generated. samples_delta is None.")
@@ -156,7 +158,8 @@ class BladeModeling:
         trajectories = self.trajectories
         trajectory_step = self.trajectory_step
         iter_surface = self.trajectory_iter_surface
-        xml_model = join(name, 'model', 'mode.xml')
+        directory_to_save = join(directory_to_save, name, 'trajectory')
+        xml_model = join(name, 'model', 'model.xml')
 
         try:
             makedirs(join(directory_to_save, name, 'trajectory'))
@@ -177,11 +180,11 @@ class BladeModeling:
         ET.SubElement(surface, "coatingstep").text = str(iter_surface.coatingstep)
 
         iter_surface._Rn = iter_surface._Rn0
-        ET.SubElement(trajectory, "npz_file").text = join(name, 'trajectory.npz')
-        savez_compressed(join(directory_to_save, name, 'trajectory', 'trajectory.npz'), array=trajectories)
+        ET.SubElement(trajectory, "npz_file").text = join(directory_to_save, 'trajectory.npz')
+        savez_compressed(join(directory_to_save, 'trajectory.npz'), array=trajectories)
 
         tree = ET.ElementTree(trajectory)
-        tree.write(join(directory_to_save, name, "trajectory.xml"), pretty_print=True)
+        tree.write(join(directory_to_save, "trajectory.xml"), pretty_print=True)
         return
 
     def load_samples(self, xml_file):
@@ -204,7 +207,10 @@ class BladeModeling:
             raise TypeError("samples's shape must be (n,6). [x,y,z, nx,ny,nz]")
 
         self.samples_delta = float(xml.find('delta').text)
-        self.min_distance_between_points = float(xml.find('min_distance_between_points').text)
+        try:
+            self.min_distance_between_points = float(xml.find('min_distance_between_points').text)
+        except ValueError:
+            self.min_distance_between_points = None
         return
 
     def load_model(self, xml_file):
@@ -367,8 +373,7 @@ class BladeModeling:
             else:
                 model_points, models_index = self._divide_model_points(self.points, model_iter_surface,
                                                                        number_of_points_per_model,
-                                                                       intersection_between_divisions)
-
+                                                                       intersection_between_divisions) 
         for i in range(0, len(model_points)):
             temp_model = deepcopy(model)
             temp_model._points = model_points[i]
@@ -411,9 +416,8 @@ class BladeModeling:
         points_distance = iter_surface.f_array(points)
         points = points[argsort(points_distance)]
         number_of_points = len(points)
-        model_points.append(points[0:number_of_points_per_part])
-        model_index = [(iter_surface.f(points[0]),
-                        iter_surface.f(points[number_of_points_per_part - 1]))]
+        model_index = []
+        
         counter = 0
         while True:
             k = int((1 - intersection_between_divisions) * number_of_points_per_part * counter)
@@ -446,7 +450,7 @@ class BladeModeling:
             iter_surface.update()
             point = last_computed_point
         else:
-            initial_point = self.points[argmax(iter_surface.f_array(self.points))]
+            initial_point = self.points[argmin(abs(iter_surface.f_array(self.points)))]
             iter_surface.findnextparallel(initial_point)
             point = initial_point
 
@@ -454,7 +458,7 @@ class BladeModeling:
         return mathtools.curvepoint(model, iter_surface, point[0:3])
 
     @staticmethod
-    def draw_parallel(point_on_surfaces, model, iter_surface, step):
+    def draw_parallel(point_on_surfaces, model, iter_surface, step, vis = None):
         """ The draw_parallel generates one coating trajectory. The trajectory is
         the intersection between two surfaces: the blade model, and the surface
         to be iterated, e.g. spheres. The algorithm
@@ -479,18 +483,19 @@ class BladeModeling:
         initial_point = copy(point_on_surfaces)
         counter = 0
         trajectory = [point_on_surfaces]
-
         while True:
             tan = mathtools.surfaces_tangent(trajectory[-1], iter_surface)
             next_point_on_surfaces = mathtools.curvepoint(model,
                                                           iter_surface,
                                                           trajectory[-1][0:3] - tan * step)
-            dP = abs(next_point_on_surfaces[0:3] - initial_point[0:3])
+            
+            dP = linalg.norm(next_point_on_surfaces[0:3] - array(trajectory)[:,0:3],axis=1)
+            #dP = abs(next_point_on_surfaces[0:3] - initial_point[0:3])
             if counter == 0:
-                if max(dP) <= step:
+                if min(dP) <= step * 0.5:
                     counter += 1
             else:
-                if max(dP) <= step:
+                if min(dP) <= step * 0.5:
                     try:
                         # p0 = trajectory[0][0:3]; p1 = trajectory[1][0:3]; p2 = trajectory[2][0:3]
                         # if (max(abs(p0-p1))<=step) and (max(abs(p0-p2))>=step):
@@ -498,6 +503,8 @@ class BladeModeling:
                         return trajectory
                     except IndexError:
                         raise IndexError('Step is too big and the function terminated soon.')
+            if vis is not None:
+                str_point = vis.plot([next_point_on_surfaces],'str_point',(1,0,0))
             trajectory.append(next_point_on_surfaces)
 
     def draw_meridian_by_point(self, origin, meridian_step=1e-3):
@@ -581,7 +588,7 @@ class BladeModeling:
 
         return meridians
 
-    def generate_trajectories(self, iter_surface):
+    def generate_trajectories(self, iter_surface, vis = None):
         """ Method generate the coating trajectories. The trajectories are
         the intersection between two surfaces: the blade model, and the surface
         to be iterated, e.g. spheres. The algorithm
@@ -621,7 +628,7 @@ class BladeModeling:
         self.trajectory_iter_surface = iter_surface
         while iter_surface.criteria():
             model = self.select_model(point_on_surfaces)
-            trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step))
+            trajectories.append(self.draw_parallel(point_on_surfaces, model, iter_surface, step, vis))
             p0 = trajectories[-1][-1]
             iter_surface.update()
             point_on_surfaces = mathtools.curvepoint(model, iter_surface, p0[0:3])
