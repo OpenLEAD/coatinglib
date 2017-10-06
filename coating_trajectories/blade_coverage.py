@@ -149,6 +149,27 @@ class Path:
         robot.WaitForController(0)
         return
 
+    def plot_coated_points(self, robot, vis, step = 10):
+        points = []
+        with robot:
+            for parallel_index in range(len(self.data)):
+                for point_index in range(self.data[parallel_index].GetNumWaypoints()):
+                    joint1 = path.get_joint(robot, parallel_index, point_index)
+                    robot.SetDOFValues(joint1)
+                    points.append(robot.GetActiveManipulator().GetTransform()[0:3,3])
+
+        for i in range(len(points)-1):
+            point0 = points[i]
+            point1 = points[i+1]
+            x = linspace(points[i][0],points[i+1][0], step)
+            y = linspace(points[i][1],points[i+1][1], step)
+            z = linspace(points[i][2],points[i+1][2], step)
+            interpolation.append(zip(x,y,z))
+
+        interpolation_str = vis.plot_lists(interpolation,'interpolation',(1,0,0))
+        return 
+        
+
     def get_joint(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_value from path.
         Args:
