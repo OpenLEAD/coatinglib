@@ -7,13 +7,9 @@ def dijkstra(adj, costs, s, t):
     Q = []     # priority queue of items; note item is mutable.
     d = {s: 0} # vertex -> minimal distance
     p = {}     # predecessor
-    visited_set = {s}
+    visited_set = set()
 
-    for v in adj.get(s[0]):
-        d[v] = costs[s, v]
-        item = [d[v], s, v]
-        heapq.heappush(Q, item)
-
+    heapq.heappush(Q, (0, None, s))
     while Q:
         u_cost, parent, u = heapq.heappop(Q)
         if u not in visited_set:
