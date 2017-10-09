@@ -99,19 +99,21 @@ class dijkstra_acc_cost:
 
     def __getitem__(self, item):
         from_node, from_velocity = item[0]
-        from_velocity = array(from_velocity)
         to_node, to_velocity = item[1]
-        to_velocity = array(to_velocity)
 
         if (self.vs in item) or (self.vt in item):
             return finfo(float).eps
 
-        if (from_node[0] == 0) or (to_node[0] == len(self.dtimes)-1):
-            if not self.stored.has_key(item):
-                self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits*inf)
-
         if not self.stored.has_key(item):
-            self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits)
+            if (from_node[0] == 0) or (to_node[0] == len(self.dtimes)-1):
+                acc_limits = self.acc_limits*inf
+            else:
+                acc_limits = self.acc_limits
+            from_velocity = array(from_velocity)
+            to_velocity = array(to_velocity)
+            self.stored[item] = self.acc_cost(from_velocity, to_velocity,
+                    (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2.,
+                    self.vel_limits, acc_limits)
 
         return self.stored[item]
 
