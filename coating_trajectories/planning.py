@@ -129,16 +129,15 @@ def sensibility(turbine, ray, w, alpha):
 
     return velocity_tan_error, position_normal_error, position_perp_error, angle_error
     
-def compute_robot_joints(turbine, trajectory, trajectory_index, iter_surface = None):
+def compute_robot_joints(turbine, trajectory, trajectory_index):
     """
     Iterates points of the trajectories, computing optimal robot's joints
     (minimizing orientation error). For the first point, it uses ikfast.
 
-    Keyword arguments:
-    turbine -- turbine object
-    trajectory -- trajectory to coat
-    trajectory_index -- where to begin. Index of a feasible point in the trajectory.
-    joint_solutions -- initial joint_solutions
+    Args:
+        turbine: (@ref Turbine) turbine object.
+        trajectory: trajectory to coat
+        trajectory_index: where to begin. Index of a feasible point in the trajectory.
     """
 
     joint_solutions = []
@@ -200,14 +199,12 @@ def compute_robot_joints_opt(turbine, trajectory, trajectory_index, iter_surface
             best_joint_solutions = joint_solutions
     return best_joint_solutions
 
+def compute_first_feasible_point(turbine, trajectory):
+    """ Method to compute the first feasible point in the trajectory: where to start.
 
-def compute_first_feasible_point(turbine, trajectory, iter_surface = None):
-    """
-    Method to compute the first feasible point in the trajectory: where to start.
-
-    Keyword arguments:
-    turbine -- turbine object
-    trajectory -- trajectory to coat
+    Args:
+        turbine: (@ref Turbine) turbine object.
+        trajectory: trajectory to coat
     """
 
     robot = turbine.robot
@@ -311,14 +308,13 @@ def orientation_cons(turbine, point):
 def ik_angle_tolerance(turbine, point, angle_tolerance_init=0, angle_tolerance_end=None, number_of_phi = 24, number_of_theta=7, deep=False):
     """ Solve the inverse kinematics given point (IKFast) with maximum tolerance angle.
 
-    Keyword arguments:
-    turbine -- turbine object
-    point -- point to be coated is a 6D array, which (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
+    Args:
+        turbine: (@ref Turbine) turbine object.
+        point: point to be coated is a 6D array, which (x,y,z) cartesian position
+        and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
     """
 
     robot = turbine.robot
-    manip = robot.GetActiveManipulator()
     iksol = []
     
     # Compute solution with maximum distance and angle tolerances

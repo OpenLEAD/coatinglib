@@ -29,8 +29,7 @@ class NoDBFound(Exception):
 
 
 def save_pickle(obj, name):
-    """
-    Save a general file in pickle format.
+    """ Save a general file in pickle format.
 
     Args:
         obj: object to be saved.
@@ -46,10 +45,9 @@ def save_pickle(obj, name):
 
 
 def load_pickle(filename):
-    """
-    Load a general file in pickle format.
+    """ Load a general file in pickle format.
 
-    Arguments:
+    Args:
         filename: path/name of the file.
 
     Examples:
@@ -61,6 +59,15 @@ def load_pickle(filename):
 
 
 def get_sorted(filename):
+    """ Given the base_to_num or point_to_num files, the method returns the sorted list, i.e., num_to_base or
+    num_to_point.
+
+    Args:
+        filename: path/name of the file.
+
+    Examples:
+        >>> get_sorted('my_folder/base_to_num.pkl')
+    """
     b2n = load_pickle(filename)
     return [b for (v, b) in sorted(zip(b2n.values(), b2n.keys()))]
 
@@ -71,7 +78,11 @@ class DB:
 
     Args:
         path: is the folder to store all data bases;
-        blade: BladeModeling object;
+        turbine: (@ref Turbine) turbine object;
+        db_name: (optional) name of the db if it already exists.
+
+    Examples:
+        >>> DB = db.DB('FACE', turbine, 'db')
     """
 
     def __init__(self, path, turbine, db_name=None):
@@ -95,7 +106,6 @@ class DB:
 
         if db_name != None and db_name != '':
             dbs = self.info.findall('db')
-            db_main = None
             for db in dbs:
                 if db.find('name').text == db_name:
                     self.db_main_path = join(self.path, db.find('path').text)
@@ -107,6 +117,13 @@ class DB:
             self.db_main_path = self.path
 
     def verticalization_state(self):
+        """ Check if db was verticalized. DB.verticalized == True if verticalized base.
+        The Lip and borders are, for example, verticalized DBs.
+
+        Examples:
+            >>> DB.verticalized()
+        """
+
         vertical = self.info.find('verticalized')
         if vertical is None:
             self.verticalized = False
@@ -116,12 +133,22 @@ class DB:
             return
 
     def _extract_T(self, info_db):
+        """ Return the homogeneous matrix of the blade when the base was computed (rotation and position).
+
+         Args:
+             info_db: xml file of the DB.
+
+        Examples:
+            >>> info = ET.parse(open(join(self.path, 'info.xml')))
+            >>> m = DB._extract_T(info)
+        """
+
         T = info_db.find('transform').text
         T = T.replace('\n', ' ')
         T = T.replace('\t', ' ')
         T = T.split(' ')
         T[:] = [x for x in T if x != '']
-        m = [];
+        m = []
         mi = []
         for t in T:
             try:
@@ -138,18 +165,23 @@ class DB:
             raise SyntaxError("Invalid transform shape in info.xml")
 
     def load_db(self):
-        """
-        Load main database num:num. The first num represents the points and
+        """ Load main database num:num. The first num represents the points and
         the second represents the bases.
+
+        Examples:
+            >>> DB.load_db()
         """
 
         name = join(self.db_main_path, 'db.pkl')
         return load_pickle(name)
 
     def load_points_to_num(self):
-        """
-        Load points_to_num database points:num. Points are tuples (x,y,z) and
-        the num maps the points (counter to reduce database complexity).
+        """ Load points_to_num database points:num. Points are tuples (x,y,z) and
+        the num maps the points (counter to reduce database complexity). It will rotate and
+        translate the points by the T matrix (database homogeneous transform).
+
+        Examples:
+            >>> DB.load_points_to_num()
         """
 
         path = join(self.path, 'points_to_num.pkl')
@@ -160,21 +192,28 @@ class DB:
         return real_ptn
 
     def load_grid_to_mp(self):
-        """
-        Load grid_to_mp database num:[(m1,m2),(p1,p2)].
+        """ Load grid_to_mp database num:[(m1,m2),(p1,p2)].
         Grids are numbers and the mp are
         meridian/parallels index.
+
+        Examples:
+            >>> DB.load_grid_to_mp()
         """
 
         path = join(self.path, 'grid_to_mp.pkl')
         return load_pickle(path)
 
     def load_grid_to_trajectories(self):
-        """
-        Load grid_to_trajectories database num:[trajectories, borders].
+        """ Load grid_to_trajectories database num:[trajectories, borders].
         Grids are numbers and the bases are lists of trajectories (num, db format)
-        and borders (tuples Nx3).
+        and borders (tuples Nx3). It will rotate and translate the points by the T matrix
+        (database homogeneous transform). It will check if the trajectories are verticalized and it will load
+        the correct file.
+
+        Examples:
+            >>> DB.load_grid_to_trajectories()
         """
+
         if self.verticalized == True:
             return self._load_grid_to_trajectories_verticalized()
 
@@ -197,9 +236,11 @@ class DB:
         return new_gttv
 
     def load_bases_to_num(self):
-        """
-        Load bases_to_num database bases:num. Bases are tuples railplace and
+        """ Load bases_to_num database bases:num. Bases are tuples railplace and
         the num maps the bases (counter to reduce database complexity).
+
+        Examples:
+            >>> DB.load_bases_to_num()
         """
 
         path = join(self.path, 'bases_to_num.pkl')
@@ -207,33 +248,41 @@ class DB:
         return load_pickle(path)
 
     def load_visited_bases(self):
-        """
-        Load visited_bases database bases:bool. Bases are tuples PSAlpha and
+        """ Load visited_bases database bases:bool. Bases are tuples PSAlpha and
         the bool show if it was already computed.
+
+        Examples:
+            >>> DB.load_visited_bases()
         """
 
         path = join(self.db_main_path, 'visited_bases.pkl')
         return load_pickle(path)
 
     def load_grid_meridian(self):
-        """
-        Load grid_meridians. The meridians used to make the grid.
+        """ Load grid_meridians. The meridians used to make the grid.
+
+        Examples:
+            >>> DB.load_grid_meridian()
         """
 
         path = join(self.path, 'meridians.pkl')
         return mathtools.rotate_trajectories(load_pickle(path), self.T)
 
     def load_grid_parallel(self):
-        """
-        Load grid_parallel. The parallels used to make the grid.
+        """ Load grid_parallel. The parallels used to make the grid.
+
+        Examples:
+            >>> DB.load_grid_parallel()
         """
 
         path = join(self.path, 'parallels.pkl')
         return mathtools.rotate_trajectories(load_pickle(path), self.T)
 
     def load_blade(self):
-        """
-        Function to load blade model.
+        """ Function to load blade model.
+
+        Examples:
+            >>> DB.load_blade()
         """
 
         folder = self.info.find('blade_model_filtered')
@@ -251,8 +300,10 @@ class DB:
         return blade
 
     def load_blade_full(self):
-        """
-        Function to load blade model.
+        """ Function to load blade model.
+
+        Examples:
+            >>> DB.load_blade_full()
         """
 
         folder = self.info.find('blade_model')
@@ -268,6 +319,14 @@ class DB:
         return blade
 
     def create_points_to_num(self):
+        """ This method get the samples from the blade and create the point_to_num database: a dictionary
+        that relates samples (keys) and numbers (values, counters to minimize the database complexity).
+        It will return the point_to_num dictionary (it will not save it).
+
+        Examples:
+            >>> DB.create_points_to_num()
+        """
+
         blade = self.load_blade()
         points_to_num = dict()
 
@@ -276,27 +335,27 @@ class DB:
             for point in trajectory:
                 points_to_num[tuple(round(point[0:3], 9))] = counter
                 counter += 1
-        save_pickle(points_to_num, join(self.path, 'points_to_num.pkl'))
         return points_to_num
 
     def create_db(self):
-        """
-        Create the database.
+        """ Create the database.
+        If point_to_num does not exist, it will create it and save it.
+        It will make a single db looping on all databases (angles)
 
-        Args:
-            blade: the blade object. The database point should be created with the parallel points.
+        Examples:
+            >>> DB.create_db()
         """
 
         try:
-            points_to_num = self.load_points_to_num()
+            _ = self.load_points_to_num()
         except IOError:
             points_to_num = self.create_points_to_num()
+            save_pickle(points_to_num, join(self.path, 'points_to_num.pkl'))
 
         try:
             main_db = self.load_db()
         except IOError:
             main_db = dict()
-
             dbs = self.info.findall('db')
             for dbi in dbs:
                 T = self._extract_T(dbi)
@@ -319,31 +378,43 @@ class DB:
         return
 
     def get_sorted_bases(self):
-        """
-        Return the sorted bases -- tuples PSAlpha.
+        """ Return the sorted bases -- tuples PSAlpha.
+
+        Examples:
+            >>> ntb = DB.get_sorted_bases()
         """
 
         btn = self.load_bases_to_num()
         return [b for (v, b) in sorted(zip(btn.values(), btn.keys()))]
 
     def get_sorted_points(self):
-        """
-        Return the sorted points -- tuples (x,y,z).
+        """ Return the sorted points -- tuples (x,y,z).
+
+        Examples:
+            >>> ntp = DB.get_sorted_points()
         """
 
         ptn = self.load_points_to_num()
         return [b for (v, b) in sorted(zip(ptn.values(), ptn.keys()))]
 
     def get_bases(self, db):
+        """ Return all feasible bases in given database
+
+        Examples:
+            >>> bases = DB.get_bases(db)
+        """
+
         bases = set()
         for val in db.values():
             bases = val | bases
         return bases
 
     def get_dbs_grids(self):
-        """
-        Load grid_bases.pkl and info.xml files to return all coatable grids.
+        """ Load grid_bases.pkl and info.xml files to return all coatable grids.
         The method returns a dictionary {db_path:coatable_grids}.
+
+        Examples:
+            >>> db_grids = DB.get_dbs_grids()
         """
 
         dbs = self.info.findall('db')
@@ -359,12 +430,14 @@ class DB:
         return db_grids
 
     def merge_db(self, db_file, main_db):
-        """
-        Merge new db_file to the main database.
+        """ Merge new db_file to the main database.
 
-        keyword arguments:
-        db_file -- file to be merged;
-        main_db -- main database file;
+        Args:
+            db_file: file to be merged;
+            main_db: main database file;
+
+        Examples:
+            >>> main_db = DB.merge_db(db_file, main_db)
         """
 
         for key, value in db_file.iteritems():
@@ -374,12 +447,14 @@ class DB:
         return main_db
 
     def merge_seg(self, seg, main_db):
-        """
-        Merge new seg to the main database.
+        """ Merge new segments to the main database. Segments are parts of the parallels.
 
-        keyword arguments:
-        seg -- segments to be merged;
-        main_db -- main database file;
+        Args:
+            seg: segments to be merged
+            main_db: main database file
+
+        Examples:
+           >>> main_db = DB.merge_seg(seg, main_db)
         """
 
         base = seg.keys()[0]
@@ -390,11 +465,15 @@ class DB:
         return main_db
 
     def create_db_from_segments(self, path, merge=0):
-        """
-        Method to create db (num to num) with segments in given path.
+        """ Method to create db (num to num) with segments in given path. Segments are parts of the parallels.
+        It returns the resulted main_db (the method does not save it)
 
-        keyword arguments:
-        path -- where the segments are.
+        Args:
+            path: where the segments are.
+            merge: (default=0) create new empty db if merge == 0. Else, it merges.
+
+        Examples:
+            >>> db = DB.create_db_from_segments(path)
         """
 
         if merge == 0:
@@ -406,8 +485,6 @@ class DB:
             db = self.load_db()
 
         onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
-        N = len(onlyfiles)
-        index = 0
         for afile in onlyfiles:
             filename, file_extension = splitext(afile)
             if file_extension == '.pkl':
@@ -419,14 +496,15 @@ class DB:
         return db
 
     def get_bases_trajectories(self, trajectories):
-        """
-        Method returns the robot bases (tuples PSAlpha)
-        that can coat all set of points in trajectories and db.
-        If a point in trajectories does not belong to the db, it is
-        skipped.
+        """ Method returns the robot bases (tuples PSAlpha) that can coat all set of points in trajectories.
+        Trajectories here are natural numbers (num in point_to_num).
+        If a point in trajectories does not belong to the db, it is skipped.
 
-        keyword arguments:
-        trajctories -- points_num (db format) to be coated
+        Args:
+            trajectories: points_num (db format) to be coated
+
+        Examples:
+            >>> bases = DB.get_bases_trajectories(trajectories)
         """
 
         db = self.load_db()
@@ -443,14 +521,16 @@ class DB:
         return array(bases_tuple)[list(set_of_feasible_bases_num)].tolist()
 
     def get_best_bases_trajectories(self, trajectories):
-        """
-        Method returns the bases in score order that can coat the given
+        """ Method returns the bases in score order that can coat the given
         trajectories. This order is more important to know than absolut coating
         because some points may never be coated (as points on the top of
         the blade)
 
-        keyword arguments:
-        trajectories -- points_num (db format) to be coated
+        Args:
+            trajectories: num in points_to_num (db format) to be coated
+
+        Examples:
+            >>> best_bases, scores = DB.get_best_bases_trajectories(trajectories)
         """
 
         db = self.load_db()
@@ -469,11 +549,13 @@ class DB:
         return best_bases, -array(sorted(score)) * 1.0 / N
 
     def base_grid_coating(self, grid_num):
-        """
-        Method returns the bases in score order that can coat a specific grid. 
+        """ Method returns the bases in score order that can coat a specific grid.
 
-        keyword arguments:
-        grid_num -- grid to be coated
+        Args:
+            grid_num: grid to be coated
+
+        Examples:
+            >>> bases, scores = DB.base_grid_coating(grid)
         """
 
         gtt = load_pickle(join(self.path, 'grid_to_trajectories.pkl'))
@@ -482,17 +564,17 @@ class DB:
         return bases, scores
 
     def make_grid(self, number_of_meridians, number_of_parallels, init_parallel):
-        """
-        Make a grid in the blade with parallels and meridians.
+        """ Make a grid in the blade with parallels and meridians.
         Meridians and parallels are evenly spaced.
         The parallel used to compute the meridians is in the middle.
         
-        keyword arguments:
-        blade -- blade object.
-        number_of_meridians -- number of meridians to be computed.
-        number_of_parallels -- number of parallels.
-        init_parallel -- initial parallel. This argument is
-        important to remove the lip from the grid.
+        Args:
+            number_of_meridians: number of meridians to be computed.
+            number_of_parallels: number of parallels to be computed.
+            init_parallel: initial parallel. This argument is important to remove the lip from the grid.
+
+        Examples:
+            >>> meridians, parallels = DB.make_grid(10, 10, 5)
         """
 
         blade = self.load_blade_full()
@@ -507,19 +589,16 @@ class DB:
         return meridians, parallels
 
     def create_db_grid(self):
-        """
-        Autonomously create the db_grid after the make_grid process.
-        The method will get adjacent meridians and parallels, building
-        the grids. Some of the grids may not make sense, thus the user
-        should analyse, add and remove grids.
-        
-        keyword arguments:
-        blade -- blade object.
+        """ Autonomously create the db_grid after the make_grid process.
+        The method will get adjacent meridians and parallels, building the grids.
+        Some of the grids may not make sense, thus the user should analyse, add and remove grids.
+
+        Examples:
+            >>> DB.create_db_grid()
         """
 
         blade = self.load_blade_full()
         grid_to_mp = dict()
-        db_grid_to_bases = dict()
         grid_to_trajectories = dict()
         meridians = self.load_grid_meridian()
         parallels = self.load_grid_parallel()
@@ -531,20 +610,13 @@ class DB:
                 trajectories_in_grid, borders = self.get_points_in_grid(
                     blade, [meridians[grid[0][0]], meridians[grid[0][1]]],
                     [parallels[grid[1][0]], parallels[grid[1][1]]])
-                bases = self.get_bases_trajectories(trajectories_in_grid)
 
                 grid_to_mp[counter] = grid
-                db_grid_to_bases[counter] = bases
                 grid_to_trajectories[counter] = [trajectories_in_grid, borders]
                 counter += 1
 
         try:
             save_pickle(grid_to_mp, join(self.path, 'grid_to_mp.pkl'))
-        except IOError:
-            None
-
-        try:
-            save_pickle(db_grid_to_bases, join(self.path, 'db_grid_to_bases.pkl'))
         except IOError:
             None
 
@@ -556,14 +628,26 @@ class DB:
         return
 
     def generate_db_joints(self, base_num, minimal_number_of_points_per_trajectory=3, do_side_filter=True):
-        """
-        Compute joints for coating HARD COMPUTATION time
-        outputs:
-        db_base_to_joints = { base: { point_num: joints } }
-        db_base_to_segs = { base: [trajectory1, trajectory2, ...] }
-        trajectory = [part1, part2,...]
-        part = [point1_num, point2_num, ...]
-        
+        """ This method generates the database. Given the base (natural number that corresponds to a base
+        tuple PSAlpha), it will test all grids and make segments of coating. It verifies only kinematic and collisions.
+        It returns None, None if there is collision of the robot base and environment.
+
+        It returns the segments:
+            a dictionary db_base_to_segs = { base: [trajectory1, trajectory2, ...] }
+            trajectory = [part1, part2,...]
+            part = [point1_num, point2_num, ...]
+
+        Warning: HARD COMPUTATION time
+
+        Args:
+            base_num: number in number_to_base
+            minimal_number_of_points_per_trajectory: (optional, default = 3) minimal length of the segment
+            do_side_filter: (optional, default = True) it will only check feasible segments on the side of the robot.
+            It is a way of make things faster, but it will not work with borders and lip
+
+        Examples:
+            >>> btn = DB.get_sorted_bases()
+            >>> DB.generate_db_joints(0)
         """
 
         ntb = self.get_sorted_bases()
