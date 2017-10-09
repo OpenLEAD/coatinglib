@@ -17,22 +17,24 @@ def dijkstra(adj, costs, s, t):
         Qd[v] = item
 
     while Q:
-        cost, parent, u = heapq.heappop(Q)
+        u_cost, parent, u = heapq.heappop(Q)
         if u not in visited_set:
             p[u]= parent
             visited_set.add(u)
             if u == t:
                 return p, d[u]
             for v in adj.get(u[0]):
-                if d.get(v):
-                    if d[v] > costs[u, v] + d[u]:#max(costs[u, v],d[u])
-                        d[v] =   costs[u, v] + d[u] #max(costs[u, v],d[u])
-                        Qd[v][0] = d[v]    # decrease key
+                v_cost_new = costs[u, v] + u_cost
+                v_cost_old = d.get(v)
+                if v_cost_old:
+                    if v_cost_old > v_cost_new:
+                        d[v] = v_cost_new
+                        Qd[v][0] = v_cost_new    # decrease key
                         Qd[v][1] = u       # update predecessor
                         heapq._siftdown(Q, 0, Q.index(Qd[v]))
                 else:
-                    d[v] = costs[u, v] + d[u] #max(costs[u, v],d[u])
-                    item = [d[v], u, v]
+                    d[v] = v_cost_new #max(costs[u, v],d[u])
+                    item = [v_cost_new, u, v]
                     heapq.heappush(Q, item)
                     Qd[v] = item
 
