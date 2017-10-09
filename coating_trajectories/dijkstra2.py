@@ -6,7 +6,6 @@ def dijkstra(adj, costs, s, t):
         from s to t; Otherwise, return None '''
     Q = []     # priority queue of items; note item is mutable.
     d = {s: 0} # vertex -> minimal distance
-    Qd = {}    # vertex -> [d[v], parent_v, v]
     p = {}     # predecessor
     visited_set = {s}
 
@@ -14,7 +13,6 @@ def dijkstra(adj, costs, s, t):
         d[v] = costs[s, v]
         item = [d[v], s, v]
         heapq.heappush(Q, item)
-        Qd[v] = item
 
     while Q:
         u_cost, parent, u = heapq.heappop(Q)
@@ -26,17 +24,10 @@ def dijkstra(adj, costs, s, t):
             for v in adj.get(u[0]):
                 v_cost_new = costs[u, v] + u_cost
                 v_cost_old = d.get(v)
-                if v_cost_old:
-                    if v_cost_old > v_cost_new:
-                        d[v] = v_cost_new
-                        Qd[v][0] = v_cost_new    # decrease key
-                        Qd[v][1] = u       # update predecessor
-                        heapq._siftdown(Q, 0, Q.index(Qd[v]))
-                else:
-                    d[v] = v_cost_new #max(costs[u, v],d[u])
+                if (not v_cost_old) or (v_cost_old > v_cost_new):
+                    d[v] = v_cost_new
                     item = [v_cost_new, u, v]
                     heapq.heappush(Q, item)
-                    Qd[v] = item
 
     return None
 
