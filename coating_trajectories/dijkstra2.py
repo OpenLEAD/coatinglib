@@ -8,6 +8,7 @@ def dijkstra(adj, costs, s, t):
     d = {s: 0} # vertex -> minimal distance
     p = {}     # predecessor
     visited_set = set()
+    successors = {}
 
     heapq.heappush(Q, (0, None, s))
     while Q:
@@ -17,8 +18,14 @@ def dijkstra(adj, costs, s, t):
             visited_set.add(u)
             if u == t:
                 return p, d[u]
-            for v in adj.get(u[0]):
-                v_cost_new = costs[u, v] + u_cost
+
+            u_geometric  = u[0]
+            u_successors = successors.get(u_geometric)
+            if not u_successors:
+                successors[u_geometric] = u_successors = adj.get(u_geometric)
+
+            for v in u_successors:
+                v_cost_new = u_cost + costs[u, v]
                 v_cost_old = d.get(v)
                 if (not v_cost_old) or (v_cost_old > v_cost_new):
                     d[v] = v_cost_new
