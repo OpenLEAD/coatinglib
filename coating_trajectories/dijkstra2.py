@@ -76,9 +76,13 @@ class dijkstra_adj:
     def get(self, from_node):
         full_states = []
 
+        from_joints = self.joints[from_node[0]][from_node[1]]
         for to_node in self.get_linked(from_node):
-            velocity =  (self.joints[to_node[0]][to_node[1]]-self.joints[from_node[0]][from_node[1]])/self.dtimes[to_node[0]]
-            full_states.append((to_node, tuple(round(velocity, 9))))
+            dtime = self.dtimes[to_node[0]]
+            velocity =  (self.joints[to_node[0]][to_node[1]]-from_joints)/dtime
+            velocity = round(velocity, 9)
+            state = (to_node, tuple(velocity))
+            full_states.append(state)
 
         return full_states
 
