@@ -10,7 +10,7 @@ def dijkstra(adj, costs, s, t):
     p = {}     # predecessor
     visited_set = {s}
 
-    for v in adj.get(s, []):
+    for v in adj.get(s[0]):
         d[v] = costs[s, v]
         item = [d[v], s, v]
         heapq.heappush(Q, item)
@@ -23,7 +23,7 @@ def dijkstra(adj, costs, s, t):
             visited_set.add(u)
             if u == t:
                 return p, d[u]
-            for v in adj.get(u, []):
+            for v in adj.get(u[0]):
                 if d.get(v):
                     if d[v] > costs[u, v] + d[u]:#max(costs[u, v],d[u])
                         d[v] =   costs[u, v] + d[u] #max(costs[u, v],d[u])
@@ -77,9 +77,7 @@ class dijkstra_adj:
     def __getitem__(self, item):
         return self.get(item)
 
-    def get(self, item, std_ans = None):
-
-        from_node = item[0]
+    def get(self, from_node):
         full_states = []
 
         for to_node in self.get_linked(from_node):
