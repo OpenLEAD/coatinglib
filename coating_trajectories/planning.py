@@ -141,63 +141,16 @@ def compute_robot_joints(turbine, trajectory, trajectory_index):
     """
 
     joint_solutions = []
-    robot = turbine.robot
-    
-    # Compute inverse kinematics and find a solution
-    iksol, tolerance = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
-    if len(iksol)>0:
-        sol = best_joint_solution_regarding_manipulability(
-            iksol, tolerance, turbine.robot)
-        robot.SetDOFValues(sol)
-        if(trajectory_constraints(turbine, sol, trajectory[trajectory_index])):
-            joint_solutions.append(sol)
-        else: return []
-    else: return []
 
-    # Find solutions for next points
-    for index in range(trajectory_index+1, len(trajectory)):
-        res = orientation_error_optimization(turbine, trajectory[index])
-        if trajectory_constraints(turbine, res.x, trajectory[index]):
-            joint_solutions.append(res.x)
-            robot.SetDOFValues(res.x)
-        else:
+    # Find solutions for points
+    for index in range(trajectory_index, len(trajectory)):
+        iksol = ik_angle_tolerance(turbine, trajectory[index], deep=False)
+        if len(iksol) == 0:
             return joint_solutions
+        else:
+            joint_solutions.append(iksol)
     return joint_solutions
 
-def compute_robot_joints_opt(turbine, trajectory, trajectory_index, iter_surface = None):
-    """
-    Iterates points of the trajectories, computing optimal robot's joints
-    (minimizing orientation error). 
-
-    Keyword arguments:
-    turbine -- turbine object
-    trajectory -- trajectory to coat
-    trajectory_index -- where to begin. Index of a feasible point in the trajectory.
-    joint_solutions -- initial joint_solutions
-    """
-
-    joint_solutions = []
-    robot = turbine.robot
-    iksol, _ = compute_feasible_point(turbine, trajectory[trajectory_index], iter_surface)
-    best_joint_solutions = []
-
-    for ik in iksol:
-        robot.SetDOFValues(ik)
-        joint_solutions = []
-        joint_solutions.append(ik)
-        for index in range(trajectory_index+1, len(trajectory)):
-            res = orientation_error_optimization(turbine, trajectory[index])
-            if res.success:
-                if trajectory_constraints(turbine, res.x, trajectory[index]):
-                    joint_solutions.append(res.x)
-                    robot.SetDOFValues(res.x)
-                else: break
-            else: break
-        else:
-            return joint_solutions
-        if len(joint_solutions)>len(best_joint_solutions):
-            best_joint_solutions = joint_solutions
-    return best_joint_solutions
 
 def compute_first_feasible_point(turbine, trajectory):
     """ Method to compute the first feasible point in the trajectory: where to start.
@@ -210,90 +163,10 @@ def compute_first_feasible_point(turbine, trajectory):
     robot = turbine.robot
     with robot:
         for i in range(0,len(trajectory)):
-            sols, tolerances = compute_feasible_point(turbine, trajectory[i], iter_surface)
+            sols = ik_angle_tolerance(turbine, trajectory[i], deep=False)
             if len(sols)>0:
-               return i, sols, tolerances
+               return i, sols
         raise ValueError('No solution for given trajectory')
-
-def compute_feasible_point(turbine, point, iter_surface = None):
-    """
-    Method to compute if point is feasible.
-
-    Keyword arguments:
-    turbine -- turbine object
-    point -- point to coat
-    """
-
-    with turbine.robot:
-        iksol, tolerance = ik_angle_tolerance_normal_plane(turbine, point, iter_surface)
-        feasible_iksol = []
-        feasible_tolerance = []
-        for i in range(0,len(iksol)):
-            if(trajectory_constraints(turbine, iksol[i], point)):
-                feasible_iksol.append(iksol[i])
-                feasible_tolerance.append(tolerance[i])
-        return feasible_iksol, feasible_tolerance
-
-def orientation_error_optimization(turbine, point, tol=1e-3):
-    """
-    Minimizes the orientation error, given an initial configuration of the robot
-    and the desired point to coat (with its normal vector). The constraints of the minimi-
-    zation are: to reach de point position (equality).
-
-    Keyword arguments:
-    robot -- the robot.
-    point -- 6x1 vector is the goal (point to be coated). (x,y,z) cartesian position
-    and (nx,ny,nz) is the normal vector of the point, w.r.t. the world frame.
-    """
-    if not turbine.env.GetCollisionChecker().SetCollisionOptions(CollisionOptions.Distance):
-        collisionChecker = RaveCreateCollisionChecker(turbine.env,'pqp')
-        collisionChecker.SetCollisionOptions(CollisionOptions.Distance)
-        turbine.env.SetCollisionChecker(collisionChecker)
-        
-    robot = turbine.robot
-    q0 = robot.GetDOFValues()
-    manip = robot.GetActiveManipulator()
-    lower_limits, upper_limits = robot.GetActiveDOFLimits()
-    report = CollisionReport()
-    
-    with robot:
-        def func(q):
-            robot.SetDOFValues(q, manip.GetArmIndices())
-            Rx = manip.GetTransform()[0:3,0]
-            Rx = Rx/linalg.norm(Rx)
-            return dot(point[3:6], Rx)
-        
-        def position_cons(q):
-            robot.SetDOFValues(q)
-            pos = manip.GetTransform()[0:3,3]
-            dif = pos-point[0:3]
-            return dot(dif,dif)/tol
-        
-        def self_collision_cons(q):
-            robot.SetDOFValues(q)
-            report = CollisionReport()
-            turbine.robot.CheckSelfCollision(report)
-            return report.minDistance-0.01
-        
-        def env_collision_cons(q):
-            robot.SetDOFValues(q)
-            robot.GetLink('Base').Enable(False)
-            report = CollisionReport()
-            turbine.env.CheckCollision(turbine.robot,report)
-            robot.GetLink('Base').Enable(True)
-            return report.minDistance-0.05           
-        
-        cons = ({'type':'eq', 'fun': position_cons},
-                {'type':'ineq', 'fun': self_collision_cons},
-                {'type':'ineq', 'fun': env_collision_cons}
-                )
-        
-        bnds = tuple([(lower_limits[i],upper_limits[i]) for i in range(0,len(lower_limits))])
-        
-        res = minimize(func, q0, constraints=cons, method='SLSQP',
-                       bounds = bnds, options={'disp': False})
-        print res
-    return res    
 
 def orientation_cons(turbine, point):
     """
@@ -438,31 +311,6 @@ def random_joint(robot, joint):
         rjoints[j] = min([rjoints[j],limitsup[j]])
         rjoints[j] = max([rjoints[j],limitsdow[j]])
     return rjoints
-
-def generate_random_joint_solutions(turbine, point, tries):
-    robot = turbine.robot
-    joints = []
-    for i in range(0,tries):
-        random_joint(robot, zeros(len(robot.GetDOFValues())))
-        res = orientation_error_optimization(turbine, point)
-        if res.success:
-            if trajectory_constraints(turbine, res.x, point):
-                break
-    else:
-        return joints
-
-    jointx = res.x
-    joints.append(jointx)
-    with robot:
-        for i in range(0,tries):
-            rjoints = random_joint(robot, jointx)
-            robot.SetDOFValues(rjoints)
-            res = orientation_error_optimization(turbine, point)
-            if res.success:
-                if trajectory_constraints(turbine, res.x, point):
-                    if list(res.x) not in [list(x) for x in joints]:
-                        joints.append(res.x)
-    return joints
 
 def single_vel_distance( vel1, vel2, dt, vel_limits, acc_limits):
     dif = abs(array(vel1)-array(vel2))/dt

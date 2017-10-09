@@ -662,9 +662,7 @@ class DB:
 
         ptn = self.load_points_to_num()
         blade = self.load_blade()
-        db_base_to_joints = dict()
         db_base_to_segs = dict()
-        db_base_to_joints[base_num] = dict()
         db_base_to_segs[base_num] = list()
 
         # iterate each (filtered) parallel
@@ -679,8 +677,7 @@ class DB:
                     try:
                         lower, _, _ = planning.compute_first_feasible_point(
                             self.turb,
-                            filtered_trajectory_part[evaluated_points:],
-                            blade.trajectory_iter_surface)
+                            filtered_trajectory_part[evaluated_points:])
                         evaluated_points = evaluated_points + lower
                     except ValueError:
                         evaluated_points = len(filtered_trajectory_part)
@@ -688,8 +685,7 @@ class DB:
 
                     joint_solutions = planning.compute_robot_joints(self.turb,
                                                                     filtered_trajectory_part,
-                                                                    evaluated_points,
-                                                                    blade.trajectory_iter_surface)
+                                                                    evaluated_points)
 
                     upper = evaluated_points + len(joint_solutions)
 
@@ -698,33 +694,29 @@ class DB:
                         # save point_num in each dictionary 
                         for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joint_solutions):
                             point_num = ptn[tuple(round(point[0:3], 9))]
-                            db_base_to_joints[base_num][point_num] = joints
                             db_base_to_segs[base_num][-1][-1] += [point_num]
 
                     # restart at end point
                     evaluated_points = upper
-        return db_base_to_joints, db_base_to_segs
+        return db_base_to_segs
 
     def get_points_in_grid(self, meridian, parallel, full=False):
-        """
-        Get parallels that belong to a grid, between given meridians and
-        given parallels.
+        """ Get parallels that belong to a grid, between given meridians and given parallels.
         
-        keyword arguments:
-        blade -- blade object.
-        meridian -- tuple 1x2, First meridian must be on the right w.r.t. the second meridian.
-        It means that points[1] (y) of points meridian1 > points[1] (y) of points meridian2.  
-        parallel -- tuple 1x2. Not ordered.
+        Args:
+            meridian: tuple 1x2, First meridian must be on the right w.r.t. the second meridian.
+            It means that points[1] (y) of points meridian1 > points[1] (y) of points meridian2.
+            parallel: tuple 1x2. Not ordered.
         """
 
         if full:
             blade = self.load_blade_full()
         else:
             blade = self.load_blade()
+
         meridian1, meridian2 = meridian[0], meridian[1]
         parallel1, parallel2 = parallel[0], parallel[1]
         points_to_num = self.load_points_to_num()
-        blade = self.load_blade()
 
         parallel_index_1 = 0
         parallel_index_2 = 0
