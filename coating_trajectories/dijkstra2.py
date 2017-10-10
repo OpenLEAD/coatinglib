@@ -6,35 +6,31 @@ def dijkstra(adj, costs, s, t):
         from s to t; Otherwise, return None '''
     Q = []     # priority queue of items; note item is mutable.
     d = {s: 0} # vertex -> minimal distance
-    Qd = {}    # vertex -> [d[v], parent_v, v]
     p = {}     # predecessor
-    visited_set = {s}
+    visited_set = set()
+    successors = {}
 
-    for v in adj.get(s, []):
-        d[v] = costs[s, v]
-        item = [d[v], s, v]
-        heapq.heappush(Q, item)
-        Qd[v] = item
-
+    heapq.heappush(Q, (0, None, s))
     while Q:
-        cost, parent, u = heapq.heappop(Q)
+        u_cost, parent, u = heapq.heappop(Q)
         if u not in visited_set:
             p[u]= parent
             visited_set.add(u)
             if u == t:
                 return p, d[u]
-            for v in adj.get(u, []):
-                if d.get(v):
-                    if d[v] > costs[u, v] + d[u]:#max(costs[u, v],d[u])
-                        d[v] =   costs[u, v] + d[u] #max(costs[u, v],d[u])
-                        Qd[v][0] = d[v]    # decrease key
-                        Qd[v][1] = u       # update predecessor
-                        heapq._siftdown(Q, 0, Q.index(Qd[v]))
-                else:
-                    d[v] = costs[u, v] + d[u] #max(costs[u, v],d[u])
-                    item = [d[v], u, v]
+
+            u_geometric  = u[0]
+            u_successors = successors.get(u_geometric)
+            if not u_successors:
+                successors[u_geometric] = u_successors = adj.get(u_geometric)
+
+            for v in u_successors:
+                v_cost_new = u_cost + costs[u, v]
+                v_cost_old = d.get(v)
+                if (not v_cost_old) or (v_cost_old > v_cost_new):
+                    d[v] = v_cost_new
+                    item = [v_cost_new, u, v]
                     heapq.heappush(Q, item)
-                    Qd[v] = item
 
     return None
 
@@ -77,14 +73,16 @@ class dijkstra_adj:
     def __getitem__(self, item):
         return self.get(item)
 
-    def get(self, item, std_ans = None):
-
-        from_node = item[0]
+    def get(self, from_node):
         full_states = []
 
+        from_joints = self.joints[from_node[0]][from_node[1]]
         for to_node in self.get_linked(from_node):
-            velocity =  (self.joints[to_node[0]][to_node[1]]-self.joints[from_node[0]][from_node[1]])/self.dtimes[to_node[0]]
-            full_states += [(to_node, tuple(round(velocity, 9)))]
+            dtime = self.dtimes[to_node[0]]
+            velocity =  (self.joints[to_node[0]][to_node[1]]-from_joints)/dtime
+            velocity = round(velocity, 9)
+            state = (to_node, tuple(velocity))
+            full_states.append(state)
 
         return full_states
 
@@ -101,19 +99,21 @@ class dijkstra_acc_cost:
 
     def __getitem__(self, item):
         from_node, from_velocity = item[0]
-        from_velocity = array(from_velocity)
         to_node, to_velocity = item[1]
-        to_velocity = array(to_velocity)
 
         if (self.vs in item) or (self.vt in item):
             return finfo(float).eps
 
-        if (from_node[0] == 0) or (to_node[0] == len(self.dtimes)-1):
-            if not self.stored.has_key(item):
-                self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits*inf)
-
         if not self.stored.has_key(item):
-            self.stored[item] = self.acc_cost(from_velocity, to_velocity, (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2., self.vel_limits, self.acc_limits)
+            if (from_node[0] == 0) or (to_node[0] == len(self.dtimes)-1):
+                acc_limits = self.acc_limits*inf
+            else:
+                acc_limits = self.acc_limits
+            from_velocity = array(from_velocity)
+            to_velocity = array(to_velocity)
+            self.stored[item] = self.acc_cost(from_velocity, to_velocity,
+                    (self.dtimes[to_node[0]]+self.dtimes[from_node[0]])/2.,
+                    self.vel_limits, acc_limits)
 
         return self.stored[item]
 
