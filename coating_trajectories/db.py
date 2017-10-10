@@ -632,10 +632,9 @@ class DB:
         tuple PSAlpha), it will test all grids and make segments of coating. It verifies only kinematic and collisions.
         It returns None, None if there is collision of the robot base and environment.
 
-        It returns the segments:
-            a dictionary db_base_to_segs = { base: [trajectory1, trajectory2, ...] }
-            trajectory = [part1, part2,...]
-            part = [point1_num, point2_num, ...]
+        It returns a dictionary db_base_to_segs = { base: [trajectory1, trajectory2, ...] }, where
+        trajectory = [part1, part2,...]
+        part = [point1_num, point2_num, ...] (segment)
 
         Warning: HARD COMPUTATION time
 
@@ -684,14 +683,13 @@ class DB:
                         continue
 
                     joint_solutions = planning.compute_robot_joints(self.turb,
-                                                                    filtered_trajectory_part,
-                                                                    evaluated_points)
+                                                                    filtered_trajectory_part[evaluated_points:])
 
                     upper = evaluated_points + len(joint_solutions)
 
                     if len(joint_solutions) >= minimal_number_of_points_per_trajectory:
                         db_base_to_segs[base_num][-1] += [[]]
-                        # save point_num in each dictionary 
+                        # save point_num in each dictionary
                         for point, joints in zip(filtered_trajectory_part[evaluated_points:upper], joint_solutions):
                             point_num = ptn[tuple(round(point[0:3], 9))]
                             db_base_to_segs[base_num][-1][-1] += [point_num]
