@@ -129,7 +129,7 @@ def sensibility(turbine, ray, w, alpha):
 
     return velocity_tan_error, position_normal_error, position_perp_error, angle_error
     
-def compute_robot_joints(turbine, trajectory, trajectory_index):
+def compute_robot_joints(turbine, trajectory, deep=False):
     """
     Iterates points of the trajectories, computing optimal robot's joints
     (minimizing orientation error). For the first point, it uses ikfast.
@@ -143,8 +143,8 @@ def compute_robot_joints(turbine, trajectory, trajectory_index):
     joint_solutions = []
 
     # Find solutions for points
-    for index in range(trajectory_index, len(trajectory)):
-        iksol = ik_angle_tolerance(turbine, trajectory[index], deep=False)
+    for index in range(0, len(trajectory)):
+        iksol = ik_angle_tolerance(turbine, trajectory[index], deep=deep)
         if len(iksol) == 0:
             return joint_solutions
         else:
@@ -327,15 +327,6 @@ def joint_distance_mh12(joint1, joint2, dt, vel_limits):
     dif /= dt
     percent_dif = dif/vel_limits
     return max(percent_dif,1)
-
-def joint_planning(turbine, ordered_waypoints, deep=False):
-    joints = []
-    for i in range(0,len(ordered_waypoints)):
-        iksol = ik_angle_tolerance(turbine, ordered_waypoints[i], deep = deep)
-        if len(iksol) == 0:
-            raise IndexError('joints with zero length')
-        joints.append(iksol)
-    return joints
 
 def compute_foward_cost(joints0, joints1, limits):
     cost = zeros((len(joints0),len(joints1)))
