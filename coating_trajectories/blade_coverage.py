@@ -32,6 +32,7 @@ class Path:
         self.success = False
         self.joint_dijkstra = []
         self.dtimes = []
+        self.iksols = []
 
     def execute(self, turbine, threshold=5e-2):
         """ Method to compute joint_values, joint_velocities, joint_accelerations and deltatimes.
@@ -46,13 +47,10 @@ class Path:
 
         if self.rays is None: return
 
-        joint_path, rays_list, dtimes = self.move_dijkstra(turbine, self.rays, threshold)
-
-        self.joint_dijkstra = joint_path
-        self.dtimes = dtimes
+        self.joint_dijkstra, rays_list, self.dtimes, self.iksols = self.move_dijkstra(turbine, self.rays, threshold)
 
         new_joint_path, new_joint_velocity_path, new_joint_acc_path = self.mls_parallels(
-            turbine, joint_path, dtimes)
+            turbine, self.joint_dijkstra, self.dtimes)
 
         #new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
         #    turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
@@ -78,7 +76,7 @@ class Path:
                                           new_joint_path[i],
                                           new_joint_velocity_path[i],
                                           new_joint_acc_path[i],
-                                          dtimes[i])
+                                          self.dtimes[i])
             self.data.append(traj)
 
         return
@@ -154,19 +152,17 @@ class Path:
         with robot:
             for parallel_index in range(len(self.data)):
                 for point_index in range(self.data[parallel_index].GetNumWaypoints()):
-                    joint1 = path.get_joint(robot, parallel_index, point_index)
+                    joint1 = self.get_joint(robot, parallel_index, point_index)
                     robot.SetDOFValues(joint1)
                     points.append(robot.GetActiveManipulator().GetTransform()[0:3,3])
 
         for i in range(len(points)-1):
-            point0 = points[i]
-            point1 = points[i+1]
             x = linspace(points[i][0],points[i+1][0], step)
             y = linspace(points[i][1],points[i+1][1], step)
             z = linspace(points[i][2],points[i+1][2], step)
-            interpolation.append(zip(x,y,z))
+            points.append(zip(x,y,z))
 
-        interpolation_str = vis.plot_lists(interpolation,'interpolation',(1,0,0))
+        _ = vis.plot_lists(points,'interpolation',(1,0,0))
         return 
         
 
@@ -506,39 +502,57 @@ class Path:
         acc_limits = array(robot.GetDOFMaxAccel())[:-1]
         organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
         dtimes_list = []
+        iksols = []
+
 
         for i, organized_rays in enumerate(organized_rays_list):
 
+            # Add the first element of the next parallel to the end of the current parallel
+            # if the next parallel exists (current is not the last)
             if i != len(organized_rays_list) - 1:
-                organized_rays += [organized_rays_list[i + 1][0]]
+                organized_rays.append(organized_rays_list[i + 1][0])
 
-            try:
-                joints = planning.joint_planning(turbine, organized_rays, True)
-            except IndexError:
-                continue
+            # Find all ik solutions with angle tolerances
+            iksol = planning.compute_robot_joints(turbine, organized_rays, True)
 
+            # Add the ik solutions of the previous parallel to the beginning of the current parallel
+            # if the previous parallel exists (current is not the first)
             if i != 0:
-                joints.insert(0, [joint_path_list[-1][-1]])
+                iksol.insert(0, [joint_path_list[-1][-1]])
 
-            dtimes = compute_dtimes_from_joints(turbine, [j[0] for j in joints])
-            joints = array([array(j)[:, :-1] for j in joints])
-            joint_path, path, min_cost, adj, cost = planning.make_dijkstra_vel(joints, dtimes, vel_limits,
+            # Compute deltatimes from operational space
+            dtimes = compute_dtimes_from_joints(turbine, [j[0] for j in iksol])
+
+            # Remove the last joint from planning
+            iksol = array([array(j)[:, :-1] for j in iksol])
+
+            # Call dijkstra
+            joint_path, path, min_cost, adj, cost = planning.make_dijkstra_vel(iksol, dtimes, vel_limits,
                                                                            acc_limits, True)
 
+            # Remove the last solution of the current parallel because it is the first solution of the next parallel
+            # if the current parallel is not the last one
             if i != len(organized_rays_list) - 1:
                 joint_path = joint_path[:-1]
                 dtimes = dtimes[:-1]
+                iksol = iksol[:-1]
 
+            # Remove the first solution of the current parallel because it is the last solution of the previous parallel
+            # if the current parallel is not the first one
             if i != 0:
                 joint_path = joint_path[1:]
                 dtimes = dtimes[1:]
+                iksol = iksol[1:]
 
             dtimes_list.append(dtimes)
+            iksols.append(iksol)
+
+            # Add the last joint again, with zero value
             joint_path_complete = zeros((len(joint_path), robot.GetDOF()))
             joint_path_complete[:len(joint_path), :len(joint_path[0])] = joint_path
             joint_path_list.append(joint_path_complete)
 
-        return joint_path_list, organized_rays_list, dtimes_list
+        return joint_path_list, organized_rays_list, dtimes_list, iksols
 
 
     def mls_parallels(self, turbine, joints_parallels, dtimes_parallels):
