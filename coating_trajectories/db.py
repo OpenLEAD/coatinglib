@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from path_filters import filter_trajectories
-import planning
+import robot_utils
 from numpy import random, array, linspace, cross
 from numpy import sign, dot, linalg, sum, zeros, round, delete
 from os.path import splitext, join, exists, isfile, split
@@ -674,7 +674,7 @@ class DB:
                 evaluated_points = 0
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
-                        lower, _, _ = planning.compute_first_feasible_point(
+                        lower, _, _ = robot_utils.compute_first_feasible_point(
                             self.turb,
                             filtered_trajectory_part[evaluated_points:])
                         evaluated_points = evaluated_points + lower
@@ -682,7 +682,7 @@ class DB:
                         evaluated_points = len(filtered_trajectory_part)
                         continue
 
-                    joint_solutions = planning.compute_robot_joints(self.turb,
+                    joint_solutions = robot_utils.compute_robot_joints(self.turb,
                                                                     filtered_trajectory_part[evaluated_points:])
 
                     upper = evaluated_points + len(joint_solutions)
@@ -925,7 +925,7 @@ class DB:
         that line/grid combination.
         """
 
-        x1 = line[0];
+        x1 = line[0]
         x2 = line[1]
         grid_dist = dict()
         for grid, bases in grid_bases.iteritems():

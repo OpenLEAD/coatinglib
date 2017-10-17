@@ -1,6 +1,7 @@
 from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, vander
 from numpy.polynomial import legendre
 import planning
+import robot_utils
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory, interfaces
 import mathtools
 import errno
@@ -513,7 +514,7 @@ class Path:
                 organized_rays.append(organized_rays_list[i + 1][0])
 
             # Find all ik solutions with angle tolerances
-            iksol = planning.compute_robot_joints(turbine, organized_rays, True)
+            iksol = robot_utils.compute_robot_joints(turbine, organized_rays, True)
 
             # Add the ik solutions of the previous parallel to the beginning of the current parallel
             # if the previous parallel exists (current is not the first)
