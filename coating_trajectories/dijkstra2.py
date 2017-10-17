@@ -3,7 +3,8 @@ from numpy import finfo, array, inf, zeros,round
 
 def dijkstra(adj, costs, s, t):
     ''' Return predecessors and min distance if there exists a shortest path 
-        from s to t; Otherwise, return None '''
+        from s to t; Otherwise, raise exception
+    '''
     Q = []     # priority queue of items; note item is mutable.
     d = {s: 0} # vertex -> minimal distance
     p = {}     # predecessor
@@ -22,7 +23,7 @@ def dijkstra(adj, costs, s, t):
             u_geometric  = u[0]
             u_successors = successors.get(u_geometric)
             if not u_successors:
-                successors[u_geometric] = u_successors = adj.get(u_geometric)
+                successors[u_geometric] = u_successors = adj.get(u_geometric,[])
 
             for v in u_successors:
                 v_cost_new = u_cost + costs[u, v]
@@ -32,7 +33,7 @@ def dijkstra(adj, costs, s, t):
                     item = [v_cost_new, u, v]
                     heapq.heappush(Q, item)
 
-    return None
+    raise ValueError('No shortest path to target.')
 
 def make_undirected(cost):
     ucost = {}
