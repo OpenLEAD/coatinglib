@@ -674,7 +674,7 @@ class DB:
                 evaluated_points = 0
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
-                        lower, _, _ = robot_utils.compute_first_feasible_point(
+                        lower, _ = robot_utils.compute_first_feasible_point(
                             self.turb,
                             filtered_trajectory_part[evaluated_points:])
                         evaluated_points = evaluated_points + lower
@@ -682,8 +682,8 @@ class DB:
                         evaluated_points = len(filtered_trajectory_part)
                         continue
 
-                    joint_solutions = robot_utils.compute_robot_joints(self.turb,
-                                                                    filtered_trajectory_part[evaluated_points:])
+                    joint_solutions = robot_utils.compute_robot_joints(
+                        self.turb, filtered_trajectory_part[evaluated_points:])
 
                     upper = evaluated_points + len(joint_solutions)
 

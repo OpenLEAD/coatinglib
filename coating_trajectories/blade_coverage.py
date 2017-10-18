@@ -505,7 +505,6 @@ class Path:
         dtimes_list = []
         iksols = []
 
-
         for i, organized_rays in enumerate(organized_rays_list):
 
             # Add the first element of the next parallel to the end of the current parallel
@@ -528,7 +527,7 @@ class Path:
             iksol = array([array(j)[:, :-1] for j in iksol])
 
             # Call dijkstra
-            joint_path, path, min_cost, adj, cost = planning.make_dijkstra_vel(iksol, dtimes, vel_limits,
+            joint_path, path, min_cost, adj, cost = planning.make_dijkstra(iksol, dtimes, vel_limits,
                                                                            acc_limits, True)
 
             # Remove the last solution of the current parallel because it is the first solution of the next parallel
