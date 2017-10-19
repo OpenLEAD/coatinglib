@@ -30,14 +30,7 @@ def generate_db_joints():
     """
 
     turb.robot.GetLink('Flame').Enable(False)
-    path_joints = join(path, 'joints')
     path_seg = join(path, 'seg')
-
-    try:
-        makedirs(path_joints)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
 
     try:
         makedirs(path_seg)
@@ -58,17 +51,13 @@ def generate_db_joints():
         db.save_pickle(visited_bases, join(path, 'visited_bases.pkl'))
         del visited_bases
 
-        base_to_joints, base_to_seg = DB.generate_db_joints(
+        base_to_seg = DB.generate_db_joints(
             base_num, minimal_number_of_points_per_trajectory, do_side_filter)
-        if base_to_joints == None:
+
+        if base_to_seg == None:
             continue
 
         print 'saving base_num: ', base_num
-
-        try:
-            db.save_pickle(base_to_joints, join(path_joints, str(base_num) + '.pkl'))
-        except IOError:
-            raise 'Error saving db_base_to_joints.pkl'
 
         try:
             db.save_pickle(base_to_seg, join(path_seg, str(base_num) + '.pkl'))
@@ -475,7 +464,7 @@ def merge_validation():
 
 if __name__ == '__main__':
     area = 'FACE'
-    db_name = ''
+    db_name = 'db'
     path = join(area, db_name)
 
     dir_test = join(realpath('.'), 'test')
@@ -493,10 +482,10 @@ if __name__ == '__main__':
 
     # generate_robot_positions()
     # create_db()
-    # clear_visited_bases()
+    clear_visited_bases()
 
     # Generate robot joints inputs
-    minimal_number_of_points_per_trajectory, do_side_filter = 3, False
+    minimal_number_of_points_per_trajectory, do_side_filter = 3, True
     # generate_db_joints()
 
     # meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
