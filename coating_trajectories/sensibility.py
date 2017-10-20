@@ -208,62 +208,6 @@ def check_angular_velocities(velocities, turb):
     maxVel = turb.robot.GetDOFVelocityLimits()
     return all((abs(velocities)-maxVel)<0,1)
 
-def check_angular_velocities_segs(velocity_segs, segments, joints, base_num, turb):
-
-    new_seg_base = dict()
-    new_seg_base[base_num] = list()
-    
-    for i,velocity_seg in enumerate(velocity_segs):
-        if len(velocity_seg)>0:
-            new_seg = []
-            for j,vel_alpha in enumerate(velocity_seg):
-                vel = vel_alpha[0]
-                check = check_angular_velocities(array(vel), turb)
-                indices = nonzero(check[1:] != check[:-1])[0] + 1
-                b = split(array(segments[i][j]), indices)
-                b = b[0::2] if check[0] else b[1::2]
-                for bi in b:
-                    if len(bi)>=3:
-                        new_seg.append(list(bi))
-            if len(new_seg)>0:
-                new_seg_base[base_num].append(new_seg)
-    return new_seg_base
-
-def compute_new_segs_DB(DB):
-    new_path_seg = join(DB.db_main_path,'new_seg')
-
-    try:
-        makedirs(new_path_seg)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
-    
-    while True:
-        visited_bases = db.load_pickle(join(DB.db_main_path,'visited_bases.pkl'))
-        base_num = None
-        for key, value in visited_bases.iteritems():
-            if value == False:
-                visited_bases[key] = True
-                base_num = key
-                break
-        if base_num is None:
-            break
-        db.save_pickle(visited_bases,join(DB.db_main_path,'visited_bases.pkl'))
-        del visited_bases
-
-        try:
-            seg_base = db.load_pickle(join(DB.db_main_path,'seg',str(base_num)+'.pkl'))
-        except IOError:
-            continue
-
-        new_seg_base = check_velocities_DB(DB, base_num)
-
-        print 'saving base_num: ', base_num
-
-        db.save_pickle(new_seg_base, join(new_path_seg,str(base_num)+'.pkl'))
-    return
-
-
 def best_joint_solution_regarding_manipulability(joint_solutions, tolerance, robot):
     """
     Given a list of joint solutions for a specific point, the function computes
@@ -285,29 +229,3 @@ def best_joint_solution_regarding_manipulability(joint_solutions, tolerance, rob
         except IndexError:
             raise IndexError('There is no solution for the given trajectory.')
     return temp_q
-
-
-def plot_segs_comp(DB,vis,turb,base_num,segs_path,new_segs_path):
-    seg_base = DB.load_db_pickle(join(segs_path,str(base_num)+'.pkl'))
-    new_seg_base = DB.load_db_pickle(join(new_segs_path,str(base_num)+'.pkl'))
-    trajectories = seg_base[base_num]
-    new_trajectories = new_seg_base[base_num]
-    ntp = DB.get_sorted_points()
-
-    for i in range(0,len(trajectories)):
-        if len(trajectories[i])>0:
-            for j in range(0,len(trajectories[i])):
-                for num_point in trajectories[i][j]:
-                    p = vis.plot(ntp[num_point],'p',(1,0,0))
-
-    for i in range(0,len(new_trajectories)):
-        if len(new_trajectories[i])>0:
-            for j in range(0,len(new_trajectories[i])):
-                for num_point in new_trajectories[i][j]:
-                    p = vis.plot(ntp[num_point],'p',(0,0,1))
-
-    base = DB.get_sorted_bases()[base_num]
-    rp = rail_place.RailPlace(base)
-    turb.place_rail(rp)
-    turb.place_robot(rp)
-    return 
