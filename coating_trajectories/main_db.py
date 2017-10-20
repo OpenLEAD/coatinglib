@@ -279,7 +279,7 @@ def clear_visited_bases():
 
 def create_db_from_segments(directory):
     db_main = DB.create_db_from_segments(directory)
-    db.save_pickle(db_main, join(path, 'db.pkl'))
+    db.save_pickle(db_main, join(DB.db_main_path, 'db.pkl'))
     return
 
 
@@ -290,35 +290,15 @@ def turbine_rotate(turb):
     return
 
 
-def bases_grids_coating(threshold):
-    grid_to_trajectories = DB.load_grid_to_trajectories()
-    grid_bases = dict()
-    for grid_num in grid_to_trajectories.keys():
-        bases, scores = DB.base_grid_coating(grid_num)
-        xy = []
-        for i, base in enumerate(bases):
-            if scores[i] >= threshold:
-                rp = rail_place.RailPlace(base)
-                xyz = rp.getXYZ(cfg)
-                value = set([(xyz[0], xyz[1])])
-                grid_bases[grid_num] = grid_bases.get(grid_num, set()) | value
-            else:
-                break
-    db.save_pickle(grid_bases, join(DB.db_main_path, 'grid_bases.pkl'))
-    return
-
-
 def verify_base_grid_threshold():
-    grid_to_trajectories = DB.load_grid_to_trajectories()
-    grid_bases = dict()
-    for grid_num in grid_to_trajectories.keys():
-        trajectories, borders = grid_to_trajectories[grid_num]
-        bases, scores = DB.base_grid_coating(grid_num)
+    gtt = DB.load_grid_to_trajectories()
+    for grid_num in gtt.keys():
+        bases, scores = DB.base_grid_coating(grid_num, gtt)
         print 'Grid: ', grid_num, '/ score: ', scores[0]
     return
 
 
-def plot_grid_coat(vis):
+def plot_grid_coat():
     bases, scores = DB.base_grid_coating(grid_num)
     _ = DB.plot_grid_coat(vis, grid_num,
                                      DB.load_bases_to_num()[bases[0]])
@@ -463,7 +443,7 @@ def merge_validation():
 
 
 if __name__ == '__main__':
-    area = 'FACE'
+    area = 'BORDER'
     db_name = 'db'
     path = join(area, db_name)
 
@@ -475,39 +455,46 @@ if __name__ == '__main__':
     DB = db.DB(area, turb, db_name)
     turbine_rotate(turb)
 
-    threshold = 0.90
-    grid_num = 2
+    threshold = 0.93
+    grid_num = 0
 
     # vis = Visualizer(turb.env)
 
     # generate_robot_positions()
     # create_db()
-    clear_visited_bases()
+    # clear_visited_bases()
 
     # Generate robot joints inputs
     minimal_number_of_points_per_trajectory, do_side_filter = 3, True
     # generate_db_joints()
 
+    #######################################
+    ############### GRIDS  ################
+    #######################################
+    # Create Grids
     # meridians, parallels = make_grid(number_of_meridians = 4, number_of_parallels = 2, init_parallel = 0)
     # meridians = blade_borders(meridians)
 
     # create_db_grid()
     # grid_pick()
     # grid_add()
-
+    #######################################
+    
     # borders, points_to_remove = compute_points_to_remove(24)
     # remove_points_from_db(24, borders, points_to_remove)
 
-    # sensibility.compute_new_segs_DB(DB)
-    # create_db_from_segments(join(path,'new_seg'))
+    # create_db_from_segments(join(path,'seg'))
 
     # plot_grid_coat()
     # verify_base_grid_threshold()
-    # bases_grids_coating(threshold)
+    # DB.create_db_grid_bases(threshold)
     # DB.plot_convex_grid(threshold,grid_num)
 
     # generate_rail_configurations()
 
+    ########################################
+    ############# VALIDATION ###############
+    ########################################
     # make_validate_file()
     # validate_bases()
     # merge_validation()
