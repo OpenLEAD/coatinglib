@@ -3,6 +3,7 @@ from turbine_config import TurbineConfig
 import os
 from os.path import join, isfile, realpath
 from numpy import array
+from time import time
 
 dir_test = join(realpath('.'),'test')
 os.environ['OPENRAVE_DATA'] = str(dir_test)
@@ -38,5 +39,6 @@ psa = (1.7000000000000033, 0.73805000722783654, 0.82546707480056736)
 
 
 threshold = 5e-2
-#path = blade_coverage.base_grid_validation(turbine, psa, DB, grid, threshold)
-
+t = time()
+path = blade_coverage.base_grid_validation(turbine, psa, DB, grid, threshold)
+print time()-t
