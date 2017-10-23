@@ -1,4 +1,5 @@
 *.npz
+!/coating_trajectories/test/*.npz
 *.csv
 *.pyc
 /Turbine/
