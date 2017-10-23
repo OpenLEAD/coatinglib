@@ -422,7 +422,21 @@ class DB:
                 parallels.append(new_rays)
             parallels = mathtools.equally_spacer(parallels, distance=distance)
             parallels = mathtools.trajectory_verticalization(parallels)
-            grid_to_trajectories[grid] = parallels
+
+            borders = []
+            for i in range(len(parallels)):
+                borders.append([parallels[i][0], parallels[i][-1]])
+                parallels[i] = parallels[i][1:-1]
+            grid_to_trajectories[grid] = [parallels, borders]
+
+            points_to_num = dict()
+            counter = 0
+            for parallel in parallels:
+                for point in parallel:
+                    points_to_num[tuple(round(point[0:3], 9))] = counter
+                    counter += 1
+
+        save_pickle(grid_to_trajectories, join(self.path, 'points_to_num.pkl'))
         save_pickle(grid_to_trajectories, join(self.path, 'grid_to_trajectories_verticalized.pkl'))
         return
 
@@ -892,17 +906,16 @@ class DB:
                 return parallel.tolist().index(list(point))
 
     def compute_rays_from_grid(self, grid):
-        if self.verticalized == False:
-            gtt = self.load_grid_to_trajectories()
-            parallels, borders = gtt[grid]
-            rays = self.compute_rays_from_parallels(parallels, borders)
-            return rays
-        else:
-            try:
-                gtt = self._load_grid_to_trajectories_verticalized()
-                return gtt[grid]
-            except IOError:
-                raise IOError("Grid should be verticalized, but file not found. See method create_verticalization.")
+        """ This method compute the rays that belongs of the given grid. Note that you must create grid_to_trajectories
+        first.
+
+        Args:
+            grid: (int) number of the grid
+        """
+        gtt = self.load_grid_to_trajectories()
+        parallels, borders = gtt[grid]
+        rays = self.compute_rays_from_parallels(parallels, borders)
+        return rays
 
     def compute_rays_from_parallels(self, parallels, borders=None):
         """ This method gets a list of point numbers (parallel db format) and
@@ -911,46 +924,33 @@ class DB:
         it will return an empty list.
 
         Args:
-        parallels: list of [ list of (point numbers)]
-        borders: If present, must be a list shape (N,2) with begin and end of each parallel
+            parallels: list of [ list of (point numbers)]
+            borders: If present, must be a list shape (N,2) with begin and end of each parallel
         """
 
         rays = []
         ntp = self.get_sorted_points()
         parallels = copy.deepcopy(parallels)
-        db = self.load_db()
         blade = self.load_blade()
 
-        for parallel in parallels:
-            for point in parallel:
-                if point not in db.keys():
-                    parallel.remove(point)
+        for i, parallel in enumerate(parallels):
+            if len(parallel) == 0:
+                rays += [[]]
+                continue
+            if self.verticalized == False:
+                model = blade.select_model(ntp[parallel[0]])
+                ray = [map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallel)]
+            else:
+                ray = [map(lambda x: blade.compute_ray_from_point(ntp[x]), parallel)]
 
-        if borders is None:
-            for parallel in parallels:
-                if len(parallel) == 0:
-                    rays += [[]]
-                    continue
-                if self.verticalized == False:
-                    model = blade.select_model(ntp[parallel[0]])
-                    rays += [map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallel)]
-                else:
-                    rays += [map(lambda x: blade.compute_ray_from_point(ntp[x]), parallel)]
-
-        else:
-            for i in range(len(parallels)):
-                traj = []
+            if borders is not None:
                 if len(borders[i][0]) > 0:
-                    traj.append(blade.compute_ray_from_point(borders[i][0]))
-
-                if len(parallels[i]) > 0:
-                    model = blade.select_model(ntp[parallels[i][0]])
-                    traj += map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallels[i])
+                    ray.insert(0,blade.compute_ray_from_point(borders[i][0]))
 
                 if len(borders[i][1]) > 0:
-                    traj.append(blade.compute_ray_from_point(borders[i][1]))
-
-                rays.append(traj)
+                    ray.append(blade.compute_ray_from_point(borders[i][1]))
+            rays.append(ray)
+            
         return rays
 
     def _check_line(self, line, grid_bases, line_grid, line_grid_dist, threshold):
