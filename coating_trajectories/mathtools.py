@@ -481,8 +481,11 @@ def linear_filter_trajectory(points, path_length, n):
 
 
 def equally_spacer(parallels, distance=3e-3):
-    """
-    All parallels should have more points than len(parallel)/distance
+    """ All parallels should have more points than len(parallel)/distance
+
+    Args:
+        parallels: trajectories.
+        distance: regular distance between points.
     """
 
     dist = []
