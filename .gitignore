@@ -1,5 +1,5 @@
 *.npz
-!/coating_trajectories/test/*.npz
+!/coating_trajectories/test/dijkstra_test/*.npz
 *.csv
 *.pyc
 /Turbine/
