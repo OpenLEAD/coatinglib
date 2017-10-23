@@ -23,7 +23,7 @@ def dijkstra(adj, costs, s, t):
             u_geometric  = u[0]
             u_successors = successors.get(u_geometric)
             if not u_successors:
-                successors[u_geometric] = u_successors = adj.get(u_geometric,[])
+                successors[u_geometric] = u_successors = adj.get(u_geometric)
 
             for v in u_successors:
                 v_cost_new = u_cost + costs[u, v]
