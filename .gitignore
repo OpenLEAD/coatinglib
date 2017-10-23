@@ -6,6 +6,7 @@
 /motoman/
 *.wrl
 *.xml
+!/coating_trajectories/test/motoman/*.xml
 /trajectory
 /plots
 !/coating_trajectories/test/template/*
