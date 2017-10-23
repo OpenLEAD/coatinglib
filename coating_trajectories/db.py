@@ -384,7 +384,16 @@ class DB:
                 raise
         return
 
-    def create_grid_verticalization(self, grid_to_trajectories, n=60):
+    def create_grid_verticalization(self, grid_to_trajectories, n=60, distance=3e-3):
+        """ This method iterates on grids. For each grid, it creates interpolations (with legMLS) for all parallels,
+        making more points for verticalization.
+
+        Args:
+            grid_to_trajectories: trajectories, borders
+            n: number of points per trajectory.
+            distance: distance between points.
+        """
+
         blade = self.load_blade()
         for grid, value in grid_to_trajectories.iteritems():
             traj, bord = value
@@ -396,11 +405,11 @@ class DB:
                 lin = linspace(0, len(rays) - 1, n)
                 N = len(lin)
                 new_rays = zeros((N, 6))
-                new_rays[:, 0], _, _ = mathtools.MLS(array(rays)[:, 0], range(len(rays)), lin, 3, scale=1.5, dwf=None,
+                new_rays[:, 0], _, _ = mathtools.legMLS(array(rays)[:, 0], range(len(rays)), lin, 3, scale=1.5, dwf=None,
                                                      ddwf=None)
-                new_rays[:, 1], _, _ = mathtools.MLS(array(rays)[:, 1], range(len(rays)), lin, 3, scale=1.5, dwf=None,
+                new_rays[:, 1], _, _ = mathtools.legMLS(array(rays)[:, 1], range(len(rays)), lin, 3, scale=1.5, dwf=None,
                                                      ddwf=None)
-                new_rays[:, 2], _, _ = mathtools.MLS(array(rays)[:, 2], range(len(rays)), lin, 3, scale=1.5, dwf=None,
+                new_rays[:, 2], _, _ = mathtools.legMLS(array(rays)[:, 2], range(len(rays)), lin, 3, scale=1.5, dwf=None,
                                                      ddwf=None)
                 remove = []
                 for i in range(len(new_rays)):
@@ -411,7 +420,7 @@ class DB:
                         continue
                 new_rays = delete(new_rays, remove, 0)
                 parallels.append(new_rays)
-            parallels = mathtools.equally_spacer(parallels, distance=3e-3)
+            parallels = mathtools.equally_spacer(parallels, distance=distance)
             parallels = mathtools.trajectory_verticalization(parallels)
             grid_to_trajectories[grid] = parallels
         save_pickle(grid_to_trajectories, join(self.path, 'grid_to_trajectories_verticalized.pkl'))
