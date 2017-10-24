@@ -927,8 +927,8 @@ def intersection(points1, points2, r):
 
 
 def distance_line_bases(x1, x2, bases, threshold):
-    distance_str = 0;
-    distance = None;
+    distance_str = 0
+    distance = None
     point_near = []
     for base in bases:
         angle = sign(base[1]) * atan2(x1[0] - base[0], abs(base[1] - x1[1]))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from path_filters import filter_trajectories
 import robot_utils
-from numpy import random, array, linspace, cross
+from numpy import random, array, linspace, cross, transpose
 from numpy import sign, dot, linalg, sum, zeros, round, delete
 from os.path import splitext, join, exists, isfile, split
 from os import makedirs, listdir
@@ -184,6 +184,25 @@ class DB:
             >>> DB.load_points_to_num()
         """
 
+        if self.verticalized:
+            path = join(self.path, 'points_to_num_verticalized.pkl')
+        else:
+            path = join(self.path, 'points_to_num.pkl')
+        ptn = load_pickle(path)
+        real_ptn = dict()
+        for key, value in ptn.iteritems():
+            real_ptn[tuple(round(dot(self.T, [key[0], key[1], key[2], 1])[0:3], 9))] = value
+        return real_ptn
+
+    def load_points_to_num_standard(self):
+        """ Load points_to_num database points:num. Points are tuples (x,y,z) and
+        the num maps the points (counter to reduce database complexity). It will rotate and
+        translate the points by the T matrix (database homogeneous transform).
+
+        Examples:
+            >>> DB.load_points_to_num()
+        """
+
         path = join(self.path, 'points_to_num.pkl')
         ptn = load_pickle(path)
         real_ptn = dict()
@@ -204,10 +223,9 @@ class DB:
         return load_pickle(path)
 
     def load_grid_to_trajectories(self):
-        """ Load grid_to_trajectories database num:[trajectories, borders].
-        Grids are numbers and the bases are lists of trajectories (num, db format)
-        and borders (tuples Nx3). It will rotate and translate the points by the T matrix
-        (database homogeneous transform). It will check if the trajectories are verticalized and it will load
+        """ Load grid_to_trajectories database num:[trajectories, borders]. Grids are numbers and the bases are lists
+        of trajectories (num, db format) and borders (tuples Nx3). It will rotate and translate the points by the
+        T matrix (database homogeneous transform). It will check if the trajectories are verticalized and it will load
         the correct file.
 
         Examples:
@@ -215,28 +233,24 @@ class DB:
         """
 
         if self.verticalized == True:
-            return self._load_grid_to_trajectories_verticalized()
+            path = join(self.path, 'grid_to_trajectories_verticalized.pkl')
+        else:
+            path = join(self.path, 'grid_to_trajectories.pkl')
+        grid_to_trajectories = load_pickle(path)
+        new_grid_to_trajectories = dict()
+        for grid, value in grid_to_trajectories.iteritems():
+            trajectories, borders = value
+            new_grid_to_trajectories[grid] = [trajectories, mathtools.rotate_points(borders, self.T)]
+        return new_grid_to_trajectories
 
+    def load_grid_to_trajectories_standard(self):
         path = join(self.path, 'grid_to_trajectories.pkl')
         grid_to_trajectories = load_pickle(path)
         new_grid_to_trajectories = dict()
         for grid, value in grid_to_trajectories.iteritems():
             trajectories, borders = value
             new_grid_to_trajectories[grid] = [trajectories, mathtools.rotate_points(borders, self.T)]
-
         return new_grid_to_trajectories
-
-    def _load_grid_to_trajectories_verticalized(self):
-        path = join(self.path, 'grid_to_trajectories_verticalized.pkl')
-        try:
-            gttv = load_pickle(path)
-        except IOError:
-            IOError("Create verticalized trajectories. See method create_grid_verticalization.")
-        new_gttv = dict()
-        for grid, value in gttv.iteritems():
-            new_gttv[grid] = mathtools.rotate_trajectories(value, self.T)
-
-        return new_gttv
 
     def load_bases_to_num(self):
         """ Load bases_to_num database bases:num. Bases are tuples railplace and
@@ -384,33 +398,38 @@ class DB:
                 raise
         return
 
-    def create_grid_verticalization(self, grid_to_trajectories, n=60, distance=3e-3):
+    def create_grid_verticalization(self, n=60, distance=3e-3):
         """ This method iterates on grids. For each grid, it creates interpolations (with legMLS) for all parallels,
         making more points for verticalization.
 
         Args:
-            grid_to_trajectories: trajectories, borders
+            grid_to_trajectories: (dict) key: grids, values: [trajectories, borders]
+            points_to_num: (dict) key: (tuple) points, values: (int) num
             n: number of points per trajectory.
             distance: distance between points.
         """
 
         blade = self.load_blade()
+        counter = 0
+        grid_to_trajectories = self.load_grid_to_trajectories_standard()
+        ptn = self.load_points_to_num_standard()
+        points_to_num_verticalized = dict()
         for grid, value in grid_to_trajectories.iteritems():
             traj, bord = value
-            rays_list = self.compute_rays_from_parallels(traj, bord)
+            rays_list = self.compute_rays_from_parallels(traj, bord, ptn)
             parallels = []
             for r, rays in enumerate(rays_list):
-                if len(rays) <= 4:
+                if len(rays) <= 3:
                     continue
                 lin = linspace(0, len(rays) - 1, n)
                 N = len(lin)
                 new_rays = zeros((N, 6))
-                new_rays[:, 0], _, _ = mathtools.legMLS(array(rays)[:, 0], range(len(rays)), lin, 3, scale=1.5, dwf=None,
-                                                     ddwf=None)
-                new_rays[:, 1], _, _ = mathtools.legMLS(array(rays)[:, 1], range(len(rays)), lin, 3, scale=1.5, dwf=None,
-                                                     ddwf=None)
-                new_rays[:, 2], _, _ = mathtools.legMLS(array(rays)[:, 2], range(len(rays)), lin, 3, scale=1.5, dwf=None,
-                                                     ddwf=None)
+                new_rays[:, 0], _, _ = mathtools.legMLS(
+                    array(rays)[:, 0], array(range(len(rays))), lin, 3, scale=1.5, dwf=None, ddwf=None)
+                new_rays[:, 1], _, _ = mathtools.legMLS(
+                    array(rays)[:, 1], array(range(len(rays))), lin, 3, scale=1.5, dwf=None, ddwf=None)
+                new_rays[:, 2], _, _ = mathtools.legMLS(
+                    array(rays)[:, 2], array(range(len(rays))), lin, 3, scale=1.5, dwf=None, ddwf=None)
                 remove = []
                 for i in range(len(new_rays)):
                     try:
@@ -423,22 +442,25 @@ class DB:
             parallels = mathtools.equally_spacer(parallels, distance=distance)
             parallels = mathtools.trajectory_verticalization(parallels)
 
+            R = transpose(self.T[0:3, 0:3])
             borders = []
             for i in range(len(parallels)):
-                borders.append([parallels[i][0], parallels[i][-1]])
+                borders.append([dot(R,parallels[i][0][0:3]), dot(R,parallels[i][-1][0:3])])
                 parallels[i] = parallels[i][1:-1]
-            grid_to_trajectories[grid] = [parallels, borders]
 
-            points_to_num = dict()
-            counter = 0
+            parallels_num = []
             for parallel in parallels:
+                parallel_num = []
                 for point in parallel:
-                    points_to_num[tuple(round(point[0:3], 9))] = counter
+                    point[0:3] = dot(R,point[0:3])
+                    points_to_num_verticalized[tuple(round(point[0:3], 9))] = counter
+                    parallel_num.append(counter)
                     counter += 1
+                parallels_num.append(parallel_num)
 
-        save_pickle(grid_to_trajectories, join(self.path, 'points_to_num.pkl'))
-        save_pickle(grid_to_trajectories, join(self.path, 'grid_to_trajectories_verticalized.pkl'))
-        return
+            grid_to_trajectories[grid] = [parallels_num, borders]
+
+        return grid_to_trajectories, points_to_num_verticalized
 
     def get_sorted_bases(self):
         """ Return the sorted bases -- tuples PSAlpha.
@@ -450,15 +472,24 @@ class DB:
         btn = self.load_bases_to_num()
         return [b for (v, b) in sorted(zip(btn.values(), btn.keys()))]
 
-    def get_sorted_points(self):
+    def get_sorted_points(self, points_to_num = None):
         """ Return the sorted points -- tuples (x,y,z).
 
         Examples:
             >>> ntp = DB.get_sorted_points()
         """
 
-        ptn = self.load_points_to_num()
-        return [b for (v, b) in sorted(zip(ptn.values(), ptn.keys()))]
+        if points_to_num is None:
+            points_to_num = self.load_points_to_num()
+        return [k for (v, k) in sorted(zip(points_to_num.values(), points_to_num.keys()))]
+
+    @staticmethod
+    def invert_dict(dict_a):
+        dict_b = dict()
+        for k, v in dict_a.iteritems():
+            dict_b[v] = k
+        return dict_b
+
 
     def get_bases(self, db):
         """ Return all feasible bases in given database
@@ -905,19 +936,21 @@ class DB:
             if sign(dot(tan, meridian_point[0:3] - point[0:3])) == -1:
                 return parallel.tolist().index(list(point))
 
-    def compute_rays_from_grid(self, grid):
+    def compute_rays_from_grid(self, grid, grid_to_trajectories = None, points_to_num = None):
         """ This method compute the rays that belongs of the given grid. Note that you must create grid_to_trajectories
         first.
 
         Args:
             grid: (int) number of the grid
         """
-        gtt = self.load_grid_to_trajectories()
-        parallels, borders = gtt[grid]
-        rays = self.compute_rays_from_parallels(parallels, borders)
+
+        if grid_to_trajectories is None:
+            grid_to_trajectories = self.load_grid_to_trajectories()
+        parallels, borders = grid_to_trajectories[grid]
+        rays = self.compute_rays_from_parallels(parallels, borders, points_to_num)
         return rays
 
-    def compute_rays_from_parallels(self, parallels, borders=None):
+    def compute_rays_from_parallels(self, parallels, borders = None, points_to_num = None):
         """ This method gets a list of point numbers (parallel db format) and
         create a list of rays (point-normal) with possible border points.
         It removes empty borders and empty parallels, but if both are empty,
@@ -929,7 +962,10 @@ class DB:
         """
 
         rays = []
-        ntp = self.get_sorted_points()
+        if points_to_num is None:
+            points_to_num = self.load_points_to_num()
+
+        ntp = self.get_sorted_points(points_to_num)
         parallels = copy.deepcopy(parallels)
         blade = self.load_blade()
 
@@ -939,9 +975,9 @@ class DB:
                 continue
             if self.verticalized == False:
                 model = blade.select_model(ntp[parallel[0]])
-                ray = [map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallel)]
+                ray = map(lambda x: blade.compute_ray_from_point(ntp[x], model), parallel)
             else:
-                ray = [map(lambda x: blade.compute_ray_from_point(ntp[x]), parallel)]
+                ray = map(lambda x: blade.compute_ray_from_point(ntp[x]), parallel)
 
             if borders is not None:
                 if len(borders[i][0]) > 0:
@@ -1252,21 +1288,20 @@ class DB:
         return
 
     def plot_grid(self, grid_num, vis):
-        """
-        Method to plot grid.
+        """ Method to plot grid.
 
-        keyword arguments:
-        grid_num -- grid to be plotted.
-        vis -- visualizer object.
+        Args:
+            grid_num: grid to be plotted.
+            vis: visualizer object.
         """
 
         grid_to_trajectories = self.load_grid_to_trajectories()
         trajectories, borders = grid_to_trajectories[grid_num]
-        ntp = DB.get_sorted_points()
+        ntp = self.get_sorted_points()
         for trajectory in trajectories:
             for point in trajectory:
-                p = vis.plot(ntp[point], 'p', color=(1, 0, 0))
-        p = vis.plot_lists(borders, 'p', color=(1, 0, 0))
+                _ = vis.plot(ntp[point], 'p', color=(1, 0, 0))
+        _ = vis.plot_lists(borders, 'p', color=(1, 0, 0))
         return
 
     def plot_grid_coat(self, vis, grid_num, base):

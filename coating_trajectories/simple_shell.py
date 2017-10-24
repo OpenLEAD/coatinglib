@@ -17,7 +17,7 @@ import blade_coverage
 import db
 
 #grid = 77
-grid = 8
+grid = 7
 robot = turbine.robot
 manip = robot.GetActiveManipulator()
 robot.GetLink('Flame').Enable(False)
