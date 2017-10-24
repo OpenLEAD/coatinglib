@@ -819,7 +819,7 @@ class BladeModeling:
         """
 
         if len(point) == 0:
-            return []
+            return None
         if model is None:
             model = self.select_model(point)
         df = model.df(point)
