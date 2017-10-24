@@ -10,6 +10,7 @@ from xml.etree import ElementTree as ET
 from os import listdir, makedirs
 from os.path import realpath, join, isfile
 import matplotlib.pyplot as plt
+from time import sleep
 
 
 ## @file
@@ -134,7 +135,7 @@ class Path:
         self.data = TRAJ
         return
 
-    def simulate(self, robot, parallel_number):
+    def simulate(self, robot, vis):
         """ Method simulates and call visualization, in real time: the robot performing coat.
         Args:
             robot: (Turbine.robot) is the robot object.
@@ -144,8 +145,17 @@ class Path:
             >>> for i in range(len(path.data)): path.simulate(turbine.robot, i)
         """
 
-        _ = robot.GetController().SetPath(self.data[parallel_number])
-        robot.WaitForController(0)
+        manip = robot.GetActiveManipulator()
+        for parallel_number in range(len(self.data)):
+            for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                robot.SetDOFValues(self.get_joint(robot, parallel_number, point_number))
+                p = manip.GetTransform()[0:3,3]
+                _ = vis.plot(p, 'point', (1,0,0))
+                sleep(self.get_deltatime(parallel_number, point_number))
+
+
+        #_ = robot.GetController().SetPath(self.data[parallel_number])
+        #robot.WaitForController(0)
         return
 
     def plot_coated_points(self, robot, vis, step = 10):
