@@ -3,8 +3,9 @@ from . import TestCase
 from .. turbine import Turbine
 from .. turbine_config import TurbineConfig, ConfigFileError
 from .. import planning
-from numpy import concatenate, array, random, arange, dot
+from numpy import concatenate, array, random, arange, dot, load
 from numpy import sqrt, sin, cos, ones, sum, zeros, cross, round
+from os.path import join
 import time
 from math import pi
 from openravepy import RaveCreateCollisionChecker, CollisionOptions, CollisionReport, matrixFromAxisAngle
@@ -125,6 +126,7 @@ class TestPlanning(TestCase):
                   [[5.],[15.],[35.]],
                   [[100.]]]
         joints = [ array(j) for j in joints]
+
         dt = array([0.,5.,2.,10.])
         vel_limits = array([10.])
         acc_limits = array([1.])
@@ -135,6 +137,23 @@ class TestPlanning(TestCase):
 
         for i in range(len(joint_path)):
             self.assertTrue(joint_path[i] == expected_path[i], msg='joint ' + str(joint_path[i]) + 'is not joint ' + str(expected_path[i]))
+
+    def test_real_dijkstra(self):
+        joints = load(join('coating_trajectories','test','dijkstra_test','iksol.npz'))['array'][0]
+        dt = load(join('coating_trajectories','test','dijkstra_test','dtimes.npz'))['array'][0]
+
+        vel_limits = array([ 3.83972435, 3.4906585,  3.83972435, 7.15584993, 7.15584993])
+        acc_limits = array([  6.70206433,  9.30260491, 15.98721595, 15.98721595, 15.98721595])
+        expected_path = [array([1.]),array([10.]),array([15.]),array([100.])]
+        expected_min_cost = 0.8574
+        t = time.time()
+        joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
+        print 'time =', time.time() - t
+        # self.assertTrue(round(min_cost,5) == expected_min_cost, msg='min_cost is '+str(min_cost))
+        #
+        # for i in range(len(joint_path)):
+        #     self.assertTrue(joint_path[i] == expected_path[i], msg='joint ' + str(joint_path[i]) + 'is not joint ' + str(expected_path[i]))
+
 
     def test_dijkstra_performance(self):
         n = 200
