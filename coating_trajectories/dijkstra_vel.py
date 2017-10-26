@@ -1,5 +1,6 @@
 import heapq
 from numpy import finfo, array, inf, zeros,round, amax
+from numpy import max as npmax
 from numpy.core.multiarray import zeros, array
 from numpy.core.umath import absolute
 
@@ -39,58 +40,22 @@ def dijkstra_vel(adj, costs, s, t):
     raise ValueError('No shortest path to target.')
 
 
-class VirtualNode:
-    def __init__(self,point,velocity):
-        self.content = (point, velocity)
-
-    def __getitem__(self, item):
-        return self.content[item]
-
-    def __eq__(self, other):
-        return (self.content[0]==other[0])
-
-    def __hash__(self):
-        return hash(self.content[0])
-
-
 class DijkstraAdj:
-    def __init__(self,joints,dtimes):
-        self.adj = dict()
+    def __init__(self,joints):
         self.joints = joints
-        self.dtimes = dtimes
         return
 
-    def add_link(self,from_point,to_point):
-        adjacents = self.adj.get(from_point, [])
-        adjacents.append(to_point)
-        self.adj[from_point] = adjacents
-
-    def get_linked(self,from_point):
-        return self.adj.get(from_point,[])
+    def get(self,from_point):
+        return [(from_point[0]+1,joint) for joint in range(len(self.joints[from_point[0]+1]))]
 
     def __getitem__(self, item):
         return self.get(item)
 
-    def get(self, from_node):
-        full_states = []
 
-        from_joints = self.joints[from_node[0]][from_node[1]]
-        for to_node in self.get_linked(from_node):
-            dtime = self.dtimes[to_node[0]]
-            velocity =  (self.joints[to_node[0]][to_node[1]]-from_joints)/dtime
-            velocity = round(velocity, 9)
-            state = (to_node, tuple(velocity))
-            full_states.append(state)
-
-        return full_states
-
-
-class dijkstra_vel_cost:
-    def __init__(self,distance_cost,joints,vs,vt,dtimes,vel_limits):
+class DijkstraVelCost:
+    def __init__(self,distance_cost,joints,dtimes,vel_limits):
         self.distance_cost = distance_cost
         self.dtimes = dtimes
-        self.vs = vs
-        self.vt = vt
         self.vel_limits = vel_limits
         self.joints = joints
         self.stored = dict()
@@ -100,7 +65,7 @@ class dijkstra_vel_cost:
         from_node = item[0]
         to_node = item[1]
 
-        if (self.vs in item) or (self.vt in item):
+        if  ((0,0) in item) or ((len(self.joints)-1,0) in item):
             return finfo(float).eps
 
         if not self.stored.has_key(item):
@@ -112,43 +77,29 @@ class dijkstra_vel_cost:
 
 
 def make_dijkstra_vel(joints, dtimes, vel_limits, verbose = False):
-    virtual_start = (-1,-1)
-    virtual_end = (-2,-2)
-    adj = dict()
 
-    for jointsi in range(0,len(joints)-1):
-         for u in range(0,len(joints[jointsi])):
-             for v in range(0,len(joints[jointsi+1])):
-                 l = adj.get((jointsi,u),[])
-                 l.append((jointsi+1,v))
-                 adj[(jointsi,u)] = l
+    exd_joints = [[zeros(len(joints[0][0]))]] + list(joints) + [[zeros(len(joints[0][0]))]]
+    dtimes = [0] + list(dtimes) + [0]
 
-    for joints0i in range(0,len(joints[0])):
-        l = adj.get(virtual_start,[])
-        l.append((0,joints0i))
-        adj[virtual_start] = l
+    target = (len(exd_joints)-1,0)
 
-    for jointsi in range(0,len(joints[-1])):
-        l = adj.get((len(joints)-1,jointsi),[])
-        l.append(virtual_end)
-        adj[(len(joints)-1,jointsi)] = l
+    adj = DijkstraAdj(exd_joints)
 
-    cost = dijkstra_vel.dijkstra_vel_cost(joint_distance_mh12, joints, virtual_start, virtual_end, dtimes, vel_limits)
+    cost = DijkstraVelCost(joint_distance_mh12, exd_joints, dtimes, vel_limits)
 
-    predecessors, min_cost = dijkstra_vel.dijkstra_vel(adj, cost, virtual_start, virtual_end)
+    predecessors, min_cost = dijkstra_vel(adj, cost, (0,0), target)
 
-    c = virtual_end
-    path = [c]
+    path = [target]
 
-    while predecessors.get(c):
-        path.insert(0, predecessors[c])
-        c = predecessors[c]
+    while predecessors.get(target):
+        path.insert(0, predecessors[target])
+        target = predecessors[target]
 
     joint_path = []
     for i in range(1,len(path)-1):
         joint_index = path[i][0]
         joint_configuration = path[i][1]
-        joint_path.append(joints[joint_index][joint_configuration])
+        joint_path.append(exd_joints[joint_index][joint_configuration])
 
     if verbose:
         return joint_path, path, min_cost, adj, cost
@@ -166,11 +117,11 @@ def compute_foward_cost(joints0, joints1, limits):
 def joint_distance_mh12(joint1, joint2, dt, vel_limits):
     dif = abs(array(joint1) - array(joint2))
     if dt == 0:
-        dif = max(dif,1)
+        dif = npmax(dif,1)
         blown = (dif > 1e-5)
         dif[blown] = inf
         dif[~blown] = 0
         return dif
     dif /= dt
     percent_dif = dif/vel_limits
-    return max(percent_dif,1)
+    return npmax(percent_dif,1)
