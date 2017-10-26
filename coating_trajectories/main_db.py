@@ -65,6 +65,50 @@ def generate_db_joints():
             raise 'Error saving db_base_to_seg.pkl'
     return
 
+def generate_db():
+    """ Function to generate the trajectory_db and joints_db.
+    It can be called multiple times by different process.
+    """
+
+    turb.robot.GetLink('Flame').Enable(False)
+    path_seg = join(path, 'seg')
+
+    try:
+        makedirs(path_seg)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+    blade = DB.load_blade()
+    ptn = DB.load_points_to_num()
+    points = map(lambda x: blade.compute_ray_from_point(x), ptn.keys())
+    
+    while True:
+        visited_bases = db.load_pickle(join(path, 'visited_bases.pkl'))
+        base_num = None
+        for key, value in visited_bases.iteritems():
+            if value == False:
+                visited_bases[key] = True
+                base_num = key
+                break
+        if base_num is None:
+            break
+        db.save_pickle(visited_bases, join(path, 'visited_bases.pkl'))
+        del visited_bases
+
+        ptb = DB.generate_db(base_num, points, do_side_filter)
+
+        if ptb == None:
+            continue
+
+        print 'saving base_num: ', base_num
+
+        try:
+            db.save_pickle(ptb, join(path_seg, str(base_num) + '.pkl'))
+        except IOError:
+            raise 'Error saving db_base_to_seg.pkl'
+    return
+
 
 def generate_robot_positions(number_of_positions=1000):
     """
@@ -443,8 +487,8 @@ def merge_validation():
 
 
 if __name__ == '__main__':
-    area = 'BORDER'
-    db_name = 'db'
+    area = 'LIP'
+    db_name = 'db_15'
     path = join(area, db_name)
 
     dir_test = join(realpath('.'), 'test')
@@ -458,15 +502,15 @@ if __name__ == '__main__':
     threshold = 0.93
     grid_num = 0
 
-    # vis = Visualizer(turb.env)
+    #vis = Visualizer(turb.env)
 
     # generate_robot_positions()
     # create_db()
-    # clear_visited_bases()
+    clear_visited_bases()
 
     # Generate robot joints inputs
     minimal_number_of_points_per_trajectory, do_side_filter = 3, True
-    # generate_db_joints()
+    generate_db()
 
     #######################################
     ############### GRIDS  ################
