@@ -91,7 +91,7 @@ class DB:
         self.db_main_path = ''
         self.T = matrixFromAxisAngle([0, 0, 0])
         self.info = None
-        self.turb = turbine
+        self.turbine = turbine
         self.verticalized = False
 
         if not exists(self.path):
@@ -310,7 +310,7 @@ class DB:
 
         folder = folder.text
         xml_trajectories_path = join(self.path, folder, "trajectory/trajectory.xml")
-        blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[3])
+        blade = blade_modeling.BladeModeling(self.turbine, self.turbine.blades[3])
         blade.load_trajectory(xml_trajectories_path)
         blade.trajectories = mathtools.rotate_trajectories(blade.trajectories, self.T)
         blade.rotate_models(self.T)
@@ -329,7 +329,7 @@ class DB:
 
         folder = folder.text
         xml_trajectories_path = join(self.path, folder, "trajectory/trajectory.xml")
-        blade = blade_modeling.BladeModeling(self.turb, self.turb.blades[0])
+        blade = blade_modeling.BladeModeling(self.turbine, self.turbine.blades[0])
         blade.load_trajectory(xml_trajectories_path)
         blade.trajectories = mathtools.rotate_trajectories(blade.trajectories, self.T)
         blade.rotate_models(self.T)
@@ -754,7 +754,7 @@ class DB:
     def generate_db_joints(self, base_num, minimal_number_of_points_per_trajectory=3, do_side_filter=True):
         """ This method generates the database. Given the base (natural number that corresponds to a base
         tuple PSAlpha), it will test all grids and make segments of coating. It verifies only kinematic and collisions.
-        It returns None, None if there is collision of the robot base and environment.
+        It returns None if there is collision of the robot base and environment.
 
         It returns a dictionary db_base_to_segs = { base: [trajectory1, trajectory2, ...] }, where
         trajectory = [part1, part2,...]
@@ -776,11 +776,11 @@ class DB:
         ntb = self.get_sorted_bases()
         base = ntb[base_num]
         rp = rail_place.RailPlace(base)
-        self.turb.place_rail(rp)
-        self.turb.place_robot(rp)
-        if self.turb.check_rail_collision():
+        self.turbine.place_rail(rp)
+        self.turbine.place_robot(rp)
+        if self.turbine.check_rail_collision():
             return None
-        if self.turb.check_robotbase_collision():
+        if self.turbine.check_robotbase_collision():
             return None
 
         ptn = self.load_points_to_num()
@@ -790,7 +790,7 @@ class DB:
 
         # iterate each (filtered) parallel
         filtered_trajectories = filter_trajectories(
-            self.turb, blade.trajectories, minimal_number_of_points_per_trajectory, do_side_filter)
+            self.turbine, blade.trajectories, minimal_number_of_points_per_trajectory, do_side_filter)
         for filtered_trajectory in filtered_trajectories:
             db_base_to_segs[base_num] += [[]]
             # iterate each part of trajectory
@@ -799,7 +799,7 @@ class DB:
                 while evaluated_points < len(filtered_trajectory_part):
                     try:
                         lower, _ = robot_utils.compute_first_feasible_point(
-                            self.turb,
+                            self.turbine,
                             filtered_trajectory_part[evaluated_points:])
                         evaluated_points = evaluated_points + lower
                     except ValueError:
@@ -807,7 +807,7 @@ class DB:
                         continue
 
                     joint_solutions = robot_utils.compute_robot_joints(
-                        self.turb, filtered_trajectory_part[evaluated_points:])
+                        self.turbine, filtered_trajectory_part[evaluated_points:])
 
                     upper = evaluated_points + len(joint_solutions)
 
@@ -821,6 +821,49 @@ class DB:
                     # restart at end point
                     evaluated_points = upper
         return db_base_to_segs
+
+    def generate_db(self, base_num, points = None, do_side_filter = True):
+        """ This method generates the database. Given the base (natural number that corresponds to a base
+        tuple PSAlpha), it will test all points. It verifies only kinematic and collisions. It returns None if
+        there is collision of the robot base and environment.
+
+        It returns a dictionary db_base_to_segs = { base: [trajectory1, trajectory2, ...] }, where
+        trajectory = [part1, part2,...]
+        part = [point1_num, point2_num, ...] (segment)
+
+        Warning: HARD COMPUTATION time
+
+        Args:
+            base_num: number in number_to_base
+            do_side_filter: (optional, default = True) it will only check feasible segments on the side of the robot.
+            It is a way of make things faster, but it will not work with borders and lip
+        """
+
+        ntb = self.get_sorted_bases()
+        base = ntb[base_num]
+        rp = rail_place.RailPlace(base)
+        self.turbine.place_rail(rp)
+        self.turbine.place_robot(rp)
+        if self.turbine.check_rail_collision():
+            return None
+        if self.turbine.check_robotbase_collision():
+            return None
+
+        ptn = self.load_points_to_num()
+        blade = self.load_blade()
+        ptb = dict()
+
+        if points is None:
+            points = map(lambda x: blade.compute_ray_from_point(x), ptn.keys())
+
+        # points = filter_points(points)
+
+        for point in points:
+            iksol = robot_utils.ik_angle_tolerance(self.turbine, point, deep = False)
+            if len(iksol) > 0:
+                ptb[ptn[tuple(round(point[0:3],9))]] = set([base_num])
+        return ptb
+
 
     def get_points_in_grid(self, meridian, parallel, full=False):
         """ Get parallels that belong to a grid, between given meridians and given parallels.
@@ -1284,7 +1327,7 @@ class DB:
         bases = self.get_bases(db)
         for base in bases:
             rp = rail_place.RailPlace(db_bases[base])
-            vis.plot(rp.getXYZ(self.turb.config), 'base', (0, 0, 1))
+            vis.plot(rp.getXYZ(self.turbine.config), 'base', (0, 0, 1))
         return
 
     def plot_grid(self, grid_num, vis):
@@ -1350,7 +1393,7 @@ class DB:
         for i, base in enumerate(bases):
             if abs(scores[i]) >= threshold:
                 rp = rail_place.RailPlace(base)
-                xyz = rp.getXYZ(self.turb.config)
+                xyz = rp.getXYZ(self.turbine.config)
                 feasible_bases.append([scores[i], base])
                 xy.append([xyz[0], xyz[1]])
             else:
