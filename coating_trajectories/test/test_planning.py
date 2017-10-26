@@ -148,7 +148,7 @@ class TestPlanning(TestCase):
         expected_min_cost = 0.8574
         t = time.time()
         joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
-        print 'time =', time.time() - t
+        print 'Single parallel planing time is ', time.time() - t,'s. Target is less than 1s'
         # self.assertTrue(round(min_cost,5) == expected_min_cost, msg='min_cost is '+str(min_cost))
         #
         # for i in range(len(joint_path)):
