@@ -1,8 +1,7 @@
 import graph_tool as gt
 from graph_tool.search import StopSearch
-import planning
 from numpy import zeros
-import dijkstra2
+import dijkstra_acc
 
 
 class AstarVisitor(gt.search.DijkstraVisitor):
@@ -45,7 +44,7 @@ class AstarVisitor(gt.search.DijkstraVisitor):
 def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     virtual_start = (-1,-1) #falta velocidade inicial
     virtual_end = (-2,-1) #falta velocidade final
-    adj = dijkstra2.dijkstra_adj(joints,dtimes)
+    adj = dijkstra_acc.DijkstraAdj(joints, dtimes)
 
     for jointsi in range(len(joints)-1):
          for u in range(len(joints[jointsi])):
@@ -58,11 +57,11 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     for jointsi in range(len(joints[-1])):
         adj.add_link((len(joints)-1,jointsi),virtual_end)
 
-    vs = dijkstra2.virtual_node((-1,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade inicial
-    ve = dijkstra2.virtual_node((-2,-1),tuple(zeros(len(joints[0][0])))) #falta velocidade final
+    vs = dijkstra_acc.virtual_node((-1, -1), tuple(zeros(len(joints[0][0])))) #falta velocidade inicial
+    ve = dijkstra_acc.virtual_node((-2, -1), tuple(zeros(len(joints[0][0])))) #falta velocidade final
     dtimes[0] = 1
 
-    cost = dijkstra2.dijkstra_acc_cost(planning.single_vel_distance,vs,ve,dtimes,vel_limits,acc_limits)
+    cost = dijkstra_acc.DijkstraAccCost(dijkstra_acc.single_vel_distance, vs, ve, dtimes, vel_limits, acc_limits)
 
     graph = gt.Graph()
     weight = graph.new_ep("double")

@@ -6,6 +6,9 @@ def _std_robot_filter(turbine, *args):
     raise ValueError("No trajectory filter for " + turbine.robot.GetName() + " robot. Create new function.")
 
 
+##### POINT FILTERS #####
+
+
 def _mh12_points_filter(turbine, points, N):
     pistol = turbine.robot.GetLinks()[6].GetGeometries()[0].GetCylinderHeight()
     flame = turbine.robot.GetLinks()[7].GetGeometries()[0].GetCylinderHeight()
@@ -20,6 +23,24 @@ def _mh12_points_filter(turbine, points, N):
     distances = distance_robot_squared(points[:, 0:3])
     boo = (distances < _working_radius_squared) & (distances > _non_working_radius_squared)
     return points[boo]
+
+
+def points_side_filter(turbine, points):
+    Rx = -turbine.robot.GetTransform()[0:3, 0]
+    return direction_in_halfplane(points, Rx)
+
+_points_filter_options = {'mh12': _mh12_points_filter}
+
+
+def filter_points(turbine, points, do_side_filter=True):
+    name = turbine.robot.GetName()
+    if do_side_filter:
+        return _points_filter_options.get(name, _std_robot_filter)(turbine, points_side_filter(turbine, points))
+    else:
+        return _points_filter_options.get(name, _std_robot_filter)(turbine, points)
+
+
+##### TRAJECTORY FILTERS #####
 
 
 def _mh12_trajectory_filter(turbine, trajectories, N):
@@ -51,11 +72,6 @@ def _mh12_trajectory_filter(turbine, trajectories, N):
     return filtered_trajectories
 
 
-def points_side_filter(turbine, points):
-    Rx = -turbine.robot.GetTransform()[0:3, 0]
-    return direction_in_halfplane(points, Rx)
-
-
 def trajectory_side_filter(turbine, trajectories):
     Rx = -turbine.robot.GetTransform()[0:3, 0]
 
@@ -69,7 +85,6 @@ def trajectory_side_filter(turbine, trajectories):
 
 
 _trajectory_filter_options = {'mh12': _mh12_trajectory_filter}
-_points_filter_options = {'mh12': _mh12_points_filter}
 
 
 def filter_trajectories(turbine, trajectories, N=100, do_side_filter=True):
@@ -81,9 +96,3 @@ def filter_trajectories(turbine, trajectories, N=100, do_side_filter=True):
         return _trajectory_filter_options.get(name, _std_robot_filter)(turbine, trajectories, N)
 
 
-def filter_points(turbine, points, do_side_filter=True):
-    name = turbine.robot.GetName()
-    if do_side_filter:
-        return _points_filter_options.get(name, _std_robot_filter)(turbine, points_side_filter(turbine, points))
-    else:
-        return _points_filter_options.get(name, _std_robot_filter)(turbine, points)

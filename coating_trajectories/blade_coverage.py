@@ -1,6 +1,7 @@
 from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, vander
 from numpy.polynomial import legendre
-import planning
+
+import dijkstra_acc
 import robot_utils
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory, interfaces
 import mathtools
@@ -537,8 +538,8 @@ class Path:
             iksol = array([array(j)[:, :-1] for j in iksol])
 
             # Call dijkstra
-            joint_path, path, min_cost, adj, cost = planning.make_dijkstra(iksol, dtimes, vel_limits,
-                                                                           acc_limits, True)
+            joint_path, path, min_cost, adj, cost = dijkstra_acc.make_dijkstra(iksol, dtimes, vel_limits,
+                                                                               acc_limits, True)
 
             # Remove the last solution of the current parallel because it is the first solution of the next parallel
             # if the current parallel is not the last one

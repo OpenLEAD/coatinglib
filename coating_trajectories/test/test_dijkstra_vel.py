@@ -2,7 +2,7 @@ import unittest
 from . import TestCase
 from .. turbine import Turbine
 from .. turbine_config import TurbineConfig, ConfigFileError
-from .. import planning
+from .. import dijkstra_vel
 from numpy import concatenate, array, random, arange, dot, load
 from numpy import sqrt, sin, cos, ones, sum, zeros, cross, round
 from os.path import join
@@ -130,9 +130,11 @@ class TestPlanning(TestCase):
         dt = array([0.,5.,2.,10.])
         vel_limits = array([10.])
         acc_limits = array([1.])
-        expected_path = [array([1.]),array([10.]),array([15.]),array([100.])]
-        expected_min_cost = 0.8574
-        joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
+        #expected_path = [array([1.]),array([10.]),array([15.]),array([100.])]
+        expected_path = [array([3.]), array([10.]), array([15.]), array([100.])]
+        expected_min_cost = 1.24
+        #expected_min_cost = 0.8574
+        joint_path, path, min_cost, adj, cost = dijkstra_vel.make_dijkstra_vel(joints, dt, vel_limits, True)
         self.assertTrue(round(min_cost,5) == expected_min_cost, msg='min_cost is '+str(min_cost))
 
         for i in range(len(joint_path)):
@@ -147,13 +149,12 @@ class TestPlanning(TestCase):
         expected_path = [array([1.]),array([10.]),array([15.]),array([100.])]
         expected_min_cost = 0.8574
         t = time.time()
-        joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
+        joint_path, path, min_cost, adj, cost = dijkstra_vel.make_dijkstra_vel(joints, dt, vel_limits, True)
         print 'Single parallel planing time is ', time.time() - t,'s. Target is less than 1s'
         # self.assertTrue(round(min_cost,5) == expected_min_cost, msg='min_cost is '+str(min_cost))
         #
         # for i in range(len(joint_path)):
         #     self.assertTrue(joint_path[i] == expected_path[i], msg='joint ' + str(joint_path[i]) + 'is not joint ' + str(expected_path[i]))
-
 
     def test_dijkstra_performance(self):
         n = 200
@@ -165,7 +166,7 @@ class TestPlanning(TestCase):
         vel_limits = array([10.])
         acc_limits = array([1.])
         t = time.time()
-        joint_path, path, min_cost, adj, cost = planning.make_dijkstra(joints, dt, vel_limits, acc_limits, True)
+        joint_path, path, min_cost, adj, cost = dijkstra_vel.make_dijkstra_vel(joints, dt, vel_limits, True)
         print 'time =', time.time() - t
 
 
