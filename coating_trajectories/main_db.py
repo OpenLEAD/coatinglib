@@ -326,6 +326,10 @@ def create_db_from_segments(directory):
     db.save_pickle(db_main, join(DB.db_main_path, 'db.pkl'))
     return
 
+def compile_db(directory):
+    db_main = DB.compile_db(directory)
+    db.save_pickle(db_main, join(DB.db_main_path, 'db.pkl'))
+    return
 
 def turbine_rotate(turb):
     for blade in turb.blades:
@@ -487,8 +491,8 @@ def merge_validation():
 
 
 if __name__ == '__main__':
-    area = 'LIP'
-    db_name = 'db_15'
+    area = 'FACE'
+    db_name = 'db_-45'
     path = join(area, db_name)
 
     dir_test = join(realpath('.'), 'test')
@@ -499,18 +503,18 @@ if __name__ == '__main__':
     DB = db.DB(area, turb, db_name)
     turbine_rotate(turb)
 
-    threshold = 0.93
+    threshold = 0.95
     grid_num = 0
 
     #vis = Visualizer(turb.env)
 
     # generate_robot_positions()
     # create_db()
-    clear_visited_bases()
+    # clear_visited_bases()
 
     # Generate robot joints inputs
-    minimal_number_of_points_per_trajectory, do_side_filter = 3, True
-    generate_db()
+    minimal_number_of_points_per_trajectory, do_side_filter = 3, False
+    # generate_db()
 
     #######################################
     ############### GRIDS  ################
@@ -528,6 +532,7 @@ if __name__ == '__main__':
     # remove_points_from_db(24, borders, points_to_remove)
 
     # create_db_from_segments(join(path,'seg'))
+    # compile_db(join(path,'seg'))
 
     # plot_grid_coat()
     # verify_base_grid_threshold()
