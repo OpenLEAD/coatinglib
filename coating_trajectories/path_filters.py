@@ -5,11 +5,7 @@ from mathtools import direction_in_halfplane
 def _std_robot_filter(turbine, *args):
     raise ValueError("No trajectory filter for " + turbine.robot.GetName() + " robot. Create new function.")
 
-
-##### POINT FILTERS #####
-
-
-def _mh12_points_filter(turbine, points, N):
+def _mh12_points_filter(turbine, points):
     pistol = turbine.robot.GetLinks()[6].GetGeometries()[0].GetCylinderHeight()
     flame = turbine.robot.GetLinks()[7].GetGeometries()[0].GetCylinderHeight()
     _working_radius_squared = (1.285 + pistol + flame) ** 2  ##HARDCODED
