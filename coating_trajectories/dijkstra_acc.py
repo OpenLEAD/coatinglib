@@ -4,7 +4,7 @@ from numpy.core.multiarray import zeros, array
 from numpy.core.umath import absolute
 
 
-def dijkstra_acc(adj, costs, s, t):
+def dijkstra(adj, costs, s, t):
     ''' Return predecessors and min distance if there exists a shortest path 
         from s to t; Otherwise, raise exception
     '''
@@ -39,34 +39,29 @@ def dijkstra_acc(adj, costs, s, t):
     raise ValueError('No shortest path to target.')
 
 
-class virtual_node:
+class VirtualNode:
     def __init__(self,point,velocity):
         self.content = (point, velocity)
+        self.hash = hash(self.content[0])
 
     def __getitem__(self, item):
         return self.content[item]
 
     def __eq__(self, other):
-        return (self.content[0]==other[0])
+        return self.content[0]==other[0]
 
     def __hash__(self):
-        return hash(self.content[0])
+        return self.hash
 
 
 class DijkstraAdj:
     def __init__(self,joints,dtimes):
-        self.adj = dict()
         self.joints = joints
         self.dtimes = dtimes
         return
 
-    def add_link(self,from_point,to_point):
-        adjacents = self.adj.get(from_point, [])
-        adjacents.append(to_point)
-        self.adj[from_point] = adjacents
-
     def get_linked(self,from_point):
-        return self.adj.get(from_point,[])
+        return [(from_point[0]+1,joint) for joint in range(len(self.joints[from_point[0]+1]))]
 
     def __getitem__(self, item):
         return self.get(item)
@@ -86,10 +81,8 @@ class DijkstraAdj:
 
 
 class DijkstraAccCost:
-    def __init__(self, acc_cost, vs, vt, dtimes,vel_limits,acc_limits):
+    def __init__(self, acc_cost, dtimes,vel_limits,acc_limits):
         self.acc_cost = acc_cost
-        self.vs = vs
-        self.vt = vt
         self.vel_limits = vel_limits
         self.acc_limits = acc_limits
         self.dtimes = dtimes
@@ -100,11 +93,11 @@ class DijkstraAccCost:
         from_node, from_velocity = item[0]
         to_node, to_velocity = item[1]
 
-        if (self.vs in item) or (self.vt in item):
+        if (from_node[0]==0) or (to_node[0]==(len(self.dtimes)-1)):
             return finfo(float).eps
 
         if not self.stored.has_key(item):
-            if (from_node[0] == 0) or (to_node[0] == len(self.dtimes)-1):
+            if (from_node[0] == 1) or (to_node[0] == (len(self.dtimes)-2)):
                 acc_limits = self.acc_limits*inf
             else:
                 acc_limits = self.acc_limits
@@ -118,30 +111,23 @@ class DijkstraAccCost:
 
 
 def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
-    virtual_start = (-1,-1)
-    virtual_end = (-2,-1)
-    adj = DijkstraAdj(joints, dtimes)
 
-    for jointsi in range(len(joints)-1):
-        for u in range(len(joints[jointsi])):
-            for v in range(len(joints[jointsi+1])):
-                adj.add_link((jointsi,u),(jointsi+1,v))
 
-    for joints0i in range(len(joints[0])):
-        adj.add_link(virtual_start,(0,joints0i))
-
-    for jointsi in range(len(joints[-1])):
-        adj.add_link((len(joints)-1,jointsi),virtual_end)
-
-    vs = virtual_node((-1, -1), tuple(zeros(len(joints[0][0]))))
-    ve = virtual_node((-2, -1), tuple(zeros(len(joints[0][0]))))
     dtimes[0] = 1
+    zero_joints = zeros(len(joints[0][0]))
 
-    cost = DijkstraAccCost(single_vel_distance, vs, ve, dtimes, vel_limits, acc_limits)
+    exd_joints = [[zero_joints]] + list(joints) + [[zero_joints]]
+    dtimes = [1] + list(dtimes) + [1]
 
-    predecessors, min_cost = dijkstra_acc(adj, cost, vs, ve)
+    start = VirtualNode((0, 0), tuple(zero_joints))
+    target = VirtualNode((len(exd_joints)-1,0), tuple(zero_joints))
 
-    c = next(y for y in predecessors.keys() if y == ve)
+    cost = DijkstraAccCost(single_vel_distance, dtimes, vel_limits, acc_limits)
+
+    adj = DijkstraAdj(exd_joints, dtimes)
+    predecessors, min_cost = dijkstra(adj, cost, start, target)
+
+    c = next(y for y in predecessors.keys() if y == target)
 
     path = [c]
     while predecessors.get(c):
@@ -152,7 +138,7 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     for i in range(1,len(path)-1):
         joint_index = path[i][0][0]
         joint_configuration = path[i][0][1]
-        joint_path.append(joints[joint_index][joint_configuration])
+        joint_path.append(exd_joints[joint_index][joint_configuration])
 
     if verbose:
         return joint_path, path, min_cost, adj, cost
@@ -162,4 +148,4 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
 
 def single_vel_distance( vel1, vel2, dt, vel_limits, acc_limits):
     dif = abs(array(vel1)-array(vel2))/dt
-    return sum((dif/acc_limits)**2) + sum((abs(vel2)/vel_limits)**2)
+    return sum((dif/acc_limits)**2) + sum((vel2/vel_limits)**2)

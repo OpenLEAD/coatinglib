@@ -57,8 +57,8 @@ def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
     for jointsi in range(len(joints[-1])):
         adj.add_link((len(joints)-1,jointsi),virtual_end)
 
-    vs = dijkstra_acc.virtual_node((-1, -1), tuple(zeros(len(joints[0][0])))) #falta velocidade inicial
-    ve = dijkstra_acc.virtual_node((-2, -1), tuple(zeros(len(joints[0][0])))) #falta velocidade final
+    vs = dijkstra_acc.VirtualNode((-1, -1), tuple(zeros(len(joints[0][0])))) #falta velocidade inicial
+    ve = dijkstra_acc.VirtualNode((-2, -1), tuple(zeros(len(joints[0][0])))) #falta velocidade final
     dtimes[0] = 1
 
     cost = dijkstra_acc.DijkstraAccCost(dijkstra_acc.single_vel_distance, vs, ve, dtimes, vel_limits, acc_limits)

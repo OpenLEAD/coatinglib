@@ -1,11 +1,11 @@
 import heapq
-from numpy import finfo, array, inf, zeros,round, amax
+from numpy import finfo, array, inf, zeros,round, amax, maximum
 from numpy import max as npmax
 from numpy.core.multiarray import zeros, array
 from numpy.core.umath import absolute
 
 
-def dijkstra_vel(adj, costs, s, t):
+def dijkstra(adj, costs, s, t):
     ''' Return predecessors and min distance if there exists a shortest path 
         from s to t; Otherwise, raise exception
     '''
@@ -24,10 +24,9 @@ def dijkstra_vel(adj, costs, s, t):
             if u == t:
                 return p, d[u]
 
-            u_geometric  = u
-            u_successors = successors.get(u_geometric)
+            u_successors = successors.get(u)
             if not u_successors:
-                successors[u_geometric] = u_successors = adj.get(u_geometric)
+                successors[u] = u_successors = adj.get(u)
 
             for v in u_successors:
                 v_cost_new = u_cost + costs[u, v]
@@ -65,7 +64,7 @@ class DijkstraVelCost:
         from_node = item[0]
         to_node = item[1]
 
-        if  ((0,0) in item) or ((len(self.joints)-1,0) in item):
+        if (from_node[0]==0) or (to_node[0]==(len(self.joints)-1)):
             return finfo(float).eps
 
         if not self.stored.has_key(item):
@@ -81,13 +80,14 @@ def make_dijkstra_vel(joints, dtimes, vel_limits, verbose = False):
     exd_joints = [[zeros(len(joints[0][0]))]] + list(joints) + [[zeros(len(joints[0][0]))]]
     dtimes = [0] + list(dtimes) + [0]
 
+    start = (0,0)
     target = (len(exd_joints)-1,0)
 
     adj = DijkstraAdj(exd_joints)
 
     cost = DijkstraVelCost(joint_distance_mh12, exd_joints, dtimes, vel_limits)
 
-    predecessors, min_cost = dijkstra_vel(adj, cost, (0,0), target)
+    predecessors, min_cost = dijkstra(adj, cost, start, target)
 
     path = [target]
 
