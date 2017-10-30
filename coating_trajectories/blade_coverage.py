@@ -59,8 +59,16 @@ class Path:
         #    turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
 
 
-        acc = abs(vstack(new_joint_acc_path))
-        vel = abs(vstack(new_joint_velocity_path))
+        acc_middle = []
+        for acc_path in new_joint_acc_path:
+            acc_middle.append(acc_path[1:-1])
+
+        vel_middle = []
+        for vel_path in new_joint_velocity_path:
+            vel_middle.append(vel_path[1:-1])
+
+        acc = abs(vstack(acc_middle))
+        vel = abs(vstack(vel_middle))
 
         if (vel > turbine.robot.GetDOFMaxVel()).any():
             print 'vel max fail'
@@ -306,7 +314,7 @@ class Path:
         vel_not_valid = []
         for parallel_number in range(len(self.data)):
             for point_number in range(self.data[parallel_number].GetNumWaypoints()):
-                vel = self.get_vel(robot, parallel_number, point_number)
+                vel = self.get_velocity(robot, parallel_number, point_number)
                 if (vel > robot.GetDOFMaxVel()).any():
                     vel_not_valid.append([parallel_number, point_number])
         return vel_not_valid

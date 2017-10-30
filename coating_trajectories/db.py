@@ -1134,6 +1134,12 @@ class DB:
         return ordered_sol, psalphas
 
     def get_rail_configurations(self, grids_to_coat, criteria='sum'):
+        """ This method returns rail solutions.
+
+        Args:
+            grids_to_coat: (list) grids to be coated.
+            criteria: criteria to choose best placement
+        """
         feasible_combinations = self._select_db(grids_to_coat)
         if feasible_combinations == None:
             print "Grids are not coatable"
