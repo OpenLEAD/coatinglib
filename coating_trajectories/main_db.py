@@ -492,7 +492,7 @@ def merge_validation():
 
 if __name__ == '__main__':
     area = 'FACE'
-    db_name = 'db_-45'
+    db_name = 'db_15'
     path = join(area, db_name)
 
     dir_test = join(realpath('.'), 'test')
@@ -504,7 +504,7 @@ if __name__ == '__main__':
     turbine_rotate(turb)
 
     threshold = 0.95
-    grid_num = 0
+    grid_num = 7
 
     #vis = Visualizer(turb.env)
 
@@ -537,7 +537,7 @@ if __name__ == '__main__':
     # plot_grid_coat()
     # verify_base_grid_threshold()
     # DB.create_db_grid_bases(threshold)
-    # DB.plot_convex_grid(threshold,grid_num)
+    DB.plot_convex_grid(threshold,grid_num)
 
     # generate_rail_configurations()
 

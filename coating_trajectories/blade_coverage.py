@@ -1,6 +1,8 @@
 from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, vander
 from numpy.polynomial import legendre
+from copy import copy
 
+import dijkstra_vel
 import dijkstra_acc
 import robot_utils
 from openravepy import ConfigurationSpecification, interfaces, planningutils, RaveCreateTrajectory, interfaces
@@ -50,21 +52,25 @@ class Path:
 
         if self.rays is None: return
 
-        self.joint_dijkstra, rays_list, self.dtimes, self.iksols = self.move_dijkstra(turbine, self.rays, threshold)
+        self.compute_iksol(turbine, self.rays, threshold)
 
-        new_joint_path, new_joint_velocity_path, new_joint_acc_path = self.mls_parallels(
+        self.joint_dijkstra, self.dtimes = self.move_dijkstra(turbine, self.iksols)
+
+        joint_path, joint_velocity, joint_acc = self.mls_parallels(
             turbine, self.joint_dijkstra, self.dtimes)
+
+        self.create_trajectory_data(turbine, joint_path, joint_velocity, joint_acc)
 
         #new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes = self.parallels_transitions(
         #    turbine, new_joint_path, new_joint_velocity_path, new_joint_acc_path, dtimes)
 
 
         acc_middle = []
-        for acc_path in new_joint_acc_path:
+        for acc_path in joint_acc:
             acc_middle.append(acc_path[1:-1])
 
         vel_middle = []
-        for vel_path in new_joint_velocity_path:
+        for vel_path in joint_velocity:
             vel_middle.append(vel_path[1:-1])
 
         acc = abs(vstack(acc_middle))
@@ -72,24 +78,26 @@ class Path:
 
         if (vel > turbine.robot.GetDOFMaxVel()).any():
             print 'vel max fail'
-            #return
+            self.vel_max_fail = True
 
         if (acc > turbine.robot.GetDOFMaxAccel()).any():
             print 'acc max fail'
-            #return
+            self.acc_max_fail = True
             # A further inspection must be made. There are some strategies: break the parallel, retiming
 
+        self.grid_break, self.success = self.break_grid(turbine)
         self.success = True
 
+
+    def create_trajectory_data(self, turbine, pos, velocity, acc):
         self.data = []
-        for i in range(len(new_joint_path)):
+        for i in range(len(pos)):
             traj = self.create_trajectory(turbine,
-                                          new_joint_path[i],
-                                          new_joint_velocity_path[i],
-                                          new_joint_acc_path[i],
+                                          pos[i],
+                                          velocity[i],
+                                          acc[i],
                                           self.dtimes[i])
             self.data.append(traj)
-
         return
 
     def serialize(self, directory=''):
@@ -294,7 +302,7 @@ class Path:
 
         acc_not_valid = []
         for parallel_number in range(len(self.data)):
-            for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+            for point_number in range(1,self.data[parallel_number].GetNumWaypoints()-1):
                 acc = self.get_acc(robot, parallel_number, point_number)
                 if (abs(acc) > robot.GetDOFMaxAccel()).any():
                     acc_not_valid.append([parallel_number, point_number])
@@ -313,7 +321,7 @@ class Path:
 
         vel_not_valid = []
         for parallel_number in range(len(self.data)):
-            for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+            for point_number in range(1,self.data[parallel_number].GetNumWaypoints()-1):
                 vel = self.get_velocity(robot, parallel_number, point_number)
                 if (vel > robot.GetDOFMaxVel()).any():
                     vel_not_valid.append([parallel_number, point_number])
@@ -472,7 +480,7 @@ class Path:
         plt.show()
         return
 
-    def vis_failed_points(self, robot, vis):
+    def plot_failed_points(self, robot, vis):
         manip = robot.GetActiveManipulator()
         valid_points = []
         vel_not_valid = []
@@ -480,19 +488,21 @@ class Path:
 
         with robot:
             for parallel_number in range(len(self.data)):
-                for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                N = self.data[parallel_number].GetNumWaypoints()
+                for point_number in range(N):
                     joint = self.get_joint(robot, parallel_number, point_number)
                     vel = self.get_velocity(robot, parallel_number, point_number)
                     acc = self.get_acc(robot, parallel_number, point_number)
                     robot.SetDOFValues(joint)
                     pos = manip.GetTransform()[0:3,3]
 
-                    if (vel > robot.GetDOFMaxVel()).any():
-                        vel_not_valid.append(pos)
-                        continue
+                    if point_number > 0 and point_number < N-1:
+                        if (vel > robot.GetDOFMaxVel()).any():
+                            vel_not_valid.append(pos)
+                            continue
 
-                    if (acc > robot.GetDOFMaxAccel()).any():
-                        acc_not_valid.append(pos)
+                        if (acc > robot.GetDOFMaxAccel()).any():
+                            acc_not_valid.append(pos)
 
                     valid_points.append(pos)
 
@@ -501,11 +511,33 @@ class Path:
         _ = vis.plot(acc_not_valid, 'accnot', (0, 1, 0))
         return
 
+    def compute_iksol(self, turbine, organized_rays_list, interpolation):
+        """ Given organized_rays_list (cartesian points x-y-z-nx-ny-nz), this method returns robot's joints solution,
+        using inverse kinematics (openrave ikfast).
+
+        Args:
+            turbine: (@ref Turbine) turbine object
+            organized_rays_list: (float[m][n<SUB>i</SUB>][6]) zigzagging parallels
+            interpolation: (float) distance between points in parallels
+        Returns:
+             joint values (all possibilitites)
+        Examples:
+            >>> iksols, dtimes = path.move_dijkstra(turbine, rays_list, 3e-3)
+        """
+
+        self.organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
+        self.iksols = []
+
+        for i, organized_rays in enumerate(organized_rays_list):
+            iksol = robot_utils.compute_robot_joints(turbine, organized_rays, True)
+            self.iksols.append(iksol)
+        return
+
     @staticmethod
-    def move_dijkstra(turbine, organized_rays_list, interpolation):
-        """ Given parallels (cartesian points x-y-z-nx-ny-nz), this method returns robot's joints solution, using
-        inverse kinematics (openrave ikfast) and the Dijktra algorithm for path optimization:
-        @see https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
+    def move_dijkstra(turbine, iksols):
+        """ Given iksols (joint solutions) and dtimes, this method returns robot's joints solution, using
+        the Dijktra algorithm for path optimization: @see https://en.wikipedia.org/wiki/Dijkstra%27s_algorithm
+
         Args:
             turbine: (@ref Turbine) turbine object
             organized_rays_list: (float[m][n<SUB>i</SUB>][6]) zigzagging parallels
@@ -520,19 +552,16 @@ class Path:
         joint_path_list = []
         vel_limits = array(robot.GetDOFVelocityLimits())[:-1]
         acc_limits = array(robot.GetDOFMaxAccel())[:-1]
-        organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
         dtimes_list = []
-        iksols = []
 
-        for i, organized_rays in enumerate(organized_rays_list):
+        for i, iksol in enumerate(iksols):
+
+            iksol = copy(iksol)
 
             # Add the first element of the next parallel to the end of the current parallel
             # if the next parallel exists (current is not the last)
-            if i != len(organized_rays_list) - 1:
-                organized_rays.append(organized_rays_list[i + 1][0])
-
-            # Find all ik solutions with angle tolerances
-            iksol = robot_utils.compute_robot_joints(turbine, organized_rays, True)
+            if i != len(iksols) - 1:
+                iksol.append(iksols[i + 1][0])
 
             # Add the ik solutions of the previous parallel to the beginning of the current parallel
             # if the previous parallel exists (current is not the first)
@@ -546,32 +575,76 @@ class Path:
             iksol = array([array(j)[:, :-1] for j in iksol])
 
             # Call dijkstra
-            joint_path, path, min_cost, adj, cost = dijkstra_acc.make_dijkstra(iksol, dtimes, vel_limits,
-                                                                               acc_limits, True)
+            joint_path, path, min_cost, adj, cost = dijkstra_acc.make_dijkstra(iksol, dtimes, vel_limits, acc_limits,
+                                                                               True)
 
             # Remove the last solution of the current parallel because it is the first solution of the next parallel
             # if the current parallel is not the last one
-            if i != len(organized_rays_list) - 1:
+            if i != len(iksols) - 1:
                 joint_path = joint_path[:-1]
                 dtimes = dtimes[:-1]
-                iksol = iksol[:-1]
 
             # Remove the first solution of the current parallel because it is the last solution of the previous parallel
             # if the current parallel is not the first one
             if i != 0:
                 joint_path = joint_path[1:]
                 dtimes = dtimes[1:]
-                iksol = iksol[1:]
 
             dtimes_list.append(dtimes)
-            iksols.append(iksol)
 
             # Add the last joint again, with zero value
             joint_path_complete = zeros((len(joint_path), robot.GetDOF()))
             joint_path_complete[:len(joint_path), :len(joint_path[0])] = joint_path
             joint_path_list.append(joint_path_complete)
 
-        return joint_path_list, organized_rays_list, dtimes_list, iksols
+        return joint_path_list, dtimes_list
+
+    def break_grid(self, turbine):
+        init = 0
+        grid_break = []
+        robot = turbine.robot
+
+        while True:
+            acc_fail = self.get_failed_acc(robot)
+            vel_fail = self.get_failed_vel(robot)
+            joint_dijkstra = []
+
+            if len(vel_fail) > 0 or len(acc_fail) > 0:
+                if len(vel_fail) > 0:
+                    first_vel_fail_parallel = vel_fail[0][0]
+                else:
+                    first_vel_fail_parallel = len(self.data)
+                if len(acc_fail) > 0:
+                    first_acc_fail_parallel = acc_fail[0][0]
+                else:
+                    first_acc_fail_parallel = len(self.data)
+                fail_parallel = min(first_vel_fail_parallel, first_acc_fail_parallel)
+                grid_break.append(fail_parallel)
+
+                if init == fail_parallel:
+                    return grid_break, False
+
+                if len(grid_break) > 3:
+                    return grid_break, False
+
+                for i in range(0,fail_parallel):
+                    joint_dijkstra.append(self.joint_dijkstra[i])
+
+                joint_dijkstra2, _ = self.move_dijkstra(turbine, self.iksols[fail_parallel:])
+
+                for i in range(len(joint_dijkstra2)):
+                    joint_dijkstra.append(joint_dijkstra2[i])
+
+                self.joint_dijkstra = joint_dijkstra
+
+                joint, joint_velocity, joint_acc = self.mls_parallels(turbine, self.joint_dijkstra, self.dtimes)
+
+                self.create_trajectory_data(turbine,joint,joint_velocity,joint_acc)
+
+                init = fail_parallel
+            else:
+                return grid_break, True
+        return grid_break, True
 
 
     def mls_parallels(self, turbine, joints_parallels, dtimes_parallels):
