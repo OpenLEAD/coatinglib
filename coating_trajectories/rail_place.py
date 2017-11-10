@@ -1,7 +1,8 @@
 from numpy import array, sin, cos, pi, maximum, minimum, random, tan, sqrt
-from numpy import arctan2, sign, abs, mean, argmax, argmin, transpose
+from numpy import arctan2, sign, abs, transpose, eye, dot
 from mathtools import fast_poisson_disk
 from time import time
+from openravepy import matrixFromAxisAngle
 
 """
 This module provides the RailPlace class and a generating function rand_rail 
@@ -122,4 +123,11 @@ class RailPlace:
         if cfg is None:
             return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), 0 ])
         return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), cfg.environment.z_floor_level ])
+
+    def getTransform(self, cfg):
+        Placement = eye(4)
+        Placement[0:3, 3] = self.getXYZ(cfg) + [0, 0, 2.0 * cfg.environment.robot_level_difference]
+        R = matrixFromAxisAngle([0, 0, self.alpha + (sign(self.p) + 1) * pi / 2.0])
+        return dot(Placement, R)
+
 

@@ -1185,8 +1185,11 @@ class DB:
                 else:
                     for line in psalphas[fcomb][dbi][line_comb].keys():
                         for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
-                            n_psa.append(psa)
+                            rp = rail_place.RailPlace(psa)
+                            xyz = rp.getTransform(self.turbine.config).flatten()
+                            n_psa.append([list(psa),list(xyz)])
                 break
+
             n_psa = [T, n_psa]
             n_psas.append(n_psa)
         return n_psas, feasible_combinations
