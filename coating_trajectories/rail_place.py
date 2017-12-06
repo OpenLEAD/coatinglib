@@ -1,6 +1,6 @@
 from numpy import array, sin, cos, pi, maximum, minimum, random, tan, sqrt
-from numpy import arctan2, sign, abs, transpose, eye, dot
-from mathtools import fast_poisson_disk
+from numpy import arctan2, sign, abs, transpose, eye, dot, linalg
+from mathtools import fast_poisson_disk, angle_rotation_projection
 from time import time
 from openravepy import matrixFromAxisAngle
 
@@ -91,6 +91,17 @@ def xya2ps(x,y,alpha):
     P = x + S*sin(alpha)
     return P,S
 
+def transform2psa(turbine):
+    Tr = turbine.robot.GetTransform()
+    xr = Tr[0, 3]
+    yr = Tr[1, 3]
+    x = array([1, 0, 0]) #HARDCODED - frente do robo
+    v = dot(Tr[:3,:3],x)[:2]
+    v /= linalg.norm(v)
+    alpha = arctan2(v[1],v[0])
+    ps = xya2ps(xr, yr, ((alpha+pi/2)%pi)-pi/2)
+    return (ps[0], ps[1], ((alpha+pi/2)%pi)-pi/2)
+
 class RailPlace:
     """
     This class provides a simple way to store and manipulate
@@ -124,9 +135,11 @@ class RailPlace:
             return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), 0 ])
         return array([ self.p - self.s*sin(self.alpha), self.s*cos(self.alpha), cfg.environment.z_floor_level ])
 
-    def getTransform(self, cfg):
+    def getTransform(self, cfg=None):
         Placement = eye(4)
-        Placement[0:3, 3] = self.getXYZ(cfg) + [0, 0, 2.0 * cfg.environment.robot_level_difference]
+        Placement[0:3, 3] = self.getXYZ(cfg)
+        if cfg is not None:
+            Placement[0:3, 3] += [0, 0, 2.0 * cfg.environment.robot_level_difference]
         R = matrixFromAxisAngle([0, 0, self.alpha + (sign(self.p) + 1) * pi / 2.0])
         return dot(Placement, R)
 
