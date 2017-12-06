@@ -1873,3 +1873,17 @@ def linspace_array(init, end, n):
         out[:,i] = linspace(init[i],end[i],n)
     return out
 
+def angle_rotation_projection(R,v):
+    """ Find the component of a rotation, that is around a given axis v.
+    Sort of like projecting a rotation onto a vector. It returns the angle.
+
+    Args:
+        R: (array) 3x3 rotation matrix.
+        v: (array) 1x3 vector
+    """
+
+    v_ = compute_perpendicular_vector(v)
+    v_R = dot(R, v_)
+    v_Rp = v_R - (dot(v_R, v)*v)
+    v_Rp = v_Rp/linalg.norm(v_Rp)
+    return acos(dot(v_, v_Rp))
