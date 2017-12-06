@@ -103,9 +103,7 @@ def compute_manipulability_det(joint_configuration, robot):
 
 
 def compute_robot_joints(turbine, trajectory, deep=False):
-    """
-    Iterates points of the trajectories, computing optimal robot's joints
-    (minimizing orientation error). For the first point, it uses ikfast.
+    """ Iterates points of the trajectories. It uses ikfast.
 
     Args:
         turbine: (@ref Turbine) turbine object.
