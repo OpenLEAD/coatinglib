@@ -1,4 +1,4 @@
-from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, vander
+from numpy import array, linalg, dot, zeros, vstack, mean, std, cumsum, abs, ones, linspace, clip, vander, arange
 from numpy.polynomial import legendre
 from copy import copy
 
@@ -77,16 +77,14 @@ class Path:
         vel = abs(vstack(vel_middle))
 
         if (vel > turbine.robot.GetDOFMaxVel()).any():
-            print 'vel max fail'
             self.vel_max_fail = True
 
         if (acc > turbine.robot.GetDOFMaxAccel()).any():
-            print 'acc max fail'
             self.acc_max_fail = True
             # A further inspection must be made. There are some strategies: break the parallel, retiming
 
         self.grid_break, self.success = self.break_grid(turbine)
-        self.success = True
+        return
 
 
     def create_trajectory_data(self, turbine, pos, velocity, acc):
