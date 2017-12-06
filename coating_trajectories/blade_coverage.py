@@ -1016,6 +1016,41 @@ def base_grid_validation(turbine, psa, DB, grid, threshold=5e-2):
     trajectory.execute(turbine, threshold)
     return trajectory
 
+def base_grid_validation_parser(turbine, DB, grid, trajectory_path, threshold=5e-2):
+    """ Given the real blade angle, this method tries to validate a base:
+    1) rotate the blades (update the environment);
+    2) organize trajectories (removing empty points, adding borders,
+    and making zigzagging lists);
+    3) Dijkstra algorithm.
+    4) Moving Least Square smoothness;
+    Args:
+        turbine: (@ref Turbine) is the turbine object.
+        psa: (tuple[3]) primary, secondary, alpha (base position)
+        DB: (@ref DB) database object.
+        grid: (int) grid to be coated.
+        threshold: (float) is the interpolation threshold, as rays are usually well spaced.
+    Returns:
+        path object
+    Examples:
+        >>> path = base_grid_validation_parser(turbine, psa, DB, 0)
+    """
+
+    turbine.robot.GetLink('Flame').Enable(False)
+    Tb = turbine.blades[3].GetTransform()
+    DB.T = Tb
+
+    psa = rail_place.transform2psa(turbine)
+
+    rp = rail_place.RailPlace(psa)
+    turbine.place_rail(rp)
+    turbine.place_robot(rp)
+    organized_rays_list = organize_rays_in_parallels(DB, grid)
+
+    trajectory = Path(organized_rays_list)
+    trajectory.execute(turbine, threshold)
+    trajectory.serialize(trajectory_path)
+    return trajectory.success
+
 
 def compute_dtimes_from_joints(turbine, joints):
     """ Given the joints solution, this method set robot DOF values and access the config file (velocity requirements),
