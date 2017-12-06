@@ -1860,3 +1860,16 @@ class AccNStepProfile:
         else:
             self.times = res.x[:4]
             self.amax, self.amin = res.x[4:]
+
+def linspace_array(init, end, n):
+    """ Linspace for array.
+    Args:
+        init: (array) 1xn initial array.
+        end: (array) 1xn end array.
+        n: (int) number of points
+    """
+    out = zeros((n,len(init)))
+    for i in range(len(init)):
+        out[:,i] = linspace(init[i],end[i],n)
+    return out
+
