@@ -150,23 +150,46 @@ class Path:
         self.data = TRAJ
         return
 
-    def simulate(self, robot, vis):
+    def simulate(self, robot, vis, n=0):
         """ Method simulates and call visualization, in real time: the robot performing coat.
         Args:
             robot: (Turbine.robot) is the robot object.
             parallel_number: (int) is the parallel number to be simulated.
+            n: (int) interpolate n points between data
         Examples:
             >>> path.simulate(turbine.robot, 0)
             >>> for i in range(len(path.data)): path.simulate(turbine.robot, i)
         """
 
         manip = robot.GetActiveManipulator()
-        for parallel_number in range(len(self.data)):
-            for point_number in range(self.data[parallel_number].GetNumWaypoints()):
-                robot.SetDOFValues(self.get_joint(robot, parallel_number, point_number))
-                p = manip.GetTransform()[0:3,3]
-                _ = vis.plot(p, 'point', (1,0,0))
-                sleep(self.get_deltatime(parallel_number, point_number))
+        if n == 0:
+            for parallel_number in range(len(self.data)):
+                for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                    robot.SetDOFValues(self.get_joint(robot, parallel_number, point_number))
+                    p = manip.GetTransform()[0:3,3]
+                    _ = vis.plot(p, 'point', (1,0,0))
+                    sleep(self.get_deltatime(parallel_number, point_number))
+
+        else:
+            init = self.get_joint(robot, 0, 0)
+            robot.SetDOFValues(init)
+            for parallel_number in range(len(self.data)):
+                for point_number in range(self.data[parallel_number].GetNumWaypoints()):
+                    end = self.get_joint(robot, parallel_number, point_number)
+                    dtime = self.get_deltatime(parallel_number, point_number)
+                    if point_number > 0:
+                        joints = mathtools.linspace_array(init, end, n)
+                        for joint in joints:
+                            robot.SetDOFValues(joint)
+                            p = manip.GetTransform()[0:3, 3]
+                            _ = vis.plot(p, 'point', (0, 0, 1),10)
+                            sleep(dtime/n)
+                    else:
+                        robot.SetDOFValues(end)
+                        p = manip.GetTransform()[0:3, 3]
+                        _ = vis.plot(p, 'point', (0, 0, 1),10)
+                        sleep(dtime)
+                    init = end
 
 
         #_ = robot.GetController().SetPath(self.data[parallel_number])
