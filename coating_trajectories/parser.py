@@ -5,6 +5,7 @@ from os import environ
 from os.path import join
 from turbine_config import TurbineConfig
 from turbine import Turbine
+import xml.etree.ElementTree as ET
 
 def jusante_grids():
     """ Return the int numbers from jusante grids.
@@ -70,10 +71,10 @@ def border_grids():
     return grid_nums
 
 
-area_db = {'jusante':'FACE',
-           'montante': 'FACE',
-           'lip': 'LIP',
-           'border':'BORDER'
+area_db = {'jusante': join(environ['PYTHON_DATABASE'],'FACE'),
+           'montante': join(environ['PYTHON_DATABASE'],'FACE'),
+           'lip': join(environ['PYTHON_DATABASE'],'LIP'),
+           'border': join(environ['PYTHON_DATABASE'],'BORDER')
           }
 
 grids_available = {'jusante': jusante_grids,
@@ -84,12 +85,9 @@ grids_available = {'jusante': jusante_grids,
 
 
 def coverage(args):
-    dir_test = join(environ['PYTHON_COAT'],'test')
-    environ['OPENRAVE_DATA'] = str(dir_test)
-    cfg = TurbineConfig.load('turbine_unittest.cfg',dir_test)
-    turb = Turbine(cfg)
-    DB = db.DB(area_db[args.Area],turb)
-    psa, fcomp = DB.get_rail_configuration_n(args.Grids, 'sum', args.ans)
+    turbine = True
+    DB = db.DB(area_db[args.Area], turbine)
+    psa, _ = DB.get_rail_configuration_n(args.Grids, 'sum', args.ans)
     print psa
     return
 
@@ -102,13 +100,18 @@ def areas_out(args):
     return
     
 def validate(args):
-    dir_test = join(environ['PYTHON_COAT'],'test')
-    environ['OPENRAVE_DATA'] = str(dir_test)
-    cfg = TurbineConfig.load('turbine_unittest.cfg',dir_test)
-    turb = Turbine(cfg)
-    DB = db.DB(area_db[args.Area],turb)
-    score, joints = blade_coverage.base_grid_validation(DB, args.Grid)
-    print score
+    config = TurbineConfig.load(args.Config_file)
+    config.environment.load = args.Environment_file # Set given path as environment.xml path
+
+    env_file = ET.parse(config.environment.load)
+    robot_xml = env_file.find('Robot')
+    robot_xml.attrib['file'] = args.Robot_file
+    env_file.write(config.environment.load) # Set given path as robot.xml path
+
+    turbine = Turbine(config)
+    DB = db.DB(join(environ['PYTHON_DATABASE'],area_db[args.Area]),turbine)
+    success = blade_coverage.base_grid_validation_parser(turbine, DB, args.Grid, args.Trajectory_file)
+    print success
     return 
 
 parser = argparse.ArgumentParser(description='Coating script.')
@@ -132,10 +135,14 @@ parser_g = subparsers.add_parser('grids', help='Return available grids given are
 parser_g.add_argument('Area', choices=area_db.keys(), type=str, help='Area to be coated.')
 parser_g.set_defaults(func=grids_out)
 
-# Function to return Grids
-parser_j = subparsers.add_parser('joints', help='Return joints for grid coating.')
+# Function to return Trajectory File
+parser_j = subparsers.add_parser('plan', help='Return the trajectory file for grid coating.')
 parser_j.add_argument('Area', choices=area_db.keys(), type=str, help='Area to be coated.')
 parser_j.add_argument('Grid', type=int, help='Grid to be coated.')
+parser_j.add_argument('Config_file', type=str, help='Config file path - turbine.cfg')
+parser_j.add_argument('Environment_file', type=str, help='Environment file path - env.xml')
+parser_j.add_argument('Robot_file', type=str, help='Robot file path - robot.xml')
+parser_j.add_argument('Trajectory_file', type=str, help='Path to save traj.xml')
 parser_j.set_defaults(func=validate)
 
 args = parser.parse_args()
