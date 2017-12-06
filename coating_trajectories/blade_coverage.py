@@ -407,6 +407,48 @@ class Path:
         plt.show()
         return
 
+    def plot_linear_acc(self, turbine, parallel_number, link):
+        """ Plot linear acc of specific parallel.
+        Args:
+            turbine: (@ref Turbine) is the turbine object.
+            parallel_number: (int) is the parallel number to get the joint.
+        Returns:
+            linear acc graphic.
+        Examples:
+            >>> path.plot_linear_acc(turbine, 0)
+        """
+
+        linear_acc = []
+        dtimes = []
+        N = self.data[parallel_number].GetNumWaypoints()
+
+        for i in range(N):
+            linear_acc.append(self.get_linear_acc(turbine.robot, parallel_number, i, link))
+            dtimes.append(self.get_deltatime(parallel_number, i))
+
+        linear_acc = array(linear_acc)
+        f, ax = plt.subplots(nrows=3, ncols=2)
+        dtimes = cumsum(dtimes)
+        ax[0,0].set_title('Linear acc x - Link ' + str(link))
+        ax[1,0].set_title('Linear acc y - Link ' + str(link))
+        ax[2,0].set_title('Linear acc z - Link ' + str(link))
+        ax[0,1].set_title('Angular acc ax - Link ' + str(link))
+        ax[1,1].set_title('Angular acc ay - Link ' + str(link))
+        ax[2,1].set_title('Angular acc az - Link ' + str(link))
+
+        for i in range(3):
+            ax[i,0].plot(dtimes, linear_acc[:, i], color='b')
+            ax[i,0].set_yticks(arange(min(linear_acc[:, i]), max(linear_acc[:, i])+1, 1.0))
+
+        for i in range(3,6):
+            ax[i-3,1].plot(dtimes, linear_acc[:, i], color='b')
+            ax[i-3,1].set_yticks(arange(min(linear_acc[:, i]), max(linear_acc[:, i])+1, 1.0))
+
+        f.subplots_adjust(hspace=0.3)
+        plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+        plt.show()
+        return
+
     def plot_acc(self, turbine, parallel_number):
         """ Plot joint accelerations of specific parallel.
         Args:
