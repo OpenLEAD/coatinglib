@@ -310,6 +310,29 @@ class Path:
             robot.SetDOFVelocities(self.get_velocity(robot, parallel_number, point_number))
             return robot.ComputeInverseDynamics(self.get_acc(robot, parallel_number, point_number))
 
+    def get_linear_acc(self, robot, parallel_number, point_number, link):
+        """Method returns end-effector acc.
+
+        Args:
+            robot: (Robot) is the robot object.
+            parallel_number: (int) is the parallel number to get the joint.
+            point_number: (int) is the specific point in the parallel to get the joint _value.
+            link: link to get linear acc. (-3 for last link in mh12 with flame and gun)
+
+        Examples:
+            >>> path.get_linear_acc(turbine.robot, 0, 0)
+            >>> N = path.data[0].GetNumWaypoints()
+            >>> lin_acc = []
+            >>> for i in range(N): lin_acc.append(path.get_linear_acc(turbine.robot,0,i)) # Get all linear acc in parallel 0
+        """
+
+        with robot:
+            robot.SetDOFValues(self.get_joint(robot, parallel_number, point_number))
+            robot.SetDOFVelocities(self.get_velocity(robot, parallel_number, point_number))
+            return robot.GetLinkAccelerations(self.get_acc(robot,parallel_number,point_number))[link]
+
+
+
     def get_failed_acc(self, robot):
         """ Method returns a list [parallel_number, point_number] (Path.data structure) with all accelerations above
         the limit.
