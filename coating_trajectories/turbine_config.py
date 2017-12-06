@@ -47,16 +47,15 @@ class TurbineConfig:
         self.model = TurbineConfig.Model()
         
     @classmethod
-    def load(cls, config_file, dir_path = ""):
+    def load(cls, config_file):
         # Standard python file parsing
         
         parser = ConfigParser.RawConfigParser()
-        if parser.read(path.join(dir_path,config_file)) == []:
-            raise ConfigFileError("No file named "+path.join(dir_path,config_file)+".")
+        if parser.read(config_file) == []:
+            raise ConfigFileError("No file named "+config_file+".")
         
         config = cls()
 
-        config.dir_path = dir_path
         config.source = config_file
         
         try: 

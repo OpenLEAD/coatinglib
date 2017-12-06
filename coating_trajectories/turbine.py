@@ -48,7 +48,7 @@ class Turbine:
         # Create OpenRave environment
         RaveInitialize(True, 0)
         self.env = Environment()
-        self.env.Load(path.join(config.dir_path, config.environment.load))
+        self.env.Load(config.environment.load)
         self.robot = self.env.GetRobots()[0]
         self.manipulator = self.robot.GetActiveManipulator()
 
