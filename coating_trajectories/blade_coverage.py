@@ -711,8 +711,12 @@ class Path:
                 if init == fail_parallel:
                     return grid_break, False
 
-                if len(grid_break) > 3:
-                    return grid_break, False
+                try:
+                    dif =  min(array(grid_break[1:])-array(grid_break[:-1]))
+                    if dif < 5:
+                        return grid_break, False
+                except ValueError:
+                    pass
 
                 for i in range(0,fail_parallel):
                     joint_dijkstra.append(self.joint_dijkstra[i])
@@ -1004,7 +1008,6 @@ def base_grid_validation(turbine, psa, DB, grid, threshold=5e-2):
 
     T = DB.T
     T = dot(T, linalg.inv(turbine.blades[3].GetTransform()))  # HARDCODED
-
     for blade in turbine.blades:
         T0 = blade.GetTransform()
         blade.SetTransform(dot(T, T0))
