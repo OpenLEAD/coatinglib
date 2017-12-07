@@ -112,10 +112,11 @@ class Path:
             if exception.errno != errno.EEXIST:
                 raise
 
-        for i, traj in enumerate(self.data):
-            tree = ET.XML(traj.serialize())
-            with open(join(directory, str(i)), 'w') as f:
-                f.write(ET.tostring(tree))
+        if self.success:
+            for i, traj in enumerate(self.data):
+                tree = ET.XML(traj.serialize())
+                with open(join(directory, str(i)), 'w') as f:
+                    f.write(ET.tostring(tree))
         return
 
     def deserialize(self, turbine, directory):
