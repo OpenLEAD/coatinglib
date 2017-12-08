@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import blade_coverage
 import argparse
 import db
