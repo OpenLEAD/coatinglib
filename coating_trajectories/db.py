@@ -1177,7 +1177,7 @@ class DB:
                 for db in dbs:
                     if db.find('name').text == split(dbi)[1]:
                         T = self._extract_T(db)
-                        T = round(atan2(-T[1,2],T[1,1])*180/pi+90)
+                        T = round(atan2(-T[1,2],T[1,1])+pi/2)
                 try:
                     line_comb = sol_dict[fcomb][dbi][n]
                 except IndexError:
