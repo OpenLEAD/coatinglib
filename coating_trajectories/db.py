@@ -1186,7 +1186,7 @@ class DB:
                     for line in psalphas[fcomb][dbi][line_comb].keys():
                         for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
                             rp = rail_place.RailPlace(psa)
-                            xyz = rp.getTransform().flatten()
+                            xyz = rp.getTransform()
                             n_psa.append([list(psa),list(xyz)])
                 break
 
