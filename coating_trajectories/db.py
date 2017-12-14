@@ -1177,7 +1177,7 @@ class DB:
                 for db in dbs:
                     if db.find('name').text == split(dbi)[1]:
                         T = self._extract_T(db)
-                        T = round(atan2(-T[1,2],T[1,1])+pi/2)
+                        T = atan2(-T[1,2],T[1,1])+pi/2
                 try:
                     line_comb = sol_dict[fcomb][dbi][n]
                 except IndexError:
@@ -1186,7 +1186,7 @@ class DB:
                     for line in psalphas[fcomb][dbi][line_comb].keys():
                         for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
                             rp = rail_place.RailPlace(psa)
-                            xyz = rp.getTransform()
+                            xyz = map(list,rp.getTransform())
                             n_psa.append([list(psa),list(xyz)])
                 break
 
