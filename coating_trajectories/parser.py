@@ -89,7 +89,7 @@ grids_available = {'jusante': jusante_grids,
 def coverage(args):
     turbine = True
     DB = db.DB(area_db[args.Area], turbine)
-    psa, _ = DB.get_rail_configuration_n(args.Grids, 'sum', args.ans)
+    psa, _ = DB.get_rail_configuration_n(args.Grids, args.Config_file, 'sum', args.ans)
     print psa
     return
 
@@ -122,6 +122,7 @@ subparsers = parser.add_subparsers(help='Functions')
 
 # Function to return PSAlpha
 parser_p = subparsers.add_parser('position', help='Compute the rail and robot base position.')
+parser_p.add_argument('Config_file', type=str, help='Config file path - turbine.cfg.')
 parser_p.add_argument('Area', choices=area_db.keys(), type=str, help='Area to be coated.')
 parser_p.add_argument('Grids', nargs='+', type=int, help='Grids to be coated.')
 parser_p.add_argument('-ans', type=int, help='Answer number.', default=0)

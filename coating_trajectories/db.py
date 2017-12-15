@@ -16,6 +16,7 @@ import blade_modeling
 from scipy.spatial import ConvexHull
 from itertools import combinations
 from math import atan2, pi
+from turbine_config import TurbineConfig
 
 ## @file
 # @brief This contains functions to manage the database.
@@ -1140,6 +1141,7 @@ class DB:
             grids_to_coat: (list) grids to be coated.
             criteria: criteria to choose best placement
         """
+
         feasible_combinations = self._select_db(grids_to_coat)
         if feasible_combinations == None:
             print "Grids are not coatable"
@@ -1167,7 +1169,8 @@ class DB:
                 grids = grids - db_grids[dbi]
         return sol_dict, psalphas, coated_grids, feasible_combinations
 
-    def get_rail_configuration_n(self, grids_to_coat, criteria='sum', n=0):
+    def get_rail_configuration_n(self, grids_to_coat, cfg, criteria='sum', n=0):
+        config = TurbineConfig.load(cfg)
         sol_dict, psalphas, coated_grids, feasible_combinations = self.get_rail_configurations(grids_to_coat, criteria)
         n_psas = []
         for fcomb in feasible_combinations:
@@ -1186,7 +1189,7 @@ class DB:
                     for line in psalphas[fcomb][dbi][line_comb].keys():
                         for grid, psa in psalphas[fcomb][dbi][line_comb][line].iteritems():
                             rp = rail_place.RailPlace(psa)
-                            xyz = rp.getTransform().flatten()
+                            xyz = rp.getTransform(config).flatten()
                             n_psa.append([list(psa),list(xyz)])
                 break
 
