@@ -216,8 +216,8 @@ class Path:
             points.append(zip(x,y,z))
 
         _ = vis.plot_lists(points,'interpolation',(1,0,0))
-        return 
-        
+        return
+
 
     def get_joint(self, robot, parallel_number, point_number):
         """ Method gets a specific joint_value from path.
@@ -624,7 +624,7 @@ class Path:
                 iksols.append(iksol)
             else:
                 return None
-        return
+        return iksols
 
     @staticmethod
     def move_dijkstra(turbine, iksols):
