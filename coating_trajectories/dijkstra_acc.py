@@ -112,12 +112,11 @@ class DijkstraAccCost:
 
 def make_dijkstra(joints, dtimes, vel_limits, acc_limits, verbose = False):
 
-
-    dtimes[0] = 1
     zero_joints = zeros(len(joints[0][0]))
 
     exd_joints = [[zero_joints]] + list(joints) + [[zero_joints]]
     dtimes = [1] + list(dtimes) + [1]
+    dtimes[1] = 1
 
     start = VirtualNode((0, 0), tuple(zero_joints))
     target = VirtualNode((len(exd_joints)-1,0), tuple(zero_joints))
