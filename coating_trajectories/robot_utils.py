@@ -116,10 +116,10 @@ def compute_robot_joints(turbine, trajectory, deep=False):
     # Find solutions for points
     for index in range(0, len(trajectory)):
         iksol = ik_angle_tolerance(turbine, trajectory[index], deep=deep)
-        if len(iksol) == 0:
-            return joint_solutions
-        else:
+        if iksol:
             joint_solutions.append(iksol)
+        else:
+            return None
     return joint_solutions
 
 
