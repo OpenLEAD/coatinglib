@@ -52,7 +52,10 @@ class Path:
 
         if self.rays is None: return
 
-        self.compute_iksol(turbine, self.rays, threshold)
+        self.iksols = self.compute_iksol(turbine, self.rays, threshold)
+        if not self.iksols:
+            self.success = False
+            return
 
         self.joint_dijkstra, self.dtimes = self.move_dijkstra(turbine, self.iksols)
 
@@ -613,11 +616,14 @@ class Path:
         """
 
         self.organized_rays_list = mathtools.equally_spacer(organized_rays_list, interpolation)
-        self.iksols = []
+        iksols = []
 
         for i, organized_rays in enumerate(organized_rays_list):
             iksol = robot_utils.compute_robot_joints(turbine, organized_rays, True)
-            self.iksols.append(iksol)
+            if iksol:
+                iksols.append(iksol)
+            else:
+                return None
         return
 
     @staticmethod

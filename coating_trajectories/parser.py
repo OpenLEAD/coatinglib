@@ -4,6 +4,7 @@ import blade_coverage
 import argparse
 import db
 from os import environ
+import sys
 from os.path import join
 from turbine_config import TurbineConfig
 from turbine import Turbine
@@ -113,8 +114,9 @@ def validate(args):
     turbine = Turbine(config)
     DB = db.DB(join(environ['PYTHON_DATABASE'],area_db[args.Area]),turbine)
     success = blade_coverage.base_grid_validation_parser(turbine, DB, args.Grid, args.Trajectory_file)
-    print success
-    return 
+    if not success:
+        print "could not find the required coating trajectory"
+        sys.exit(1)
 
 parser = argparse.ArgumentParser(description='Coating script.')
 
