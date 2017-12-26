@@ -1,0 +1,10 @@
+<package>
+  <description brief="Package to generate coating trajectories">
+  </description>
+  <author>Gabriel Alcantara/alcantara@poli.ufrj.br</author>
+  <license></license>
+  <url>http://</url>
+  <logo>http://</logo>
+  <depend package="planning/openrave" />
+  <depend package="gui/collada_dom" />
+</package>

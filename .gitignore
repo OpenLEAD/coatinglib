@@ -1,4 +1,15 @@
 *.npz
-!/Python/blade_sampling/blade_crop_fast.npz
+!/coating_trajectories/test/dijkstra_test/*.npz
 *.csv
 *.pyc
+/Turbine/
+/motoman/
+*.wrl
+*.xml
+!/coating_trajectories/test/motoman/*.xml
+/trajectory
+/plots
+!/coating_trajectories/test/template/*
+*~
+.*.sw?
+*.pkl

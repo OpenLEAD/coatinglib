@@ -1,0 +1,248 @@
+<Robot name="MH122"> 
+<KinBody>
+	<Body name="Base" type="dynamic">
+		<Geom type="trimesh">
+			<collision>Base.wrl</collision>
+		</Geom>
+		<mass type="custom">
+			<total>40.520362</total>
+			<com>-0.050299 0.000143 0.078997</com>
+			<inertia>	
+				0.334668	-0.001801	0.013343
+				-0.001801	0.567296	0.000580
+				0.013343	0.000580	0.732173
+			</inertia>
+		</mass>
+	</Body>
+
+	<Body name="Arm0" type="dynamic">
+		<offsetfrom>Base</offsetfrom>
+		<Geom type="trimesh">
+			<collision>S.wrl</collision>
+		</Geom>
+		<mass type="custom">
+			<total>36.653982</total>
+			<com>0.026519 0.008259 0.289358</com>
+			<inertia>	
+				0.922776	-0.064152	-0.091134
+				-0.064152	0.694738	0.292899
+				-0.091134	0.292899	0.810782
+			</inertia>
+		</mass>
+	</Body>
+
+   <Joint circular="false" name="S" type="hinge">
+     <Body>Base</Body>
+     <Body>Arm0</Body>
+     <offsetfrom>Arm0</offsetfrom>
+     <weight>4</weight>
+     <limitsdeg>-170 170</limitsdeg>
+     <axis>0 0 1</axis>
+     <maxveldeg>220</maxveldeg>
+     <maxacceldeg>384</maxacceldeg>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque></maxtorque>
+   </Joint>
+    
+    
+	<Body name="Arm1" type="dynamic">
+		<offsetfrom>Arm0</offsetfrom>
+		<Geom type="trimesh">
+			<collision>L.wrl</collision>
+		</Geom>
+		<mass type="custom">
+			<total>14.698968</total>
+			<com>0.130022 -0.11515 0.730956</com>
+			<inertia>	
+				0.050962	-0.007780	-0.031954
+				-0.007780	0.791436	0.010710
+				-0.031954	0.010710	0.797506
+			</inertia>
+		</mass>
+	</Body>
+
+   <Joint circular="false" name="L" type="hinge">
+     <Body>Arm0</Body>
+     <Body>Arm1</Body>
+     <offsetfrom>Arm1</offsetfrom>
+     <anchor>0.155 0 0.45</anchor>
+     <limitsdeg>-85 155</limitsdeg>
+     <axis>0 1 0</axis>
+     <maxveldeg>200</maxveldeg>
+     <maxacceldeg>533</maxacceldeg>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque></maxtorque>
+   </Joint>
+
+
+	<Body name="Arm2" type="dynamic">
+		<offsetfrom>Arm1</offsetfrom>
+		<Geom type="trimesh">
+			<collision>U.wrl</collision>
+		</Geom>
+		<mass type="custom">
+			<total>25.322229</total>
+			<com>0.130022 -0.11515 0.730956</com>
+			<inertia>	
+				0.367442	-0.148533	-0.057117
+				-0.148533	0.314208	0.076992
+				-0.057117	0.076992	0.418206
+			</inertia>
+		</mass>
+	</Body>
+
+   <Joint circular="false" name="U" type="hinge">
+     <Body>Arm1</Body>
+     <Body>Arm2</Body>
+     <offsetfrom>Arm2</offsetfrom>
+     <anchor>0.155 0 1.064</anchor>
+     <weight>3</weight>
+     <limitsdeg>154 -97</limitsdeg>
+     <axis>0 -1 0</axis>
+     <maxveldeg>220</maxveldeg>
+     <maxacceldeg>916</maxacceldeg>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque></maxtorque>
+   </Joint>
+ 
+ 	<Body name="Arm3" type="dynamic">
+		<offsetfrom>Arm2</offsetfrom>
+		<Geom type="trimesh">
+			<collision>R.wrl</collision>
+		</Geom>
+		<mass type="custom">
+			<total>10.138446</total>
+			<com>0.571278 0.003339 1.303461</com>
+			<inertia>	
+				0.147511	-0.000871	-0.003604
+				-0.000871	0.173006	-0.013614
+				-0.003604	-0.013614	0.052448
+			</inertia>
+		</mass>
+	</Body>
+
+   <Joint circular="false" name="R" type="hinge">
+     <Body>Arm2</Body>
+     <Body>Arm3</Body>
+     <offsetfrom>Arm3</offsetfrom>
+     <anchor>0.205 0 1.264</anchor> 
+     <weight>3</weight>
+     <limitsdeg>-180 180</limitsdeg>
+     <axis>-1 0 0</axis>
+     <maxveldeg>410</maxveldeg>
+     <maxacceldeg>916</maxacceldeg>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque>22</maxtorque>
+   </Joint>
+ 
+  	<Body name="Arm4" type="dynamic">
+		<offsetfrom>Arm3</offsetfrom>
+		<Geom type="trimesh">
+			<collision>B.wrl</collision>
+		</Geom>
+		<mass type="custom">
+			<total>2.533513</total>
+			<com>0.833159 -0.003472 1.263723</com>
+			<inertia>	
+				0.006497	0.000023	-0.000247
+				0.000023	0.007985	0.000067
+				-0.000247	0.000067	0.006318
+			</inertia>
+		</mass>
+	</Body>
+	 
+
+   <Joint circular="false" name="B" type="hinge">
+     <Body>Arm3</Body>
+     <Body>Arm4</Body>
+     <offsetfrom>Arm4</offsetfrom>
+     <anchor>0.795 0 1.264</anchor>
+     <weight>3</weight>
+     <limitsdeg>-135 135</limitsdeg>
+     <axis>0 -1 0</axis>
+     <maxveldeg>410</maxveldeg>
+     <maxacceldeg>916</maxacceldeg>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque>22</maxtorque>
+   </Joint>
+
+   <Body name="Gun" type="dynamic">
+     <offsetfrom>Arm4</offsetfrom>
+     <Translation>1.045 0 1.264</Translation>
+     <Geom type="cylinder">
+       <RotationAxis>0 0 1 90</RotationAxis>
+       <radius>0.05</radius>
+       <height>0.30</height>
+       <diffuseColor>0.05 0.05 0.05</diffuseColor>
+     </Geom> 
+    <mass type="custom">
+		<total>8.5</total>
+		<com>0 0 0</com>
+		<inertia>
+				0.010625 0 0 
+				0 0.0690625 0
+				0 0 0.0690625
+		</inertia> 
+     </mass> 
+   </Body>
+
+   <Joint circular="false" name="T" type="hinge">
+     <Body>Arm4</Body>
+     <Body>Gun</Body>
+     <offsetfrom>Gun</offsetfrom>
+     <weight>3</weight>
+     <limitsdeg>-360 360</limitsdeg>
+     <axis>-1 0 0</axis>
+     <maxveldeg>610</maxveldeg>
+     <maxacceldeg>916</maxacceldeg>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque>9.8</maxtorque>
+   </Joint>
+
+   <Body name="Flame" type="dynamic">
+     <offsetfrom>Gun</offsetfrom>
+     <Geom type="cylinder">
+       <Translation>0.265 0 0</Translation>
+       <RotationAxis>0 0 1 90</RotationAxis>
+       <radius>0.005</radius>
+       <height>0.23</height>
+       <diffuseColor>1 0 0</diffuseColor>
+     </Geom>
+    <mass type="custom">
+	<total>0</total>
+	<com>0 0 0</com>
+	</mass>
+   </Body>
+
+   <joint name="FlameJoint" type="hinge" enable="false">
+     <body>Flame</body>
+     <body>Gun</body>
+     <limits>0 0</limits>
+   </joint>
+
+ </KinBody>
+ <Manipulator name="effector">
+   <effector>Flame</effector>
+   <Translation>0.38 0 0</Translation>    
+   <base>Base</base>        
+ </Manipulator>
+ 
+ <AttachedSensor name="ILD1402600SC">
+    <link>Gun</link>
+    <translation>0 0 0.07</translation>
+    <sensor type="BaseLaser2D">
+      <minangle>0</minangle>
+      <maxangle>0</maxangle>
+      <resolution>0.1</resolution>
+      <maxrange>0.6</maxrange>
+      <scantime>0.1</scantime>
+    </sensor>
+  </AttachedSensor>
+ 
+</Robot>
