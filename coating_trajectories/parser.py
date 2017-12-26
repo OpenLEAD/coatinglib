@@ -89,6 +89,8 @@ grids_available = {'jusante': jusante_grids,
 
 def coverage(args):
     turbine = True
+    if not set(args.Grids).issubset(set(grids_available[args.Area]())):
+        raise ValueError('Invalid Grids')
     DB = db.DB(area_db[args.Area], turbine)
     psa, _ = DB.get_rail_configuration_n(args.Grids, args.Config_file, 'sum', args.ans)
     print psa
