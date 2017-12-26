@@ -1,0 +1,206 @@
+<Robot name="MH122"> 
+ <KinBody>
+   
+   <Body name="Base" type="dynamic">
+     <Geom type="trimesh">
+        <collision>MH12_Base2.wrl</collision>
+     </Geom>
+     
+     <mass type="custom">
+	<total>31.579</total>
+	<com>0.060 0.056 0</com>
+	<inertia>0.310 0.032 0.001
+		0.032 0.619 0.001
+		0.001 0.001 0.441</inertia>
+     </mass>
+
+   </Body>
+
+   <Body name="Arm0" type="dynamic">
+     <offsetfrom>Base</offsetfrom>
+     <Geom type="trimesh">
+        <collision>MH12_S2.wrl</collision>
+     </Geom>
+
+     <mass type="custom">
+	<total>45.399</total>
+	<com>-0.053 0.296 0.016</com>
+	<inertia>0.854 -0.338 -0.063
+		-0.338 0.908 0.105
+		-0.063 0.105 0.110</inertia>
+     </mass>
+   </Body>
+
+   <Joint circular="false" name="S" type="hinge">
+     <Body>Base</Body>
+     <Body>Arm0</Body>
+     <offsetfrom>Arm0</offsetfrom>
+     <weight>4</weight>
+     <limitsdeg>-170 170</limitsdeg>
+     <axis>0 -1 0</axis>
+     <maxveldeg>200</maxveldeg>
+     <resolution>0.08</resolution>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque></maxtorque>
+   </Joint>
+    
+   <Body name="Arm1" type="dynamic">
+     <offsetfrom>Arm0</offsetfrom>
+     <Geom type="trimesh">
+        <collision>MH12_L2.wrl</collision>
+     </Geom>
+
+     <mass type="custom">
+	<total>13.242</total>
+	<com>-0.140 0.675 -0.104</com>
+	<inertia>0.915 0.011 -0.008
+		0.011 0.618 -0.072
+		-0.008 -0.072 0.009</inertia>
+     </mass>
+   </Body>
+
+   <Joint circular="false" name="L" type="hinge">
+     <Body>Arm0</Body>
+     <Body>Arm1</Body>
+     <offsetfrom>Arm1</offsetfrom>
+     <anchor>-0.155 0.45 0</anchor>
+     <limitsdeg>-155 90</limitsdeg>
+     <axis>0 0 -1</axis>
+     <maxveldeg>200</maxveldeg>
+     <resolution>0.08</resolution>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque></maxtorque>
+   </Joint>
+
+   <Body name="Arm2" type="dynamic">
+     <offsetfrom>Arm1</offsetfrom>
+     <Geom type="trimesh">
+        <collision>MH12_U2.wrl</collision>
+     </Geom>
+
+     <mass type="custom">
+	<total>27.167</total>
+	<com>-0.274 1.149 -0.013</com>
+	<inertia>0.349 -0.183 0.048
+		-0.183 0.314 -0.050
+		 0.048 -0.050 0.505</inertia>
+     </mass>
+   </Body>
+
+   <Joint circular="false" name="U" type="hinge">
+     <Body>Arm1</Body>
+     <Body>Arm2</Body>
+     <offsetfrom>Arm2</offsetfrom>
+     <anchor>-0.155 1.064 0 </anchor>
+     <weight>3</weight>
+     <limitsdeg>-240 175</limitsdeg>
+     <axis>0 0 -1</axis>
+     <maxveldeg>220</maxveldeg>
+     <resolution>0.08</resolution>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque></maxtorque>
+   </Joint>
+  
+   <Body name="Arm3" type="dynamic">
+     <offsetfrom>Arm2</offsetfrom>
+     <Geom type="trimesh">
+        <collision>MH12_R2.wrl</collision>
+     </Geom>
+
+     <mass type="custom">
+	<total>7.999</total>
+	<com>-0.589 1.235 -0.029</com>
+	<inertia>0.0415 -0.004 0.006
+		-0.004 0.166 0
+		0.006 0 0.148</inertia>
+     </mass>
+   </Body>
+
+   <Joint circular="false" name="R" type="hinge">
+     <Body>Arm2</Body>
+     <Body>Arm3</Body>
+     <offsetfrom>Arm3</offsetfrom>
+     <anchor>-0.205 1.264 0 </anchor> 
+     <weight>3</weight>
+     <limitsdeg>-180 180</limitsdeg>
+     <axis>-1 0 0</axis>
+     <maxveldeg>410</maxveldeg>
+     <resolution>0.08</resolution>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque>22</maxtorque>
+   </Joint>
+   
+   <Body name="Arm4" type="dynamic">
+     <offsetfrom>Arm3</offsetfrom>
+     <Geom type="trimesh">
+        <collision>MH12_B2.wrl</collision>
+     </Geom>
+
+     <mass type="custom">
+	<total>3.796</total>
+	<com>-0.836 1.263 -0.012</com>
+	<inertia>0.011 0 0
+		0 0.011 0
+		0 0 0.010</inertia>
+     </mass>
+   </Body>
+
+   <Joint circular="false" name="B" type="hinge">
+     <Body>Arm3</Body>
+     <Body>Arm4</Body>
+     <offsetfrom>Arm4</offsetfrom>
+     <anchor>-0.795 1.264 0</anchor>
+     <weight>3</weight>
+     <limitsdeg>-135 135</limitsdeg>
+     <axis>0 0 -1</axis>
+     <maxveldeg>410</maxveldeg>
+     <resolution>0.08</resolution>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque>22</maxtorque>
+   </Joint>
+
+   <Body name="Arm5" type="dynamic">
+     <offsetfrom>Arm4</offsetfrom>
+     <Translation>-1.045 1.264 0</Translation>
+     <Geom type="cylinder">
+       <RotationAxis>0 0 1 90</RotationAxis>
+       <radius>0.05</radius>
+       <height>0.30</height>
+       <diffuseColor>0.05 0.05 0.05</diffuseColor>
+     </Geom>
+     <mass type="custom">
+	<total>8.5</total>
+	<com>0 0 0</com>
+	<inertia>0.010625 0 0 
+		 0 0.0690625 0
+		 0 0 0.0690625</inertia> 
+     </mass>
+   </Body>
+
+   <Joint circular="false" name="T" type="hinge">
+     <Body>Arm4</Body>
+     <Body>Arm5</Body>
+     <offsetfrom>Arm5</offsetfrom>
+     <weight>3</weight>
+     <limitsdeg>-360 360</limitsdeg>
+     <axis>-1 0 0</axis>
+     <maxveldeg>610</maxveldeg>
+     <resolution>0.08</resolution>
+     <weigth></weigth>
+     <rotorinertia></rotorinertia>
+     <maxtorque>9.8</maxtorque>
+   </Joint>
+ <!--  -->
+ </KinBody>
+ <Manipulator name="arm">
+   <effector>Arm5</effector>
+   <Translation>-0.15 0 0</Translation>    
+   <base>Base</base>           
+ </Manipulator>
+   
+</Robot>

@@ -1,0 +1,36 @@
+#VRML V1.0 ascii
+WWWInline {
+name "MA1440_B_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "MA1440_R_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "MA1440_T_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "MA1440_BASE_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "MA1440_L_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "MA1440_S_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "MA1440_U_AXIS.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}

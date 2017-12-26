@@ -1,0 +1,9 @@
+controller_list:
+  - name: fake_manipulator_controller
+    joints:
+      - junta-S
+      - junta-L
+      - junta-U
+      - junta-R
+      - junta-B
+      - junta-T

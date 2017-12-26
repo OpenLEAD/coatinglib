@@ -1,0 +1,31 @@
+#VRML V1.0 ascii
+WWWInline {
+name "Base.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "Junta_2.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "Junta_1.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "Efetuador.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "Junta_4.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "Junta_3.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}

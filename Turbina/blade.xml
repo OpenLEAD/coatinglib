@@ -1,0 +1,14 @@
+<Environment>
+
+  <KinBody name= "pa1">
+    <Body>
+	<RotationAxis>0 1 0 -29</RotationAxis>
+        <Geom type="trimesh">
+            <collision>pa1.wrl</collision>
+            <Translation>0 0 0</Translation>
+           <RotationAxis>1 0 0 180</RotationAxis>
+        </Geom>
+    </Body> 
+  </KinBody>
+
+</Environment>

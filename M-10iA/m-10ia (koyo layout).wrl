@@ -1,0 +1,36 @@
+#VRML V1.0 ascii
+WWWInline {
+name "M-10iA base.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "M-10iA axis1.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "M-10iA axis5.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "M-10iA axis6.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "M-10iA axis4.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "M-10iA axis2.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
+WWWInline {
+name "M-10iA axis3.wrl"
+bboxSize 0.000000 0.000000 0.000000
+bboxCenter 0.000000 0.000000 0.000000
+}
